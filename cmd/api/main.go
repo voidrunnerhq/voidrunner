@@ -72,7 +72,7 @@ func main() {
 	}
 
 	router := gin.New()
-	routes.Setup(router, cfg, log, repos, authService)
+	routes.Setup(router, cfg, log, dbConn, repos, authService)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),

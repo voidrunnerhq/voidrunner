@@ -14,16 +14,31 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/models"
 )
 
+// Querier interface for both *pgxpool.Pool and pgx.Tx
+type Querier interface {
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
+}
+
 // taskRepository implements TaskRepository interface
 type taskRepository struct {
-	conn          *Connection
+	querier       Querier
 	cursorEncoder *CursorEncoder
 }
 
 // NewTaskRepository creates a new task repository
 func NewTaskRepository(conn *Connection) TaskRepository {
 	return &taskRepository{
-		conn:          conn,
+		querier:       conn.Pool,
+		cursorEncoder: NewCursorEncoder(),
+	}
+}
+
+// NewTaskRepositoryWithTx creates a new task repository with transaction
+func NewTaskRepositoryWithTx(tx pgx.Tx) TaskRepository {
+	return &taskRepository{
+		querier:       tx,
 		cursorEncoder: NewCursorEncoder(),
 	}
 }
@@ -44,7 +59,7 @@ func (r *taskRepository) Create(ctx context.Context, task *models.Task) error {
 		RETURNING created_at, updated_at
 	`
 
-	err := r.conn.Pool.QueryRow(ctx, query,
+	err := r.querier.QueryRow(ctx, query,
 		task.ID,
 		task.UserID,
 		task.Name,
@@ -86,7 +101,7 @@ func (r *taskRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Tas
 	`
 
 	var task models.Task
-	err := r.conn.Pool.QueryRow(ctx, query, id).Scan(
+	err := r.querier.QueryRow(ctx, query, id).Scan(
 		&task.ID,
 		&task.UserID,
 		&task.Name,
@@ -128,7 +143,7 @@ func (r *taskRepository) GetByUserID(ctx context.Context, userID uuid.UUID, limi
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, userID, limit, offset)
+	rows, err := r.querier.Query(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks by user ID: %w", err)
 	}
@@ -154,7 +169,7 @@ func (r *taskRepository) GetByStatus(ctx context.Context, status models.TaskStat
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, status, limit, offset)
+	rows, err := r.querier.Query(ctx, query, status, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks by status: %w", err)
 	}
@@ -176,7 +191,7 @@ func (r *taskRepository) Update(ctx context.Context, task *models.Task) error {
 		RETURNING updated_at
 	`
 
-	err := r.conn.Pool.QueryRow(ctx, query,
+	err := r.querier.QueryRow(ctx, query,
 		task.ID,
 		task.Name,
 		task.Description,
@@ -214,7 +229,7 @@ func (r *taskRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status 
 		WHERE id = $1
 	`
 
-	result, err := r.conn.Pool.Exec(ctx, query, id, status)
+	result, err := r.querier.Exec(ctx, query, id, status)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23514" {
@@ -234,7 +249,7 @@ func (r *taskRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status 
 func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM tasks WHERE id = $1`
 
-	result, err := r.conn.Pool.Exec(ctx, query, id)
+	result, err := r.querier.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
 	}
@@ -262,7 +277,7 @@ func (r *taskRepository) List(ctx context.Context, limit, offset int) ([]*models
 		LIMIT $1 OFFSET $2
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, limit, offset)
+	rows, err := r.querier.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tasks: %w", err)
 	}
@@ -276,7 +291,7 @@ func (r *taskRepository) Count(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) FROM tasks`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query).Scan(&count)
+	err := r.querier.QueryRow(ctx, query).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count tasks: %w", err)
 	}
@@ -289,7 +304,7 @@ func (r *taskRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (i
 	query := `SELECT COUNT(*) FROM tasks WHERE user_id = $1`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query, userID).Scan(&count)
+	err := r.querier.QueryRow(ctx, query, userID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count tasks by user ID: %w", err)
 	}
@@ -302,7 +317,7 @@ func (r *taskRepository) CountByStatus(ctx context.Context, status models.TaskSt
 	query := `SELECT COUNT(*) FROM tasks WHERE status = $1`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query, status).Scan(&count)
+	err := r.querier.QueryRow(ctx, query, status).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count tasks by status: %w", err)
 	}
@@ -327,7 +342,7 @@ func (r *taskRepository) SearchByMetadata(ctx context.Context, query string, lim
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, sqlQuery, query, limit, offset)
+	rows, err := r.querier.Query(ctx, sqlQuery, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search tasks by metadata: %w", err)
 	}
@@ -402,7 +417,7 @@ func (r *taskRepository) GetByUserIDCursor(ctx context.Context, userID uuid.UUID
 
 	args = append(args, req.Limit+1) // Fetch one extra to check if there are more results
 
-	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	rows, err := r.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to get tasks by user ID with cursor: %w", err)
 	}
@@ -472,7 +487,7 @@ func (r *taskRepository) GetByStatusCursor(ctx context.Context, status models.Ta
 
 	args = append(args, req.Limit+1)
 
-	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	rows, err := r.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to get tasks by status with cursor: %w", err)
 	}
@@ -539,7 +554,7 @@ func (r *taskRepository) ListCursor(ctx context.Context, req CursorPaginationReq
 
 	args = append(args, req.Limit+1)
 
-	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	rows, err := r.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to list tasks with cursor: %w", err)
 	}
@@ -595,7 +610,7 @@ func (r *taskRepository) GetTasksWithExecutionCount(ctx context.Context, userID 
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, userID, limit, offset)
+	rows, err := r.querier.Query(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks with execution count: %w", err)
 	}
@@ -674,7 +689,7 @@ func (r *taskRepository) GetTasksWithLatestExecution(ctx context.Context, userID
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, userID, limit, offset)
+	rows, err := r.querier.Query(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks with latest execution: %w", err)
 	}

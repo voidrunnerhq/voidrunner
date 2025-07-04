@@ -14,13 +14,20 @@ import (
 
 // userRepository implements UserRepository interface
 type userRepository struct {
-	conn *Connection
+	querier Querier
 }
 
 // NewUserRepository creates a new user repository
 func NewUserRepository(conn *Connection) UserRepository {
 	return &userRepository{
-		conn: conn,
+		querier: conn.Pool,
+	}
+}
+
+// NewUserRepositoryWithTx creates a new user repository with transaction
+func NewUserRepositoryWithTx(tx pgx.Tx) UserRepository {
+	return &userRepository{
+		querier: tx,
 	}
 }
 
@@ -40,7 +47,7 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 		RETURNING created_at, updated_at
 	`
 
-	err := r.conn.Pool.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash).
+	err := r.querier.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash).
 		Scan(&user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
@@ -69,7 +76,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 	`
 
 	var user models.User
-	err := r.conn.Pool.QueryRow(ctx, query, id).Scan(
+	err := r.querier.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
 		&user.PasswordHash,
@@ -100,7 +107,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.
 	`
 
 	var user models.User
-	err := r.conn.Pool.QueryRow(ctx, query, email).Scan(
+	err := r.querier.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.PasswordHash,
@@ -131,7 +138,7 @@ func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 		RETURNING updated_at
 	`
 
-	err := r.conn.Pool.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash).
+	err := r.querier.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash).
 		Scan(&user.UpdatedAt)
 
 	if err != nil {
@@ -158,7 +165,7 @@ func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM users WHERE id = $1`
 
-	result, err := r.conn.Pool.Exec(ctx, query, id)
+	result, err := r.querier.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -186,7 +193,7 @@ func (r *userRepository) List(ctx context.Context, limit, offset int) ([]*models
 		LIMIT $1 OFFSET $2
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, limit, offset)
+	rows, err := r.querier.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list users: %w", err)
 	}
@@ -220,7 +227,7 @@ func (r *userRepository) Count(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) FROM users`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query).Scan(&count)
+	err := r.querier.QueryRow(ctx, query).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count users: %w", err)
 	}
