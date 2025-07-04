@@ -65,16 +65,59 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, rep
 			protected.GET("/auth/me", authHandler.Me)
 		}
 
-		// Future API routes will use repos here
-		// userHandler := handlers.NewUserHandler(repos.Users)
-		// taskHandler := handlers.NewTaskHandler(repos.Tasks)
-		// executionHandler := handlers.NewTaskExecutionHandler(repos.TaskExecutions)
+		// Task management endpoints
+		taskHandler := handlers.NewTaskHandler(repos.Tasks, log.Logger)
+		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, log.Logger)
+		taskValidation := middleware.TaskValidation(log.Logger)
 		
-		// protected.POST("/users", userHandler.Create)
-		// protected.GET("/users/:id", userHandler.GetByID)
-		// protected.POST("/tasks", taskHandler.Create)
-		// protected.GET("/tasks/:id", taskHandler.GetByID)
-		// protected.POST("/tasks/:id/executions", executionHandler.Create)
-		// protected.GET("/executions/:id", executionHandler.GetByID)
+		// Task CRUD operations
+		protected.POST("/tasks", 
+			middleware.RequestSizeLimit(log.Logger),
+			middleware.TaskCreationRateLimit(log.Logger),
+			taskValidation.ValidateTaskCreation(),
+			taskHandler.Create,
+		)
+		protected.GET("/tasks", 
+			middleware.TaskRateLimit(log.Logger),
+			taskHandler.List,
+		)
+		protected.GET("/tasks/:id", 
+			middleware.TaskRateLimit(log.Logger),
+			taskHandler.GetByID,
+		)
+		protected.PUT("/tasks/:id", 
+			middleware.RequestSizeLimit(log.Logger),
+			middleware.TaskRateLimit(log.Logger),
+			taskValidation.ValidateTaskUpdate(),
+			taskHandler.Update,
+		)
+		protected.DELETE("/tasks/:id", 
+			middleware.TaskRateLimit(log.Logger),
+			taskHandler.Delete,
+		)
+		
+		// Task execution operations
+		protected.POST("/tasks/:task_id/executions", 
+			middleware.ExecutionCreationRateLimit(log.Logger),
+			executionHandler.Create,
+		)
+		protected.GET("/tasks/:task_id/executions", 
+			middleware.TaskExecutionRateLimit(log.Logger),
+			executionHandler.ListByTaskID,
+		)
+		protected.GET("/executions/:id", 
+			middleware.TaskExecutionRateLimit(log.Logger),
+			executionHandler.GetByID,
+		)
+		protected.PUT("/executions/:id", 
+			middleware.RequestSizeLimit(log.Logger),
+			middleware.TaskExecutionRateLimit(log.Logger),
+			taskValidation.ValidateTaskExecutionUpdate(),
+			executionHandler.Update,
+		)
+		protected.DELETE("/executions/:id", 
+			middleware.TaskExecutionRateLimit(log.Logger),
+			executionHandler.Cancel,
+		)
 	}
 }

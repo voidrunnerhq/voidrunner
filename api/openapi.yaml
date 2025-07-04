@@ -1,0 +1,818 @@
+openapi: 3.0.3
+info:
+  title: VoidRunner API
+  description: |
+    VoidRunner is a distributed task execution platform that allows users to create, manage, and execute code tasks securely in isolated containers.
+    
+    ## Authentication
+    All endpoints (except authentication endpoints) require a valid JWT token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Rate Limiting
+    API endpoints are rate-limited to prevent abuse:
+    - Task creation: 20 requests/hour per user
+    - Task operations: 100 requests/hour per user  
+    - Execution creation: 30 requests/hour per user
+    - Execution operations: 50 requests/hour per user
+    
+    ## Security
+    All script content is validated for security:
+    - Dangerous commands and patterns are blocked
+    - File system access is restricted
+    - Network access is disabled during execution
+    - Resource usage is limited
+  version: "1.0.0"
+  contact:
+    name: VoidRunner Support
+    url: https://github.com/voidrunnerhq/voidrunner
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.voidrunner.com/api/v1
+    description: Production server
+  - url: http://localhost:8080/api/v1  
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Task Management Endpoints
+  /tasks:
+    post:
+      summary: Create a new task
+      description: Creates a new task with the specified script content and configuration.
+      operationId: createTask
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            examples:
+              python_task:
+                summary: Python task example
+                value:
+                  name: "Calculate Fibonacci"
+                  description: "Calculate the 10th Fibonacci number"
+                  script_content: |
+                    def fibonacci(n):
+                        if n <= 1:
+                            return n
+                        return fibonacci(n-1) + fibonacci(n-2)
+                    
+                    result = fibonacci(10)
+                    print(f"The 10th Fibonacci number is: {result}")
+                  script_type: "python"
+                  priority: 5
+                  timeout_seconds: 300
+              javascript_task:
+                summary: JavaScript task example  
+                value:
+                  name: "Array Processing"
+                  script_content: |
+                    const numbers = [1, 2, 3, 4, 5];
+                    const doubled = numbers.map(n => n * 2);
+                    console.log('Doubled numbers:', doubled);
+                  script_type: "javascript"
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    get:
+      summary: List user's tasks
+      description: Retrieves a paginated list of tasks owned by the authenticated user.
+      operationId: listTasks
+      tags:
+        - Tasks
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of tasks to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of tasks to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /tasks/{taskId}:
+    get:
+      summary: Get task details
+      description: Retrieves detailed information about a specific task.
+      operationId: getTask
+      tags:
+        - Tasks
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    put:
+      summary: Update task
+      description: Updates an existing task. Cannot update running tasks.
+      operationId: updateTask
+      tags:
+        - Tasks
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+            examples:
+              update_name:
+                summary: Update task name
+                value:
+                  name: "Updated Task Name"
+              update_script:
+                summary: Update script content
+                value:
+                  script_content: |
+                    print("Updated script content")
+                    print("Hello, World!")
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot update running task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    delete:
+      summary: Delete task
+      description: Deletes a task. Cannot delete running tasks.
+      operationId: deleteTask
+      tags:
+        - Tasks
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Task deleted successfully"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete running task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # Task Execution Endpoints  
+  /tasks/{taskId}/executions:
+    post:
+      summary: Start task execution
+      description: Starts execution of the specified task.
+      operationId: createExecution
+      tags:
+        - Executions
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '201':
+          description: Execution started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskExecutionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Task is already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    get:
+      summary: List task executions
+      description: Retrieves a paginated list of executions for the specified task.
+      operationId: listTaskExecutions
+      tags:
+        - Executions
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - name: limit
+          in: query
+          description: Maximum number of executions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of executions to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Executions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /executions/{executionId}:
+    get:
+      summary: Get execution details
+      description: Retrieves detailed information about a specific execution.
+      operationId: getExecution
+      tags:
+        - Executions
+      parameters:
+        - $ref: '#/components/parameters/ExecutionId'
+      responses:
+        '200':
+          description: Execution retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskExecutionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    put:
+      summary: Update execution
+      description: Updates execution status and results. Typically used by the execution system.
+      operationId: updateExecution
+      tags:
+        - Executions
+      parameters:
+        - $ref: '#/components/parameters/ExecutionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskExecutionRequest'
+            examples:
+              complete_success:
+                summary: Mark execution as completed
+                value:
+                  status: "completed"
+                  return_code: 0
+                  stdout: "Hello, World!\n"
+                  execution_time_ms: 1250
+                  memory_usage_bytes: 15728640
+              complete_error:
+                summary: Mark execution as failed
+                value:
+                  status: "failed"
+                  return_code: 1
+                  stderr: "SyntaxError: invalid syntax\n"
+                  execution_time_ms: 500
+      responses:
+        '200':
+          description: Execution updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskExecutionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    delete:
+      summary: Cancel execution
+      description: Cancels a running execution.
+      operationId: cancelExecution
+      tags:
+        - Executions
+      parameters:
+        - $ref: '#/components/parameters/ExecutionId'
+      responses:
+        '200':
+          description: Execution cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Execution cancelled successfully"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot cancel completed execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      description: Unique identifier for the task
+      schema:
+        type: string
+        format: uuid
+        example: "123e4567-e89b-12d3-a456-426614174000"
+
+    ExecutionId:
+      name: executionId
+      in: path
+      required: true
+      description: Unique identifier for the execution
+      schema:
+        type: string
+        format: uuid
+        example: "123e4567-e89b-12d3-a456-426614174001"
+
+  schemas:
+    CreateTaskRequest:
+      type: object
+      required:
+        - name
+        - script_content
+        - script_type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable name for the task
+          example: "Calculate Fibonacci Numbers"
+        description:
+          type: string
+          maxLength: 1000
+          description: Optional description of what the task does
+          example: "Calculates the Nth Fibonacci number using recursion"
+        script_content:
+          type: string
+          minLength: 1
+          maxLength: 65535
+          description: The script code to execute
+          example: |
+            def fibonacci(n):
+                if n <= 1:
+                    return n
+                return fibonacci(n-1) + fibonacci(n-2)
+            
+            print(fibonacci(10))
+        script_type:
+          $ref: '#/components/schemas/ScriptType'
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 5
+          description: Task priority (0=lowest, 10=highest)
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 3600
+          default: 300
+          description: Maximum execution time in seconds
+        metadata:
+          type: object
+          description: Optional metadata for the task
+          example:
+            author: "john.doe"
+            tags: ["fibonacci", "algorithm"]
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable name for the task
+        description:
+          type: string
+          maxLength: 1000
+          description: Optional description of what the task does
+        script_content:
+          type: string
+          minLength: 1
+          maxLength: 65535
+          description: The script code to execute
+        script_type:
+          $ref: '#/components/schemas/ScriptType'
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Task priority (0=lowest, 10=highest)
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 3600
+          description: Maximum execution time in seconds
+        metadata:
+          type: object
+          description: Optional metadata for the task
+
+    UpdateTaskExecutionRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        return_code:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Process exit code
+        stdout:
+          type: string
+          description: Standard output from the execution
+        stderr:
+          type: string
+          description: Standard error from the execution
+        execution_time_ms:
+          type: integer
+          minimum: 0
+          description: Execution time in milliseconds
+        memory_usage_bytes:
+          type: integer
+          minimum: 0
+          description: Peak memory usage in bytes
+        started_at:
+          type: string
+          format: date-time
+          description: When the execution started
+        completed_at:
+          type: string
+          format: date-time
+          description: When the execution completed
+
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the task
+        user_id:
+          type: string
+          format: uuid
+          description: ID of the user who owns the task
+        name:
+          type: string
+          description: Human-readable name for the task
+        description:
+          type: string
+          nullable: true
+          description: Optional description of the task
+        script_content:
+          type: string
+          description: The script code to execute
+        script_type:
+          $ref: '#/components/schemas/ScriptType'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          type: integer
+          description: Task priority (0=lowest, 10=highest)
+        timeout_seconds:
+          type: integer
+          description: Maximum execution time in seconds
+        metadata:
+          type: object
+          nullable: true
+          description: Optional metadata for the task
+        created_at:
+          type: string
+          format: date-time
+          description: When the task was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the task was last updated
+
+    TaskExecutionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the execution
+        task_id:
+          type: string
+          format: uuid
+          description: ID of the task being executed
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        return_code:
+          type: integer
+          nullable: true
+          description: Process exit code
+        stdout:
+          type: string
+          nullable: true
+          description: Standard output from the execution
+        stderr:
+          type: string
+          nullable: true
+          description: Standard error from the execution
+        execution_time_ms:
+          type: integer
+          nullable: true
+          description: Execution time in milliseconds
+        memory_usage_bytes:
+          type: integer
+          nullable: true
+          description: Peak memory usage in bytes
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the execution started
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the execution completed
+        created_at:
+          type: string
+          format: date-time
+          description: When the execution was created
+
+    TaskListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+        total:
+          type: integer
+          description: Total number of tasks
+        limit:
+          type: integer
+          description: Maximum number of tasks returned
+        offset:
+          type: integer
+          description: Number of tasks skipped
+
+    ExecutionListResponse:
+      type: object
+      properties:
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExecutionResponse'
+        total:
+          type: integer
+          description: Total number of executions
+        limit:
+          type: integer
+          description: Maximum number of executions returned
+        offset:
+          type: integer
+          description: Number of executions skipped
+
+    ScriptType:
+      type: string
+      enum:
+        - python
+        - javascript
+        - bash
+        - go
+      description: The type of script to execute
+      example: python
+
+    TaskStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - timeout
+        - cancelled
+      description: Current status of the task
+      example: pending
+
+    ExecutionStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - timeout
+        - cancelled
+      description: Current status of the execution
+      example: running
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details (optional)
+        validation_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field that failed validation
+              value:
+                type: string
+                description: Value that was provided
+              tag:
+                type: string
+                description: Validation rule that failed
+              message:
+                type: string
+                description: Human-readable error message
+          description: Detailed validation errors (for 400 responses)
+
+  responses:
+    BadRequest:
+      description: Invalid request format or validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Validation error
+              value:
+                error: "Validation failed"
+                validation_errors:
+                  - field: "script_content"
+                    value: "rm -rf /"
+                    tag: "script_content"
+                    message: "Script content contains potentially dangerous patterns"
+            invalid_format:
+              summary: Invalid JSON format
+              value:
+                error: "Invalid request format"
+                details: "invalid character '}' looking for beginning of object key string"
+
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Invalid or expired token"
+
+    Forbidden:
+      description: Access denied - user cannot access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Access denied"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Task not found"
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Rate limit exceeded"
+            retry_after: 3600
+
+tags:
+  - name: Tasks
+    description: Task management operations
+  - name: Executions
+    description: Task execution operations
