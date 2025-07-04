@@ -1,0 +1,215 @@
+name: Feature Request
+description: Template for requesting new features or enhancements to VoidRunner
+title: "[Feature Title]"
+labels: 
+  - "type/feature"
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Feature priority level
+      options:
+        - "priority/0 (Critical)"
+        - "priority/1 (High)"
+        - "priority/2 (Medium)"
+    validations:
+      required: true
+
+  - type: input
+    id: story_points
+    attributes:
+      label: Estimated Story Points
+      description: Estimated complexity (1-13 points using Fibonacci scale)
+      placeholder: "5"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: area_labels
+    attributes:
+      label: Area Labels
+      description: Select all relevant areas (will be added as labels)
+      options:
+        - label: "area/api - REST API endpoints and middleware"
+        - label: "area/frontend - Svelte UI components and pages"
+        - label: "area/execution - Container execution and task processing"
+        - label: "area/scheduler - Task queue management and prioritization"
+        - label: "area/security - Authentication, authorization, and security controls"
+        - label: "area/database - PostgreSQL schema, queries, and migrations"
+        - label: "area/logging - Log collection, storage, and streaming"
+        - label: "area/infra - Infrastructure, deployment, and configuration"
+
+  - type: checkboxes
+    id: component_labels
+    attributes:
+      label: Component Labels
+      description: Select all relevant components (will be added as labels)
+      options:
+        - label: "component/auth - Authentication and authorization"
+        - label: "component/scheduler - Task scheduling and queue management"
+        - label: "component/docker - Docker integration and container management"
+        - label: "component/logging - Log streaming and aggregation"
+        - label: "component/monitoring - Metrics, alerting, and observability"
+        - label: "component/k8s - Kubernetes manifests and configuration"
+        - label: "component/database - Database operations and management"
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: Describe the feature from the user's perspective
+      placeholder: "As a [user type], I want [capability] so that [benefit]."
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_requirements
+    attributes:
+      label: Technical Requirements
+      description: List the technical implementation requirements
+      value: |
+        - [ ] [Technical requirement 1]
+        - [ ] [Technical requirement 2]
+        - [ ] [Technical requirement 3]
+        - [ ] [Technical requirement 4]
+        - [ ] [Technical requirement 5]
+        - [ ] [Technical requirement 6]
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define what constitutes successful completion
+      value: |
+        - [ ] [Acceptance criterion 1]
+        - [ ] [Acceptance criterion 2]
+        - [ ] [Acceptance criterion 3]
+        - [ ] [Acceptance criterion 4]
+        - [ ] [Acceptance criterion 5]
+        - [ ] [Acceptance criterion 6]
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+      description: Checklist for completion and quality assurance
+      value: |
+        - [ ] [Implementation completed and tested]
+        - [ ] [Unit tests written and passing]
+        - [ ] [Integration tests passing (if applicable)]
+        - [ ] [Error handling covers edge cases]
+        - [ ] [Performance benchmarked and acceptable]
+        - [ ] [Documentation updated]
+        - [ ] [Code review completed]
+        - [ ] [Security review completed (if applicable)]
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation_guide
+    attributes:
+      label: Implementation Guide
+      description: Technical details and guidance for implementation
+      value: |
+        ## Required Dependencies
+        ```bash
+        # Add any new dependencies here
+        go get package-name
+        npm install package-name
+        ```
+
+        ## Component Structure
+        ```
+        # File/directory structure for this feature
+        src/
+        ├── component/
+        │   ├── file1.go/.svelte
+        │   └── file2.go/.svelte
+        ```
+
+        ## Essential Commands/Endpoints
+        ```bash
+        # API endpoints or commands relevant to this feature
+        GET /api/v1/endpoint
+        POST /api/v1/endpoint
+        ```
+
+        ## Configuration Changes
+        - [ ] Environment variables
+        - [ ] Database migrations
+        - [ ] Kubernetes manifests
+        - [ ] Security policies
+    validations:
+      required: false
+
+  - type: input
+    id: related_epic
+    attributes:
+      label: Related Epic
+      description: Which epic does this feature contribute to?
+      placeholder: "Epic #X: Epic Name"
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any blocking dependencies or related issues
+      placeholder: |
+        **Depends on:**
+        - Issue #X must be completed first
+        - External service Y must be available
+
+        **Blocks:**
+        - Issue #Z depends on this feature
+
+        **Related:**
+        - Similar to Issue #A
+        - Impacts Issue #B
+    validations:
+      required: false
+
+  - type: textarea
+    id: testing_strategy
+    attributes:
+      label: Testing Strategy
+      description: How should this feature be tested?
+      value: |
+        ## Unit Tests
+        - [ ] [Test scenario 1]
+        - [ ] [Test scenario 2]
+        - [ ] [Error handling tests]
+
+        ## Integration Tests
+        - [ ] [End-to-end workflow test]
+        - [ ] [API integration test]
+
+        ## Performance Tests
+        - [ ] [Load test with X concurrent users]
+        - [ ] [Response time under Xms]
+
+        ## Security Tests
+        - [ ] [Authentication/authorization test]
+        - [ ] [Input validation test]
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any additional information, mockups, or references
+      placeholder: |
+        - Screenshots or mockups
+        - Links to relevant documentation
+        - Examples from other systems
+        - Business justification
+        - User feedback or requests
+    validations:
+      required: false

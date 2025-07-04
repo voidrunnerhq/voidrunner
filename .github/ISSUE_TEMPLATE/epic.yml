@@ -1,0 +1,326 @@
+name: Epic Issue
+description: Template for creating Epic issues that encompass multiple related features or major initiatives
+title: "Epic: [Epic Name]"
+labels: 
+  - "type/epic"
+body:
+  - type: input
+    id: timeline
+    attributes:
+      label: Timeline
+      description: Development timeline for this epic
+      placeholder: "Weeks 1-4"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Epic priority level
+      options:
+        - "priority/0 (Critical)"
+        - "priority/1 (High)"
+        - "priority/2 (Medium)"
+    validations:
+      required: true
+
+  - type: input
+    id: story_points
+    attributes:
+      label: Estimated Story Points
+      description: Total estimated story points for the entire epic
+      placeholder: "25-40 points"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: area_labels
+    attributes:
+      label: Area Labels
+      description: Select all relevant areas (will be added as labels)
+      options:
+        - label: "area/api - REST API endpoints and middleware"
+        - label: "area/frontend - Svelte UI components and pages"
+        - label: "area/execution - Container execution and task processing"
+        - label: "area/scheduler - Task queue management and prioritization"
+        - label: "area/security - Authentication, authorization, and security controls"
+        - label: "area/database - PostgreSQL schema, queries, and migrations"
+        - label: "area/logging - Log collection, storage, and streaming"
+        - label: "area/infra - Infrastructure, deployment, and configuration"
+
+  - type: checkboxes
+    id: component_labels
+    attributes:
+      label: Component Labels
+      description: Select all relevant components (will be added as labels)
+      options:
+        - label: "component/auth - Authentication and authorization"
+        - label: "component/scheduler - Task scheduling and queue management"
+        - label: "component/docker - Docker integration and container management"
+        - label: "component/logging - Log streaming and aggregation"
+        - label: "component/monitoring - Metrics, alerting, and observability"
+        - label: "component/k8s - Kubernetes manifests and configuration"
+        - label: "component/database - Database operations and management"
+
+  - type: textarea
+    id: epic_description
+    attributes:
+      label: Epic Description
+      description: Comprehensive description of what this epic accomplishes and why it's important for VoidRunner
+      placeholder: |
+        Provide 2-3 paragraphs describing:
+        - What this epic accomplishes
+        - Business value and impact
+        - Technical scope and approach
+        - How it fits into VoidRunner's overall architecture
+    validations:
+      required: true
+
+  - type: textarea
+    id: goals_objectives
+    attributes:
+      label: Goals and Objectives
+      description: Primary goals and technical objectives for this epic
+      value: |
+        ## Primary Goals
+        - [ ] [Specific, measurable goal 1]
+        - [ ] [Specific, measurable goal 2]
+        - [ ] [Specific, measurable goal 3]
+
+        ## Technical Objectives
+        - [ ] [Technical capability 1]
+        - [ ] [Technical capability 2]
+        - [ ] [Technical capability 3]
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Epic Acceptance Criteria
+      description: Functional and non-functional requirements that must be met
+      value: |
+        ## Functional Requirements
+        - [ ] [Core functionality requirement 1]
+        - [ ] [Core functionality requirement 2]
+        - [ ] [Core functionality requirement 3]
+
+        ## Non-Functional Requirements
+        - [ ] [Performance requirement - specify metrics]
+        - [ ] [Security requirement - specify compliance]
+        - [ ] [Reliability requirement - specify SLA]
+
+        ## Quality Gates
+        - [ ] Test coverage ≥ 80%
+        - [ ] Security scan passes with no high-severity issues
+        - [ ] Performance benchmarks met (specify targets)
+        - [ ] Code review completed for all components
+    validations:
+      required: true
+
+  - type: textarea
+    id: sub_issues
+    attributes:
+      label: Sub-Issues and Dependencies
+      description: List of issues that comprise this epic and their dependencies
+      value: |
+        ## Core Issues (Must Complete)
+        - [ ] #[issue-number]: [Issue title] - [Story points] - [Priority]
+        - [ ] #[issue-number]: [Issue title] - [Story points] - [Priority]
+        - [ ] #[issue-number]: [Issue title] - [Story points] - [Priority]
+
+        ## Supporting Issues (Should Complete)
+        - [ ] #[issue-number]: [Issue title] - [Story points] - [Priority]
+        - [ ] #[issue-number]: [Issue title] - [Story points] - [Priority]
+
+        ## Dependencies
+        **Blocking Dependencies:**
+        - [Epic/Issue] must be completed before this epic can start
+        - [External dependency] must be available
+
+        **Parallel Development:**
+        - Can be developed alongside [Epic/Issue]
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_architecture
+    attributes:
+      label: Technical Architecture
+      description: Key components, technology stack, and integration points
+      value: |
+        ## Key Components
+        - **[Component 1]**: [Brief description and responsibility]
+        - **[Component 2]**: [Brief description and responsibility]
+        - **[Component 3]**: [Brief description and responsibility]
+
+        ## Technology Stack
+        - **Backend**: [Technologies and frameworks]
+        - **Frontend**: [Technologies and frameworks]
+        - **Infrastructure**: [Deployment and infrastructure components]
+        - **Security**: [Security measures and tools]
+
+        ## Integration Points
+        - [Integration point 1 with other systems]
+        - [Integration point 2 with other systems]
+
+        ## Database Changes
+        - [ ] Schema migrations required
+        - [ ] New indexes needed
+        - [ ] Data migration required
+    validations:
+      required: false
+
+  - type: textarea
+    id: success_metrics
+    attributes:
+      label: Success Metrics
+      description: Technical and business metrics to measure epic success
+      value: |
+        ## Technical Metrics
+        - **Performance**: [Specific performance targets]
+        - **Reliability**: [Uptime and error rate targets]
+        - **Security**: [Security compliance measures]
+        - **Quality**: [Code quality and test coverage targets]
+
+        ## Business Metrics
+        - **User Impact**: [How this epic affects user experience]
+        - **Development Velocity**: [Impact on team productivity]
+        - **Platform Capability**: [New capabilities enabled]
+
+        ## Concrete Benchmarks
+        - API response time: < 200ms (95th percentile)
+        - Task execution startup: < 5 seconds
+        - System uptime: 99.9%
+        - Test coverage: ≥ 80%
+    validations:
+      required: true
+
+  - type: textarea
+    id: risk_assessment
+    attributes:
+      label: Risk Assessment
+      description: Identify high-risk areas and mitigation strategies
+      value: |
+        ## High-Risk Areas
+        - **[Risk 1]**: [Description and impact]
+          - *Mitigation*: [Specific mitigation strategy]
+          - *Contingency*: [Fallback plan]
+
+        - **[Risk 2]**: [Description and impact]
+          - *Mitigation*: [Specific mitigation strategy]
+          - *Contingency*: [Fallback plan]
+
+        ## Technical Challenges
+        - [Challenge 1 and approach]
+        - [Challenge 2 and approach]
+
+        ## Security Considerations
+        - [Security risk 1 and controls]
+        - [Security risk 2 and controls]
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+      description: Criteria that must be met for epic completion
+      value: |
+        ## Epic Completion Criteria
+        - [ ] All core sub-issues completed and tested
+        - [ ] Integration testing passed
+        - [ ] Performance benchmarks met
+        - [ ] Security review completed
+        - [ ] Documentation updated
+        - [ ] Production deployment verified (if applicable)
+
+        ## Quality Assurance
+        - [ ] Code review completed for all components
+        - [ ] Unit test coverage meets threshold (80%+)
+        - [ ] Integration tests passing
+        - [ ] Security scan passed with no high-severity issues
+        - [ ] Performance testing completed
+
+        ## Documentation and Handoff
+        - [ ] Technical documentation updated
+        - [ ] API documentation updated (if applicable)
+        - [ ] Operations runbooks updated (if applicable)
+        - [ ] Team knowledge transfer completed
+    validations:
+      required: true
+
+  - type: textarea
+    id: sprint_planning
+    attributes:
+      label: Sprint Planning
+      description: Recommended sprint breakdown and resource allocation
+      value: |
+        ## Recommended Sprint Breakdown
+        **Sprint [X]** (Weeks [X-Y]): [Sprint focus]
+        - Issues: [List of issues for this sprint]
+        - Deliverable: [What will be demonstrated]
+
+        **Sprint [X+1]** (Weeks [Y-Z]): [Sprint focus]
+        - Issues: [List of issues for this sprint]
+        - Deliverable: [What will be demonstrated]
+
+        ## Resource Allocation
+        - **Backend Engineer**: [X story points]
+        - **Frontend Engineer**: [X story points]
+        - **DevOps Engineer**: [X story points]
+        - **Product Manager**: [X story points]
+
+        ## Sprint Capacity
+        - Total epic points: [X]
+        - Sprints required: [X]
+        - Points per sprint: [X]
+        - Buffer included: 15%
+    validations:
+      required: false
+
+  - type: input
+    id: epic_owner
+    attributes:
+      label: Epic Owner
+      description: Team member responsible for this epic
+      placeholder: "@username"
+    validations:
+      required: true
+
+  - type: input
+    id: technical_lead
+    attributes:
+      label: Technical Lead
+      description: Team member responsible for technical decisions
+      placeholder: "@username"
+    validations:
+      required: true
+
+  - type: input
+    id: target_completion
+    attributes:
+      label: Target Completion Date
+      description: Expected completion date for this epic
+      placeholder: "2025-08-15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any additional context, user stories, or business rationale
+      value: |
+        ## User Stories Addressed
+        - As a [user type], I want [capability] so that [benefit]
+        - As a [user type], I want [capability] so that [benefit]
+
+        ## Business Context
+        [Why this epic is important for VoidRunner's business goals and product strategy]
+
+        ## Technical Context
+        [Technical background, existing systems affected, and architectural considerations]
+    validations:
+      required: false

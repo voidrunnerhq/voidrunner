@@ -1,0 +1,273 @@
+name: Bug Report
+description: Report a bug or issue in VoidRunner
+title: "[Bug]: [Brief description of the issue]"
+labels: 
+  - "type/bug"
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Bug priority/severity level
+      options:
+        - "priority/0 (Critical - System down, security issue)"
+        - "priority/1 (High - Major functionality broken)"
+        - "priority/2 (Medium - Minor functionality issue)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: area_labels
+    attributes:
+      label: Affected Areas
+      description: Select all areas affected by this bug
+      options:
+        - label: "area/api - REST API endpoints and middleware"
+        - label: "area/frontend - Svelte UI components and pages"
+        - label: "area/execution - Container execution and task processing"
+        - label: "area/scheduler - Task queue management and prioritization"
+        - label: "area/security - Authentication, authorization, and security controls"
+        - label: "area/database - PostgreSQL schema, queries, and migrations"
+        - label: "area/logging - Log collection, storage, and streaming"
+        - label: "area/infra - Infrastructure, deployment, and configuration"
+
+  - type: checkboxes
+    id: component_labels
+    attributes:
+      label: Affected Components
+      description: Select all components affected by this bug
+      options:
+        - label: "component/auth - Authentication and authorization"
+        - label: "component/scheduler - Task scheduling and queue management"
+        - label: "component/docker - Docker integration and container management"
+        - label: "component/logging - Log streaming and aggregation"
+        - label: "component/monitoring - Metrics, alerting, and observability"
+        - label: "component/k8s - Kubernetes manifests and configuration"
+        - label: "component/database - Database operations and management"
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Bug Description
+      description: Provide a clear and concise description of what the bug is
+      placeholder: "The system fails to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior
+      value: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Execute command `...`
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: "The system should..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: "Instead, the system..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_logs
+    attributes:
+      label: Error Logs
+      description: Relevant error messages, stack traces, or log output
+      placeholder: |
+        ```
+        Paste error logs here
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Information about your environment
+      value: |
+        **Deployment Environment:**
+        - [ ] Local development
+        - [ ] Docker container
+        - [ ] Kubernetes cluster
+        - [ ] Production
+
+        **Operating System:** 
+        - [ ] Linux (specify distro/version)
+        - [ ] macOS (specify version)
+        - [ ] Windows (specify version)
+
+        **Browser (if frontend issue):**
+        - [ ] Chrome (version)
+        - [ ] Firefox (version)
+        - [ ] Safari (version)
+        - [ ] Edge (version)
+
+        **VoidRunner Version/Commit:** 
+        **Go Version:** 
+        **Docker Version:** 
+        **Kubernetes Version:** 
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_data
+    attributes:
+      label: Reproduction Data
+      description: Sample data, configurations, or minimal reproduction case
+      value: |
+        ## Sample Task/Configuration
+        ```json
+        {
+          "name": "test-task",
+          "script_content": "print('hello')",
+          "script_type": "python"
+        }
+        ```
+
+        ## Configuration Files
+        ```yaml
+        # Relevant config snippets
+        ```
+
+        ## Database State (if relevant)
+        ```sql
+        -- Sample data that causes the issue
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Videos
+      description: If applicable, add screenshots or videos to help explain the problem
+      placeholder: "Drag and drop images/videos here or paste links"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequency
+      description: How often does this bug occur?
+      options:
+        - "Always (100%)"
+        - "Often (75-99%)"
+        - "Sometimes (25-74%)"
+        - "Rarely (1-24%)"
+        - "Once (unable to reproduce)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact_assessment
+    attributes:
+      label: Impact Assessment
+      description: How does this bug affect users and the system?
+      value: |
+        **User Impact:**
+        - [ ] Blocks critical workflow
+        - [ ] Degrades performance
+        - [ ] Causes data loss
+        - [ ] Security vulnerability
+        - [ ] Cosmetic issue only
+
+        **Business Impact:**
+        - [ ] Production system down
+        - [ ] Customer complaints
+        - [ ] Development team blocked
+        - [ ] Minor inconvenience
+
+        **Affected Users:**
+        - Number of users affected: 
+        - User types affected: [all users/admin users/specific role]
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Any temporary workaround that can be used
+      placeholder: |
+        If you've found a way to work around this issue temporarily, please describe it here.
+        
+        Example:
+        1. Use alternative endpoint X instead of Y
+        2. Restart service Z to clear the issue
+        3. Manually run command ABC
+    validations:
+      required: false
+
+  - type: textarea
+    id: investigation_notes
+    attributes:
+      label: Investigation Notes
+      description: Any debugging or investigation you've already done
+      value: |
+        ## Already Tried
+        - [ ] Checked logs for errors
+        - [ ] Verified configuration
+        - [ ] Tested in different environment
+        - [ ] Searched existing issues
+
+        ## Potential Root Cause
+        [If you have theories about what might be causing this]
+
+        ## Related Code/Components
+        [Point to specific files, functions, or components that might be involved]
+    validations:
+      required: false
+
+  - type: textarea
+    id: fix_suggestions
+    attributes:
+      label: Suggested Fix (Optional)
+      description: If you have ideas for how to fix this bug
+      placeholder: |
+        If you have suggestions for how this could be fixed:
+        
+        1. Potential solution approach
+        2. Code changes needed
+        3. Configuration updates required
+        4. Testing strategy for the fix
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: regression
+    attributes:
+      label: Regression Analysis
+      description: Help us understand if this is a regression
+      options:
+        - label: "This worked in a previous version"
+        - label: "This is a new feature that never worked"
+        - label: "This worked in a different environment"
+        - label: "This issue appeared after a recent deployment"
+
+  - type: input
+    id: regression_version
+    attributes:
+      label: Last Working Version
+      description: If this is a regression, what was the last version where this worked?
+      placeholder: "v1.2.3 or commit hash abc123"
+    validations:
+      required: false
