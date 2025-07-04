@@ -225,7 +225,7 @@ func TestUserRepository_Count(t *testing.T) {
 
 // Mock tests for business logic validation
 func TestUserRepository_CreateValidation(t *testing.T) {
-	repo := &userRepository{conn: nil} // Mock repository
+	repo := &userRepository{querier: nil} // Mock repository
 
 	t.Run("nil user validation", func(t *testing.T) {
 		err := repo.Create(context.Background(), nil)
@@ -235,7 +235,7 @@ func TestUserRepository_CreateValidation(t *testing.T) {
 }
 
 func TestUserRepository_GetByEmailValidation(t *testing.T) {
-	repo := &userRepository{conn: nil} // Mock repository
+	repo := &userRepository{querier: nil} // Mock repository
 
 	t.Run("empty email validation", func(t *testing.T) {
 		_, err := repo.GetByEmail(context.Background(), "")
@@ -245,7 +245,7 @@ func TestUserRepository_GetByEmailValidation(t *testing.T) {
 }
 
 func TestUserRepository_UpdateValidation(t *testing.T) {
-	repo := &userRepository{conn: nil} // Mock repository
+	repo := &userRepository{querier: nil} // Mock repository
 
 	t.Run("nil user validation", func(t *testing.T) {
 		err := repo.Update(context.Background(), nil)

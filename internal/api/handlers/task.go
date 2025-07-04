@@ -168,49 +168,85 @@ func (h *TaskHandler) List(c *gin.Context) {
 		return
 	}
 
-	// Parse pagination parameters
-	limit, offset, err := h.parsePagination(c)
+	// Try to parse cursor pagination first
+	cursorReq, useCursor, err := h.parseCursorPagination(c)
 	if err != nil {
-		h.logger.Warn("invalid pagination parameters", "error", err)
+		h.logger.Warn("invalid cursor pagination parameters", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	// Get tasks from database
-	tasks, err := h.taskRepo.GetByUserID(c.Request.Context(), user.ID, limit, offset)
-	if err != nil {
-		h.logger.Error("failed to get user tasks", "error", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve tasks",
+	if useCursor {
+		// Use cursor-based pagination
+		tasks, paginationResp, err := h.taskRepo.GetByUserIDCursor(c.Request.Context(), user.ID, cursorReq)
+		if err != nil {
+			h.logger.Error("failed to get user tasks with cursor", "error", err, "user_id", user.ID)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve tasks",
+			})
+			return
+		}
+
+		// Convert to response format
+		taskResponses := make([]models.TaskResponse, len(tasks))
+		for i, task := range tasks {
+			taskResponses[i] = task.ToResponse()
+		}
+
+		h.logger.Debug("tasks retrieved successfully with cursor", "user_id", user.ID, "count", len(tasks))
+		c.JSON(http.StatusOK, gin.H{
+			"tasks":       taskResponses,
+			"pagination":  paginationResp,
+			"limit":       cursorReq.Limit,
+			"sort_order":  cursorReq.SortOrder,
 		})
-		return
-	}
+	} else {
+		// Use offset-based pagination (legacy)
+		limit, offset, err := h.parsePagination(c)
+		if err != nil {
+			h.logger.Warn("invalid offset pagination parameters", "error", err)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
 
-	// Get total count
-	total, err := h.taskRepo.CountByUserID(c.Request.Context(), user.ID)
-	if err != nil {
-		h.logger.Error("failed to count user tasks", "error", err, "user_id", user.ID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to count tasks",
+		// Get tasks from database
+		tasks, err := h.taskRepo.GetByUserID(c.Request.Context(), user.ID, limit, offset)
+		if err != nil {
+			h.logger.Error("failed to get user tasks", "error", err, "user_id", user.ID)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve tasks",
+			})
+			return
+		}
+
+		// Get total count for offset pagination
+		total, err := h.taskRepo.CountByUserID(c.Request.Context(), user.ID)
+		if err != nil {
+			h.logger.Error("failed to count user tasks", "error", err, "user_id", user.ID)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to count tasks",
+			})
+			return
+		}
+
+		// Convert to response format
+		taskResponses := make([]models.TaskResponse, len(tasks))
+		for i, task := range tasks {
+			taskResponses[i] = task.ToResponse()
+		}
+
+		h.logger.Debug("tasks retrieved successfully with offset", "user_id", user.ID, "count", len(tasks))
+		c.JSON(http.StatusOK, gin.H{
+			"tasks":  taskResponses,
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
 		})
-		return
 	}
-
-	// Convert to response format
-	taskResponses := make([]models.TaskResponse, len(tasks))
-	for i, task := range tasks {
-		taskResponses[i] = task.ToResponse()
-	}
-
-	h.logger.Debug("tasks retrieved successfully", "user_id", user.ID, "count", len(tasks))
-	c.JSON(http.StatusOK, gin.H{
-		"tasks":  taskResponses,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	})
 }
 
 // Update handles updating a task
@@ -490,4 +526,45 @@ func (h *TaskHandler) parsePagination(c *gin.Context) (limit, offset int, err er
 	}
 
 	return limit, offset, nil
+}
+
+// parseCursorPagination parses cursor pagination parameters from query string
+func (h *TaskHandler) parseCursorPagination(c *gin.Context) (database.CursorPaginationRequest, bool, error) {
+	cursor := c.Query("cursor")
+	limitStr := c.Query("limit")
+	sortOrder := c.Query("sort_order")
+	
+	// If no cursor parameters are provided, use offset pagination
+	if cursor == "" && limitStr == "" && sortOrder == "" {
+		return database.CursorPaginationRequest{}, false, nil
+	}
+	
+	req := database.CursorPaginationRequest{
+		Limit:     20,      // default
+		SortOrder: "desc",  // default
+	}
+	
+	// Parse limit
+	if limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return req, false, fmt.Errorf("invalid limit parameter: %w", err)
+		}
+		req.Limit = limit
+	}
+	
+	// Parse cursor
+	if cursor != "" {
+		req.Cursor = &cursor
+	}
+	
+	// Parse sort order
+	if sortOrder != "" {
+		req.SortOrder = sortOrder
+	}
+	
+	// Validate the request
+	database.ValidatePaginationRequest(&req)
+	
+	return req, true, nil
 }

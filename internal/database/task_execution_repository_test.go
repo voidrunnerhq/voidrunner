@@ -300,7 +300,7 @@ func TestTaskExecutionRepository_CountByStatus(t *testing.T) {
 
 // Mock tests for business logic validation
 func TestTaskExecutionRepository_CreateValidation(t *testing.T) {
-	repo := &taskExecutionRepository{conn: nil} // Mock repository
+	repo := &taskExecutionRepository{querier: nil} // Mock repository
 
 	t.Run("nil task execution validation", func(t *testing.T) {
 		err := repo.Create(context.Background(), nil)
@@ -310,7 +310,7 @@ func TestTaskExecutionRepository_CreateValidation(t *testing.T) {
 }
 
 func TestTaskExecutionRepository_UpdateValidation(t *testing.T) {
-	repo := &taskExecutionRepository{conn: nil} // Mock repository
+	repo := &taskExecutionRepository{querier: nil} // Mock repository
 
 	t.Run("nil task execution validation", func(t *testing.T) {
 		err := repo.Update(context.Background(), nil)

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 )
@@ -144,6 +145,74 @@ func (c *Connection) HealthCheck(ctx context.Context) error {
 
 	if result != 1 {
 		return fmt.Errorf("unexpected database query result: %d", result)
+	}
+
+	return nil
+}
+
+// Transaction interface represents a database transaction
+type Transaction interface {
+	pgx.Tx
+	// Repositories provides access to transaction-aware repositories
+	Repositories() TransactionalRepositories
+}
+
+// TransactionalRepositories provides transaction-aware repository interfaces
+type TransactionalRepositories struct {
+	Tasks          TaskRepository
+	TaskExecutions TaskExecutionRepository
+	Users          UserRepository
+}
+
+// transaction implements the Transaction interface
+type transaction struct {
+	pgx.Tx
+	conn *Connection
+}
+
+// Repositories returns transaction-aware repositories
+func (t *transaction) Repositories() TransactionalRepositories {
+	return TransactionalRepositories{
+		Tasks:          NewTaskRepositoryWithTx(t.Tx),
+		TaskExecutions: NewTaskExecutionRepositoryWithTx(t.Tx),
+		Users:          NewUserRepositoryWithTx(t.Tx),
+	}
+}
+
+// BeginTx starts a new database transaction
+func (c *Connection) BeginTx(ctx context.Context) (Transaction, error) {
+	tx, err := c.Pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	return &transaction{
+		Tx:   tx,
+		conn: c,
+	}, nil
+}
+
+// WithTransaction executes a function within a database transaction
+// If the function returns an error, the transaction is rolled back
+// Otherwise, the transaction is committed
+func (c *Connection) WithTransaction(ctx context.Context, fn func(tx Transaction) error) error {
+	tx, err := c.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && err != pgx.ErrTxClosed {
+			c.logger.Error("failed to rollback transaction", "error", err)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

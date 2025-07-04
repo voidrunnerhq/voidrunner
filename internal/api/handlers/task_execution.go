@@ -5,27 +5,31 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/voidrunnerhq/voidrunner/internal/api/middleware"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/services"
 )
 
 // TaskExecutionHandler handles task execution-related API endpoints
 type TaskExecutionHandler struct {
-	taskRepo      database.TaskRepository
-	executionRepo database.TaskExecutionRepository
-	logger        *slog.Logger
+	taskRepo         database.TaskRepository
+	executionRepo    database.TaskExecutionRepository
+	executionService *services.TaskExecutionService
+	logger           *slog.Logger
 }
 
 // NewTaskExecutionHandler creates a new task execution handler
-func NewTaskExecutionHandler(taskRepo database.TaskRepository, executionRepo database.TaskExecutionRepository, logger *slog.Logger) *TaskExecutionHandler {
+func NewTaskExecutionHandler(taskRepo database.TaskRepository, executionRepo database.TaskExecutionRepository, executionService *services.TaskExecutionService, logger *slog.Logger) *TaskExecutionHandler {
 	return &TaskExecutionHandler{
-		taskRepo:      taskRepo,
-		executionRepo: executionRepo,
-		logger:        logger,
+		taskRepo:         taskRepo,
+		executionRepo:    executionRepo,
+		executionService: executionService,
+		logger:           logger,
 	}
 }
 
@@ -51,63 +55,37 @@ func (h *TaskExecutionHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Get task to verify ownership and status
-	task, err := h.taskRepo.GetByID(c.Request.Context(), taskID)
+	// Use service layer to atomically create execution and update task status
+	execution, err := h.executionService.CreateExecutionAndUpdateTaskStatus(c.Request.Context(), taskID, user.ID)
 	if err != nil {
-		if err == database.ErrTaskNotFound {
-			h.logger.Warn("task not found", "task_id", taskID, "user_id", user.ID)
+		h.logger.Error("failed to create execution and update task status", "error", err, "task_id", taskID, "user_id", user.ID)
+		
+		// Map service errors to appropriate HTTP status codes
+		switch err.Error() {
+		case "task not found":
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Task not found",
 			})
-			return
+		case "access denied: task does not belong to user":
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Access denied",
+			})
+		case "task is already running":
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "Task is already running",
+			})
+		default:
+			if strings.HasPrefix(err.Error(), "cannot execute task with status:") {
+				c.JSON(http.StatusConflict, gin.H{
+					"error": err.Error(),
+				})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Failed to create task execution",
+				})
+			}
 		}
-		h.logger.Error("failed to get task", "error", err, "task_id", taskID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve task",
-		})
 		return
-	}
-
-	// Check if user owns the task
-	if task.UserID != user.ID {
-		h.logger.Warn("user attempted to execute another user's task",
-			"user_id", user.ID, "task_id", taskID, "task_owner_id", task.UserID)
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Access denied",
-		})
-		return
-	}
-
-	// Check if task is already running
-	if task.Status == models.TaskStatusRunning {
-		h.logger.Warn("task is already running", "task_id", taskID, "user_id", user.ID)
-		c.JSON(http.StatusConflict, gin.H{
-			"error": "Task is already running",
-		})
-		return
-	}
-
-	// Create task execution
-	execution := &models.TaskExecution{
-		ID:     uuid.New(),
-		TaskID: taskID,
-		Status: models.ExecutionStatusPending,
-	}
-
-	if err := h.executionRepo.Create(c.Request.Context(), execution); err != nil {
-		h.logger.Error("failed to create task execution", "error", err, "task_id", taskID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create task execution",
-		})
-		return
-	}
-
-	// Update task status to running
-	if err := h.taskRepo.UpdateStatus(c.Request.Context(), taskID, models.TaskStatusRunning); err != nil {
-		h.logger.Error("failed to update task status", "error", err, "task_id", taskID)
-		// Note: The execution was created but we couldn't update the task status
-		// This might leave the system in an inconsistent state
-		// In a production system, you'd want to handle this with transactions
 	}
 
 	h.logger.Info("task execution created successfully", "execution_id", execution.ID, "task_id", taskID, "user_id", user.ID)
@@ -293,71 +271,36 @@ func (h *TaskExecutionHandler) Cancel(c *gin.Context) {
 		return
 	}
 
-	// Get execution from database
-	execution, err := h.executionRepo.GetByID(c.Request.Context(), executionID)
+	// Use service layer to atomically cancel execution and reset task status
+	err = h.executionService.CancelExecutionAndResetTaskStatus(c.Request.Context(), executionID, user.ID)
 	if err != nil {
-		if err == database.ErrExecutionNotFound {
-			h.logger.Warn("execution not found", "execution_id", executionID, "user_id", user.ID)
+		h.logger.Error("failed to cancel execution and reset task status", "error", err, "execution_id", executionID, "user_id", user.ID)
+		
+		// Map service errors to appropriate HTTP status codes
+		switch err.Error() {
+		case "execution not found":
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Execution not found",
 			})
-			return
+		case "access denied: task does not belong to user":
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Access denied",
+			})
+		default:
+			if strings.HasPrefix(err.Error(), "cannot cancel execution with status:") {
+				c.JSON(http.StatusConflict, gin.H{
+					"error": err.Error(),
+				})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Failed to cancel execution",
+				})
+			}
 		}
-		h.logger.Error("failed to get execution", "error", err, "execution_id", executionID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve execution",
-		})
 		return
 	}
 
-	// Get task to verify ownership
-	task, err := h.taskRepo.GetByID(c.Request.Context(), execution.TaskID)
-	if err != nil {
-		h.logger.Error("failed to get task for execution", "error", err, "task_id", execution.TaskID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve task",
-		})
-		return
-	}
-
-	// Check if user owns the task
-	if task.UserID != user.ID {
-		h.logger.Warn("user attempted to cancel another user's execution",
-			"user_id", user.ID, "execution_id", executionID, "task_owner_id", task.UserID)
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Access denied",
-		})
-		return
-	}
-
-	// Check if execution can be cancelled
-	if execution.IsTerminal() {
-		h.logger.Warn("attempted to cancel terminal execution",
-			"execution_id", executionID, "status", execution.Status)
-		c.JSON(http.StatusConflict, gin.H{
-			"error": "Cannot cancel completed execution",
-		})
-		return
-	}
-
-	// Update execution status to cancelled
-	if err := h.executionRepo.UpdateStatus(c.Request.Context(), executionID, models.ExecutionStatusCancelled); err != nil {
-		h.logger.Error("failed to cancel execution", "error", err, "execution_id", executionID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to cancel execution",
-		})
-		return
-	}
-
-	// Update task status back to pending if this was the running execution
-	if execution.Status == models.ExecutionStatusRunning {
-		if err := h.taskRepo.UpdateStatus(c.Request.Context(), execution.TaskID, models.TaskStatusPending); err != nil {
-			h.logger.Error("failed to update task status after cancellation", "error", err, "task_id", execution.TaskID)
-			// Note: The execution was cancelled but we couldn't update the task status
-		}
-	}
-
-	h.logger.Info("execution cancelled successfully", "execution_id", executionID, "task_id", execution.TaskID, "user_id", user.ID)
+	h.logger.Info("execution cancelled successfully", "execution_id", executionID, "user_id", user.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Execution cancelled successfully",
 	})
@@ -403,7 +346,7 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Get execution from database
+	// Get execution from database to apply updates
 	execution, err := h.executionRepo.GetByID(c.Request.Context(), executionID)
 	if err != nil {
 		if err == database.ErrExecutionNotFound {
@@ -420,27 +363,7 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Get task to verify ownership
-	task, err := h.taskRepo.GetByID(c.Request.Context(), execution.TaskID)
-	if err != nil {
-		h.logger.Error("failed to get task for execution", "error", err, "task_id", execution.TaskID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve task",
-		})
-		return
-	}
-
-	// Check if user owns the task
-	if task.UserID != user.ID {
-		h.logger.Warn("user attempted to update another user's execution",
-			"user_id", user.ID, "execution_id", executionID, "task_owner_id", task.UserID)
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Access denied",
-		})
-		return
-	}
-
-	// Apply updates
+	// Apply updates to execution
 	if err := h.applyExecutionUpdates(execution, req); err != nil {
 		h.logger.Warn("execution update validation failed", "error", err, "execution_id", executionID)
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -449,17 +372,11 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Update execution in database
-	if err := h.executionRepo.Update(c.Request.Context(), execution); err != nil {
-		h.logger.Error("failed to update execution", "error", err, "execution_id", executionID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update execution",
-		})
-		return
-	}
-
-	// Update task status if execution is terminal
-	if execution.IsTerminal() {
+	// Check if this update makes the execution terminal
+	isTerminalUpdate := execution.IsTerminal()
+	
+	if isTerminalUpdate {
+		// Use service layer for atomic completion
 		var taskStatus models.TaskStatus
 		switch execution.Status {
 		case models.ExecutionStatusCompleted:
@@ -470,15 +387,69 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 			taskStatus = models.TaskStatusTimeout
 		case models.ExecutionStatusCancelled:
 			taskStatus = models.TaskStatusCancelled
+		default:
+			taskStatus = models.TaskStatusPending // fallback
 		}
 
-		if err := h.taskRepo.UpdateStatus(c.Request.Context(), execution.TaskID, taskStatus); err != nil {
-			h.logger.Error("failed to update task status", "error", err, "task_id", execution.TaskID)
-			// Note: The execution was updated but we couldn't update the task status
+		err = h.executionService.CompleteExecutionAndFinalizeTaskStatus(c.Request.Context(), execution, taskStatus, user.ID)
+		if err != nil {
+			h.logger.Error("failed to complete execution and finalize task status", "error", err, "execution_id", executionID, "user_id", user.ID)
+			
+			// Map service errors to appropriate HTTP status codes
+			switch err.Error() {
+			case "execution not found":
+				c.JSON(http.StatusNotFound, gin.H{
+					"error": "Execution not found",
+				})
+			case "access denied: task does not belong to user":
+				c.JSON(http.StatusForbidden, gin.H{
+					"error": "Access denied",
+				})
+			default:
+				if strings.HasPrefix(err.Error(), "cannot complete execution with status:") {
+					c.JSON(http.StatusConflict, gin.H{
+						"error": err.Error(),
+					})
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{
+						"error": "Failed to update execution",
+					})
+				}
+			}
+			return
+		}
+	} else {
+		// For non-terminal updates, just update the execution (no task status change needed)
+		// First verify user has access to this execution
+		task, err := h.taskRepo.GetByID(c.Request.Context(), execution.TaskID)
+		if err != nil {
+			h.logger.Error("failed to get task for execution", "error", err, "task_id", execution.TaskID)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve task",
+			})
+			return
+		}
+
+		if task.UserID != user.ID {
+			h.logger.Warn("user attempted to update another user's execution",
+				"user_id", user.ID, "execution_id", executionID, "task_owner_id", task.UserID)
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Access denied",
+			})
+			return
+		}
+
+		// Simple execution update without task status change
+		if err := h.executionRepo.Update(c.Request.Context(), execution); err != nil {
+			h.logger.Error("failed to update execution", "error", err, "execution_id", executionID)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to update execution",
+			})
+			return
 		}
 	}
 
-	h.logger.Info("execution updated successfully", "execution_id", executionID, "task_id", execution.TaskID, "user_id", user.ID)
+	h.logger.Info("execution updated successfully", "execution_id", executionID, "user_id", user.ID)
 	c.JSON(http.StatusOK, execution.ToResponse())
 }
 

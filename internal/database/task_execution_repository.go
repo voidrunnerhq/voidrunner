@@ -14,14 +14,22 @@ import (
 
 // taskExecutionRepository implements TaskExecutionRepository interface
 type taskExecutionRepository struct {
-	conn          *Connection
+	querier       Querier
 	cursorEncoder *CursorEncoder
 }
 
 // NewTaskExecutionRepository creates a new task execution repository
 func NewTaskExecutionRepository(conn *Connection) TaskExecutionRepository {
 	return &taskExecutionRepository{
-		conn:          conn,
+		querier:       conn.Pool,
+		cursorEncoder: NewCursorEncoder(),
+	}
+}
+
+// NewTaskExecutionRepositoryWithTx creates a new task execution repository with transaction
+func NewTaskExecutionRepositoryWithTx(tx pgx.Tx) TaskExecutionRepository {
+	return &taskExecutionRepository{
+		querier:       tx,
 		cursorEncoder: NewCursorEncoder(),
 	}
 }
@@ -42,7 +50,7 @@ func (r *taskExecutionRepository) Create(ctx context.Context, execution *models.
 		RETURNING created_at
 	`
 
-	err := r.conn.Pool.QueryRow(ctx, query,
+	err := r.querier.QueryRow(ctx, query,
 		execution.ID,
 		execution.TaskID,
 		execution.Status,
@@ -84,7 +92,7 @@ func (r *taskExecutionRepository) GetByID(ctx context.Context, id uuid.UUID) (*m
 	`
 
 	var execution models.TaskExecution
-	err := r.conn.Pool.QueryRow(ctx, query, id).Scan(
+	err := r.querier.QueryRow(ctx, query, id).Scan(
 		&execution.ID,
 		&execution.TaskID,
 		&execution.Status,
@@ -125,7 +133,7 @@ func (r *taskExecutionRepository) GetByTaskID(ctx context.Context, taskID uuid.U
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, taskID, limit, offset)
+	rows, err := r.querier.Query(ctx, query, taskID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task executions by task ID: %w", err)
 	}
@@ -145,7 +153,7 @@ func (r *taskExecutionRepository) GetLatestByTaskID(ctx context.Context, taskID 
 	`
 
 	var execution models.TaskExecution
-	err := r.conn.Pool.QueryRow(ctx, query, taskID).Scan(
+	err := r.querier.QueryRow(ctx, query, taskID).Scan(
 		&execution.ID,
 		&execution.TaskID,
 		&execution.Status,
@@ -186,7 +194,7 @@ func (r *taskExecutionRepository) GetByStatus(ctx context.Context, status models
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, status, limit, offset)
+	rows, err := r.querier.Query(ctx, query, status, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task executions by status: %w", err)
 	}
@@ -207,7 +215,7 @@ func (r *taskExecutionRepository) Update(ctx context.Context, execution *models.
 		WHERE id = $1
 	`
 
-	result, err := r.conn.Pool.Exec(ctx, query,
+	result, err := r.querier.Exec(ctx, query,
 		execution.ID,
 		execution.Status,
 		execution.ReturnCode,
@@ -242,7 +250,7 @@ func (r *taskExecutionRepository) UpdateStatus(ctx context.Context, id uuid.UUID
 		WHERE id = $1
 	`
 
-	result, err := r.conn.Pool.Exec(ctx, query, id, status)
+	result, err := r.querier.Exec(ctx, query, id, status)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23514" {
@@ -262,7 +270,7 @@ func (r *taskExecutionRepository) UpdateStatus(ctx context.Context, id uuid.UUID
 func (r *taskExecutionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM task_executions WHERE id = $1`
 
-	result, err := r.conn.Pool.Exec(ctx, query, id)
+	result, err := r.querier.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete task execution: %w", err)
 	}
@@ -290,7 +298,7 @@ func (r *taskExecutionRepository) List(ctx context.Context, limit, offset int) (
 		LIMIT $1 OFFSET $2
 	`
 
-	rows, err := r.conn.Pool.Query(ctx, query, limit, offset)
+	rows, err := r.querier.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list task executions: %w", err)
 	}
@@ -304,7 +312,7 @@ func (r *taskExecutionRepository) Count(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) FROM task_executions`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query).Scan(&count)
+	err := r.querier.QueryRow(ctx, query).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count task executions: %w", err)
 	}
@@ -317,7 +325,7 @@ func (r *taskExecutionRepository) CountByTaskID(ctx context.Context, taskID uuid
 	query := `SELECT COUNT(*) FROM task_executions WHERE task_id = $1`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query, taskID).Scan(&count)
+	err := r.querier.QueryRow(ctx, query, taskID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count task executions by task ID: %w", err)
 	}
@@ -330,7 +338,7 @@ func (r *taskExecutionRepository) CountByStatus(ctx context.Context, status mode
 	query := `SELECT COUNT(*) FROM task_executions WHERE status = $1`
 
 	var count int64
-	err := r.conn.Pool.QueryRow(ctx, query, status).Scan(&count)
+	err := r.querier.QueryRow(ctx, query, status).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count task executions by status: %w", err)
 	}
@@ -403,7 +411,7 @@ func (r *taskExecutionRepository) GetByTaskIDCursor(ctx context.Context, taskID 
 
 	args = append(args, req.Limit+1) // Fetch one extra to check if there are more results
 
-	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	rows, err := r.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to get task executions by task ID with cursor: %w", err)
 	}
@@ -473,7 +481,7 @@ func (r *taskExecutionRepository) GetByStatusCursor(ctx context.Context, status 
 
 	args = append(args, req.Limit+1)
 
-	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	rows, err := r.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to get task executions by status with cursor: %w", err)
 	}
@@ -540,7 +548,7 @@ func (r *taskExecutionRepository) ListCursor(ctx context.Context, req CursorPagi
 
 	args = append(args, req.Limit+1)
 
-	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	rows, err := r.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to list task executions with cursor: %w", err)
 	}

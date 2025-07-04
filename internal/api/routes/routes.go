@@ -7,12 +7,13 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
+	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
-func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, repos *database.Repositories, authService *auth.Service) {
+func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service) {
 	setupMiddleware(router, cfg, log)
-	setupRoutes(router, cfg, log, repos, authService)
+	setupRoutes(router, cfg, log, dbConn, repos, authService)
 }
 
 func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger) {
@@ -24,7 +25,7 @@ func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger)
 	router.Use(middleware.ErrorHandler())
 }
 
-func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, repos *database.Repositories, authService *auth.Service) {
+func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service) {
 	healthHandler := handlers.NewHealthHandler()
 	authHandler := handlers.NewAuthHandler(authService, log.Logger)
 	authMiddleware := middleware.NewAuthMiddleware(authService, log.Logger)
@@ -67,7 +68,8 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, rep
 
 		// Task management endpoints
 		taskHandler := handlers.NewTaskHandler(repos.Tasks, log.Logger)
-		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, log.Logger)
+		taskExecutionService := services.NewTaskExecutionService(dbConn, log.Logger)
+		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, taskExecutionService, log.Logger)
 		taskValidation := middleware.TaskValidation(log.Logger)
 		
 		// Task CRUD operations
