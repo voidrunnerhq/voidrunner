@@ -79,7 +79,7 @@ func TestValidatePassword(t *testing.T) {
 	}{
 		{
 			name:     "valid password",
-			password: "Password123",
+			password: "Password123!",
 			wantErr:  false,
 		},
 		{
@@ -89,7 +89,7 @@ func TestValidatePassword(t *testing.T) {
 		},
 		{
 			name:     "too short password",
-			password: "Pass1",
+			password: "Pass1!",
 			wantErr:  true,
 			errMsg:   "at least 8 characters",
 		},
@@ -101,21 +101,27 @@ func TestValidatePassword(t *testing.T) {
 		},
 		{
 			name:     "no uppercase letter",
-			password: "password123",
+			password: "password123!",
 			wantErr:  true,
 			errMsg:   "uppercase letter",
 		},
 		{
 			name:     "no lowercase letter",
-			password: "PASSWORD123",
+			password: "PASSWORD123!",
 			wantErr:  true,
 			errMsg:   "lowercase letter",
 		},
 		{
 			name:     "no digit",
-			password: "Password",
+			password: "Password!",
 			wantErr:  true,
 			errMsg:   "digit",
+		},
+		{
+			name:     "no special character",
+			password: "Password123",
+			wantErr:  true,
+			errMsg:   "special character",
 		},
 	}
 
