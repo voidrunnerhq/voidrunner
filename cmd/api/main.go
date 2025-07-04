@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/voidrunnerhq/voidrunner/internal/api/routes"
+	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
@@ -60,12 +61,18 @@ func main() {
 
 	log.Info("database initialized successfully")
 
+	// Initialize JWT service
+	jwtService := auth.NewJWTService(&cfg.JWT)
+
+	// Initialize authentication service
+	authService := auth.NewService(repos.Users, jwtService, log.Logger, cfg)
+
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
-	routes.Setup(router, cfg, log, repos)
+	routes.Setup(router, cfg, log, repos, authService)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),

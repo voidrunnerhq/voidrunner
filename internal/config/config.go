@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -14,6 +15,7 @@ type Config struct {
 	Database DatabaseConfig
 	Logger   LoggerConfig
 	CORS     CORSConfig
+	JWT      JWTConfig
 }
 
 type ServerConfig struct {
@@ -42,6 +44,14 @@ type CORSConfig struct {
 	AllowedHeaders []string
 }
 
+type JWTConfig struct {
+	SecretKey            string
+	AccessTokenDuration  time.Duration
+	RefreshTokenDuration time.Duration
+	Issuer               string
+	Audience             string
+}
+
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -67,6 +77,13 @@ func Load() (*Config, error) {
 			AllowedOrigins: getEnvSlice("CORS_ALLOWED_ORIGINS", []string{"http://localhost:3000", "http://localhost:5173"}),
 			AllowedMethods: getEnvSlice("CORS_ALLOWED_METHODS", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 			AllowedHeaders: getEnvSlice("CORS_ALLOWED_HEADERS", []string{"Content-Type", "Authorization", "X-Request-ID"}),
+		},
+		JWT: JWTConfig{
+			SecretKey:            getEnv("JWT_SECRET_KEY", "your-secret-key-change-in-production"),
+			AccessTokenDuration:  getEnvDuration("JWT_ACCESS_TOKEN_DURATION", 15*time.Minute),
+			RefreshTokenDuration: getEnvDuration("JWT_REFRESH_TOKEN_DURATION", 7*24*time.Hour),
+			Issuer:               getEnv("JWT_ISSUER", "voidrunner"),
+			Audience:             getEnv("JWT_AUDIENCE", "voidrunner-api"),
 		},
 	}
 
@@ -98,6 +115,18 @@ func (c *Config) validate() error {
 		return fmt.Errorf("database name is required")
 	}
 
+	if c.JWT.SecretKey == "" {
+		return fmt.Errorf("JWT secret key is required")
+	}
+
+	if c.JWT.AccessTokenDuration <= 0 {
+		return fmt.Errorf("JWT access token duration must be positive")
+	}
+
+	if c.JWT.RefreshTokenDuration <= 0 {
+		return fmt.Errorf("JWT refresh token duration must be positive")
+	}
+
 	return nil
 }
 
@@ -123,6 +152,16 @@ func getEnvSlice(key string, defaultValue []string) []string {
 			result[i] = strings.TrimSpace(v)
 		}
 		return result
+	}
+	return defaultValue
+}
+
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		duration, err := time.ParseDuration(value)
+		if err == nil {
+			return duration
+		}
 	}
 	return defaultValue
 }

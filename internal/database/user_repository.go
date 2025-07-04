@@ -79,7 +79,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user with ID %s not found", id)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
@@ -110,7 +110,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user with email %s not found", email)
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}

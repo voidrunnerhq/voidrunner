@@ -2,9 +2,17 @@ package database
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+)
+
+// Common errors
+var (
+	ErrUserNotFound = errors.New("user not found")
+	ErrTaskNotFound = errors.New("task not found")
+	ErrExecutionNotFound = errors.New("execution not found")
 )
 
 // UserRepository defines the interface for user data operations
