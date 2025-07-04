@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/voidrunnerhq/voidrunner/internal/api/routes"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
+	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
@@ -25,12 +26,46 @@ func main() {
 
 	log := logger.New(cfg.Logger.Level, cfg.Logger.Format)
 
+	// Initialize database connection
+	dbConn, err := database.NewConnection(&cfg.Database, log.Logger)
+	if err != nil {
+		log.Error("failed to initialize database connection", "error", err)
+		os.Exit(1)
+	}
+	defer dbConn.Close()
+
+	// Run database migrations
+	migrateConfig := &database.MigrateConfig{
+		DatabaseConfig: &cfg.Database,
+		MigrationsPath: "file://migrations",
+		Logger:         log.Logger,
+	}
+
+	if err := database.MigrateUp(migrateConfig); err != nil {
+		log.Error("failed to run database migrations", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize repositories
+	repos := database.NewRepositories(dbConn)
+
+	// Perform database health check
+	healthCtx, healthCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer healthCancel()
+
+	if err := dbConn.HealthCheck(healthCtx); err != nil {
+		log.Error("database health check failed", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("database initialized successfully")
+
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
-	routes.Setup(router, cfg, log)
+	routes.Setup(router, cfg, log, repos)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
