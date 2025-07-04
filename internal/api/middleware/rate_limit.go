@@ -185,3 +185,27 @@ func RateLimitByUserID(maxReqs int, window time.Duration, logger *slog.Logger) g
 		c.Next()
 	}
 }
+
+// TaskRateLimit creates rate limiting middleware for task endpoints
+func TaskRateLimit(logger *slog.Logger) gin.HandlerFunc {
+	// 100 task operations per hour per user
+	return RateLimitByUserID(100, time.Hour, logger)
+}
+
+// TaskExecutionRateLimit creates rate limiting middleware for execution endpoints
+func TaskExecutionRateLimit(logger *slog.Logger) gin.HandlerFunc {
+	// 50 execution operations per hour per user
+	return RateLimitByUserID(50, time.Hour, logger)
+}
+
+// TaskCreationRateLimit creates rate limiting middleware specifically for task creation
+func TaskCreationRateLimit(logger *slog.Logger) gin.HandlerFunc {
+	// 20 task creations per hour per user (more restrictive)
+	return RateLimitByUserID(20, time.Hour, logger)
+}
+
+// ExecutionCreationRateLimit creates rate limiting middleware for execution creation
+func ExecutionCreationRateLimit(logger *slog.Logger) gin.HandlerFunc {
+	// 30 execution starts per hour per user
+	return RateLimitByUserID(30, time.Hour, logger)
+}

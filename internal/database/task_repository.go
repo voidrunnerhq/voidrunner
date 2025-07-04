@@ -2,9 +2,11 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -14,13 +16,15 @@ import (
 
 // taskRepository implements TaskRepository interface
 type taskRepository struct {
-	conn *Connection
+	conn          *Connection
+	cursorEncoder *CursorEncoder
 }
 
 // NewTaskRepository creates a new task repository
 func NewTaskRepository(conn *Connection) TaskRepository {
 	return &taskRepository{
-		conn: conn,
+		conn:          conn,
+		cursorEncoder: NewCursorEncoder(),
 	}
 }
 
@@ -359,6 +363,375 @@ func (r *taskRepository) scanTasks(rows pgx.Rows) ([]*models.Task, error) {
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating task rows: %w", err)
+	}
+
+	return tasks, nil
+}
+
+// GetByUserIDCursor retrieves tasks by user ID using cursor-based pagination
+func (r *taskRepository) GetByUserIDCursor(ctx context.Context, userID uuid.UUID, req CursorPaginationRequest) ([]*models.Task, CursorPaginationResponse, error) {
+	ValidatePaginationRequest(&req)
+
+	var cursor *TaskCursor
+	var err error
+
+	// Decode cursor if provided
+	if req.Cursor != nil {
+		decodedCursor, err := r.cursorEncoder.DecodeTaskCursor(*req.Cursor)
+		if err != nil {
+			return nil, CursorPaginationResponse{}, fmt.Errorf("invalid cursor: %w", err)
+		}
+		cursor = &decodedCursor
+	}
+
+	// Build query
+	orderClause := "ORDER BY created_at DESC, id DESC"
+	if req.SortOrder == "asc" {
+		orderClause = "ORDER BY created_at ASC, id ASC"
+	}
+
+	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, &userID, nil)
+	
+	query := fmt.Sprintf(`
+		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
+		FROM tasks
+		%s
+		%s
+		LIMIT $%d
+	`, whereClause, orderClause, len(args)+1)
+
+	args = append(args, req.Limit+1) // Fetch one extra to check if there are more results
+
+	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to get tasks by user ID with cursor: %w", err)
+	}
+	defer rows.Close()
+
+	tasks, err := r.scanTasks(rows)
+	if err != nil {
+		return nil, CursorPaginationResponse{}, err
+	}
+
+	// Build pagination response
+	response := CursorPaginationResponse{
+		HasMore: len(tasks) > req.Limit,
+	}
+
+	// Remove extra task if we fetched more than requested
+	if response.HasMore {
+		tasks = tasks[:req.Limit]
+	}
+
+	// Generate next cursor if there are more results
+	if response.HasMore && len(tasks) > 0 {
+		lastTask := tasks[len(tasks)-1]
+		nextCursor := CreateTaskCursor(lastTask.ID, lastTask.CreatedAt, &lastTask.Priority)
+		encoded, err := r.cursorEncoder.EncodeTaskCursor(nextCursor)
+		if err != nil {
+			return nil, CursorPaginationResponse{}, fmt.Errorf("failed to encode next cursor: %w", err)
+		}
+		response.NextCursor = &encoded
+	}
+
+	return tasks, response, nil
+}
+
+// GetByStatusCursor retrieves tasks by status using cursor-based pagination
+func (r *taskRepository) GetByStatusCursor(ctx context.Context, status models.TaskStatus, req CursorPaginationRequest) ([]*models.Task, CursorPaginationResponse, error) {
+	ValidatePaginationRequest(&req)
+
+	var cursor *TaskCursor
+	var err error
+
+	// Decode cursor if provided
+	if req.Cursor != nil {
+		decodedCursor, err := r.cursorEncoder.DecodeTaskCursor(*req.Cursor)
+		if err != nil {
+			return nil, CursorPaginationResponse{}, fmt.Errorf("invalid cursor: %w", err)
+		}
+		cursor = &decodedCursor
+	}
+
+	// Build query
+	orderClause := "ORDER BY priority DESC, created_at DESC, id DESC"
+	if req.SortOrder == "asc" {
+		orderClause = "ORDER BY priority ASC, created_at ASC, id ASC"
+	}
+
+	statusStr := string(status)
+	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, nil, &statusStr)
+	
+	query := fmt.Sprintf(`
+		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
+		FROM tasks
+		%s
+		%s
+		LIMIT $%d
+	`, whereClause, orderClause, len(args)+1)
+
+	args = append(args, req.Limit+1)
+
+	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to get tasks by status with cursor: %w", err)
+	}
+	defer rows.Close()
+
+	tasks, err := r.scanTasks(rows)
+	if err != nil {
+		return nil, CursorPaginationResponse{}, err
+	}
+
+	// Build pagination response
+	response := CursorPaginationResponse{
+		HasMore: len(tasks) > req.Limit,
+	}
+
+	if response.HasMore {
+		tasks = tasks[:req.Limit]
+	}
+
+	if response.HasMore && len(tasks) > 0 {
+		lastTask := tasks[len(tasks)-1]
+		nextCursor := CreateTaskCursor(lastTask.ID, lastTask.CreatedAt, &lastTask.Priority)
+		encoded, err := r.cursorEncoder.EncodeTaskCursor(nextCursor)
+		if err != nil {
+			return nil, CursorPaginationResponse{}, fmt.Errorf("failed to encode next cursor: %w", err)
+		}
+		response.NextCursor = &encoded
+	}
+
+	return tasks, response, nil
+}
+
+// ListCursor retrieves all tasks using cursor-based pagination
+func (r *taskRepository) ListCursor(ctx context.Context, req CursorPaginationRequest) ([]*models.Task, CursorPaginationResponse, error) {
+	ValidatePaginationRequest(&req)
+
+	var cursor *TaskCursor
+	var err error
+
+	// Decode cursor if provided
+	if req.Cursor != nil {
+		decodedCursor, err := r.cursorEncoder.DecodeTaskCursor(*req.Cursor)
+		if err != nil {
+			return nil, CursorPaginationResponse{}, fmt.Errorf("invalid cursor: %w", err)
+		}
+		cursor = &decodedCursor
+	}
+
+	// Build query
+	orderClause := "ORDER BY priority DESC, created_at DESC, id DESC"
+	if req.SortOrder == "asc" {
+		orderClause = "ORDER BY priority ASC, created_at ASC, id ASC"
+	}
+
+	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, nil, nil)
+	
+	query := fmt.Sprintf(`
+		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
+		FROM tasks
+		%s
+		%s
+		LIMIT $%d
+	`, whereClause, orderClause, len(args)+1)
+
+	args = append(args, req.Limit+1)
+
+	rows, err := r.conn.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, CursorPaginationResponse{}, fmt.Errorf("failed to list tasks with cursor: %w", err)
+	}
+	defer rows.Close()
+
+	tasks, err := r.scanTasks(rows)
+	if err != nil {
+		return nil, CursorPaginationResponse{}, err
+	}
+
+	// Build pagination response
+	response := CursorPaginationResponse{
+		HasMore: len(tasks) > req.Limit,
+	}
+
+	if response.HasMore {
+		tasks = tasks[:req.Limit]
+	}
+
+	if response.HasMore && len(tasks) > 0 {
+		lastTask := tasks[len(tasks)-1]
+		nextCursor := CreateTaskCursor(lastTask.ID, lastTask.CreatedAt, &lastTask.Priority)
+		encoded, err := r.cursorEncoder.EncodeTaskCursor(nextCursor)
+		if err != nil {
+			return nil, CursorPaginationResponse{}, fmt.Errorf("failed to encode next cursor: %w", err)
+		}
+		response.NextCursor = &encoded
+	}
+
+	return tasks, response, nil
+}
+
+// GetTasksWithExecutionCount retrieves tasks with their execution count using a single optimized query
+func (r *taskRepository) GetTasksWithExecutionCount(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*models.Task, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := `
+		SELECT 
+			t.id, t.user_id, t.name, t.description, t.script_content, t.script_type, 
+			t.status, t.priority, t.timeout_seconds, t.metadata, t.created_at, t.updated_at,
+			COALESCE(COUNT(e.id), 0) as execution_count
+		FROM tasks t
+		LEFT JOIN task_executions e ON t.id = e.task_id
+		WHERE t.user_id = $1
+		GROUP BY t.id, t.user_id, t.name, t.description, t.script_content, t.script_type, 
+				 t.status, t.priority, t.timeout_seconds, t.metadata, t.created_at, t.updated_at
+		ORDER BY t.priority DESC, t.created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.conn.Pool.Query(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tasks with execution count: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		var task models.Task
+		var executionCount int64
+		err := rows.Scan(
+			&task.ID,
+			&task.UserID,
+			&task.Name,
+			&task.Description,
+			&task.ScriptContent,
+			&task.ScriptType,
+			&task.Status,
+			&task.Priority,
+			&task.TimeoutSeconds,
+			&task.Metadata,
+			&task.CreatedAt,
+			&task.UpdatedAt,
+			&executionCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan task with execution count: %w", err)
+		}
+		
+		// Add execution count to metadata for now (could be added to model later)
+		metadata := make(map[string]interface{})
+		if task.Metadata != nil {
+			json.Unmarshal(task.Metadata, &metadata)
+		}
+		metadata["execution_count"] = executionCount
+		
+		updatedMetadata, err := json.Marshal(metadata)
+		if err == nil {
+			task.Metadata = updatedMetadata
+		}
+		
+		tasks = append(tasks, &task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating task rows with execution count: %w", err)
+	}
+
+	return tasks, nil
+}
+
+// GetTasksWithLatestExecution retrieves tasks with their latest execution using a single optimized query
+func (r *taskRepository) GetTasksWithLatestExecution(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*models.Task, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := `
+		SELECT 
+			t.id, t.user_id, t.name, t.description, t.script_content, t.script_type, 
+			t.status, t.priority, t.timeout_seconds, t.metadata, t.created_at, t.updated_at,
+			e.id as latest_execution_id, e.status as latest_execution_status, 
+			e.created_at as latest_execution_created_at
+		FROM tasks t
+		LEFT JOIN LATERAL (
+			SELECT id, status, created_at
+			FROM task_executions
+			WHERE task_id = t.id
+			ORDER BY created_at DESC
+			LIMIT 1
+		) e ON true
+		WHERE t.user_id = $1
+		ORDER BY t.priority DESC, t.created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.conn.Pool.Query(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tasks with latest execution: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		var task models.Task
+		var latestExecutionID *uuid.UUID
+		var latestExecutionStatus *string
+		var latestExecutionCreatedAt *time.Time
+		
+		err := rows.Scan(
+			&task.ID,
+			&task.UserID,
+			&task.Name,
+			&task.Description,
+			&task.ScriptContent,
+			&task.ScriptType,
+			&task.Status,
+			&task.Priority,
+			&task.TimeoutSeconds,
+			&task.Metadata,
+			&task.CreatedAt,
+			&task.UpdatedAt,
+			&latestExecutionID,
+			&latestExecutionStatus,
+			&latestExecutionCreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan task with latest execution: %w", err)
+		}
+		
+		// Add latest execution info to metadata
+		metadata := make(map[string]interface{})
+		if task.Metadata != nil {
+			json.Unmarshal(task.Metadata, &metadata)
+		}
+		
+		if latestExecutionID != nil {
+			metadata["latest_execution"] = map[string]interface{}{
+				"id":         *latestExecutionID,
+				"status":     *latestExecutionStatus,
+				"created_at": *latestExecutionCreatedAt,
+			}
+		}
+		
+		updatedMetadata, err := json.Marshal(metadata)
+		if err == nil {
+			task.Metadata = updatedMetadata
+		}
+		
+		tasks = append(tasks, &task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating task rows with latest execution: %w", err)
 	}
 
 	return tasks, nil

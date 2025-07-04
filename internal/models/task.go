@@ -46,10 +46,10 @@ type Task struct {
 
 // CreateTaskRequest represents the request to create a new task
 type CreateTaskRequest struct {
-	Name           string          `json:"name" validate:"required,min=1,max=255"`
+	Name           string          `json:"name" validate:"required,task_name,min=1,max=255"`
 	Description    *string         `json:"description,omitempty" validate:"omitempty,max=1000"`
-	ScriptContent  string          `json:"script_content" validate:"required,min=1,max=65535"`
-	ScriptType     ScriptType      `json:"script_type" validate:"required,oneof=python javascript bash go"`
+	ScriptContent  string          `json:"script_content" validate:"required,script_content,min=1,max=65535"`
+	ScriptType     ScriptType      `json:"script_type" validate:"required,script_type"`
 	Priority       *int            `json:"priority,omitempty" validate:"omitempty,min=0,max=10"`
 	TimeoutSeconds *int            `json:"timeout_seconds,omitempty" validate:"omitempty,min=1,max=3600"`
 	Metadata       json.RawMessage `json:"metadata,omitempty"`
@@ -57,10 +57,10 @@ type CreateTaskRequest struct {
 
 // UpdateTaskRequest represents the request to update a task
 type UpdateTaskRequest struct {
-	Name           *string         `json:"name,omitempty" validate:"omitempty,min=1,max=255"`
+	Name           *string         `json:"name,omitempty" validate:"omitempty,task_name,min=1,max=255"`
 	Description    *string         `json:"description,omitempty" validate:"omitempty,max=1000"`
-	ScriptContent  *string         `json:"script_content,omitempty" validate:"omitempty,min=1,max=65535"`
-	ScriptType     *ScriptType     `json:"script_type,omitempty" validate:"omitempty,oneof=python javascript bash go"`
+	ScriptContent  *string         `json:"script_content,omitempty" validate:"omitempty,script_content,min=1,max=65535"`
+	ScriptType     *ScriptType     `json:"script_type,omitempty" validate:"omitempty,script_type"`
 	Priority       *int            `json:"priority,omitempty" validate:"omitempty,min=0,max=10"`
 	TimeoutSeconds *int            `json:"timeout_seconds,omitempty" validate:"omitempty,min=1,max=3600"`
 	Metadata       json.RawMessage `json:"metadata,omitempty"`
