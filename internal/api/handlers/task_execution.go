@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,19 +13,25 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/api/middleware"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
-	"github.com/voidrunnerhq/voidrunner/internal/services"
 )
+
+// TaskExecutionServiceInterface defines the interface for task execution services
+type TaskExecutionServiceInterface interface {
+	CreateExecutionAndUpdateTaskStatus(ctx context.Context, taskID uuid.UUID, userID uuid.UUID) (*models.TaskExecution, error)
+	CancelExecutionAndResetTaskStatus(ctx context.Context, executionID uuid.UUID, userID uuid.UUID) error
+	CompleteExecutionAndFinalizeTaskStatus(ctx context.Context, execution *models.TaskExecution, taskStatus models.TaskStatus, userID uuid.UUID) error
+}
 
 // TaskExecutionHandler handles task execution-related API endpoints
 type TaskExecutionHandler struct {
 	taskRepo         database.TaskRepository
 	executionRepo    database.TaskExecutionRepository
-	executionService *services.TaskExecutionService
+	executionService TaskExecutionServiceInterface
 	logger           *slog.Logger
 }
 
 // NewTaskExecutionHandler creates a new task execution handler
-func NewTaskExecutionHandler(taskRepo database.TaskRepository, executionRepo database.TaskExecutionRepository, executionService *services.TaskExecutionService, logger *slog.Logger) *TaskExecutionHandler {
+func NewTaskExecutionHandler(taskRepo database.TaskRepository, executionRepo database.TaskExecutionRepository, executionService TaskExecutionServiceInterface, logger *slog.Logger) *TaskExecutionHandler {
 	return &TaskExecutionHandler{
 		taskRepo:         taskRepo,
 		executionRepo:    executionRepo,

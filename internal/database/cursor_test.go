@@ -108,7 +108,7 @@ func TestBuildTaskCursorWhere(t *testing.T) {
 	}
 
 	t.Run("With User ID and Status", func(t *testing.T) {
-		whereClause, args := BuildTaskCursorWhere(cursor, "desc", &userID, &status)
+		whereClause, args := BuildTaskCursorWhere(cursor, "desc", "created_at", &userID, &status)
 		
 		assert.Contains(t, whereClause, "WHERE")
 		assert.Contains(t, whereClause, "user_id")
@@ -118,7 +118,7 @@ func TestBuildTaskCursorWhere(t *testing.T) {
 	})
 
 	t.Run("Without Cursor", func(t *testing.T) {
-		whereClause, args := BuildTaskCursorWhere(nil, "desc", &userID, &status)
+		whereClause, args := BuildTaskCursorWhere(nil, "desc", "created_at", &userID, &status)
 		
 		assert.Contains(t, whereClause, "WHERE")
 		assert.Contains(t, whereClause, "user_id")
@@ -128,10 +128,39 @@ func TestBuildTaskCursorWhere(t *testing.T) {
 	})
 
 	t.Run("Ascending Order", func(t *testing.T) {
-		whereClause, args := BuildTaskCursorWhere(cursor, "asc", nil, nil)
+		whereClause, args := BuildTaskCursorWhere(cursor, "asc", "created_at", nil, nil)
 		
 		assert.Contains(t, whereClause, "created_at >") // Should use > for asc
 		assert.Len(t, args, 3) // cursor.CreatedAt (2x), cursor.ID
+	})
+	
+	t.Run("Priority-Based Sorting", func(t *testing.T) {
+		// Create cursor with priority value
+		priorityCursor := &TaskCursor{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			Priority:  intPtr(5),
+		}
+		
+		whereClause, args := BuildTaskCursorWhere(priorityCursor, "desc", "priority", &userID, nil)
+		
+		// Verify priority comparisons are included (this addresses the reviewer's specific concern)
+		assert.Contains(t, whereClause, "priority <")
+		assert.Contains(t, whereClause, "priority =")
+		assert.Contains(t, whereClause, "user_id")
+		
+		// Should have: userID, priority (3 times), created_at (2 times), id (1 time) = 7 args
+		assert.Len(t, args, 7)
+		
+		// Verify priority value is used in query
+		found := false
+		for _, arg := range args {
+			if priorityVal, ok := arg.(int); ok && priorityVal == 5 {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Priority value should be included in query arguments")
 	})
 }
 

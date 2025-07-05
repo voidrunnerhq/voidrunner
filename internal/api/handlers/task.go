@@ -201,6 +201,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 			"pagination":  paginationResp,
 			"limit":       cursorReq.Limit,
 			"sort_order":  cursorReq.SortOrder,
+			"sort_field":  cursorReq.SortField,
 		})
 	} else {
 		// Use offset-based pagination (legacy)
@@ -533,15 +534,17 @@ func (h *TaskHandler) parseCursorPagination(c *gin.Context) (database.CursorPagi
 	cursor := c.Query("cursor")
 	limitStr := c.Query("limit")
 	sortOrder := c.Query("sort_order")
+	sortField := c.Query("sort_field")
 	
-	// If no cursor parameters are provided, use offset pagination
-	if cursor == "" && limitStr == "" && sortOrder == "" {
+	// Only use cursor pagination if a cursor is actually provided
+	if cursor == "" {
 		return database.CursorPaginationRequest{}, false, nil
 	}
 	
 	req := database.CursorPaginationRequest{
-		Limit:     20,      // default
-		SortOrder: "desc",  // default
+		Limit:     20,        // default
+		SortOrder: "desc",    // default
+		SortField: "created_at", // default
 	}
 	
 	// Parse limit
@@ -553,14 +556,27 @@ func (h *TaskHandler) parseCursorPagination(c *gin.Context) (database.CursorPagi
 		req.Limit = limit
 	}
 	
-	// Parse cursor
-	if cursor != "" {
-		req.Cursor = &cursor
-	}
+	// Parse cursor (already validated to be non-empty above)
+	req.Cursor = &cursor
 	
 	// Parse sort order
 	if sortOrder != "" {
 		req.SortOrder = sortOrder
+	}
+	
+	// Parse sort field  
+	if sortField != "" {
+		// Validate sort field
+		validSortFields := map[string]bool{
+			"created_at": true,
+			"updated_at": true,
+			"priority":   true,
+			"name":       true,
+		}
+		if !validSortFields[sortField] {
+			return req, false, fmt.Errorf("invalid sort_field parameter: must be one of created_at, updated_at, priority, name")
+		}
+		req.SortField = sortField
 	}
 	
 	// Validate the request

@@ -22,6 +22,7 @@ type CursorPaginationRequest struct {
 	Limit      int       `json:"limit"`
 	Cursor     *string   `json:"cursor,omitempty"`
 	SortOrder  string    `json:"sort_order"` // "asc" or "desc"
+	SortField  string    `json:"sort_field"` // "created_at", "updated_at", "priority", "name"
 }
 
 // CursorPaginationResponse represents a cursor-based pagination response
