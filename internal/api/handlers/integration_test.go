@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,6 +19,29 @@ import (
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
+// MockTaskExecutionService is a mock implementation of TaskExecutionServiceInterface
+type MockTaskExecutionService struct {
+	mock.Mock
+}
+
+func (m *MockTaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Context, taskID uuid.UUID, userID uuid.UUID) (*models.TaskExecution, error) {
+	args := m.Called(ctx, taskID, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.TaskExecution), args.Error(1)
+}
+
+func (m *MockTaskExecutionService) CancelExecutionAndResetTaskStatus(ctx context.Context, executionID uuid.UUID, userID uuid.UUID) error {
+	args := m.Called(ctx, executionID, userID)
+	return args.Error(0)
+}
+
+func (m *MockTaskExecutionService) CompleteExecutionAndFinalizeTaskStatus(ctx context.Context, execution *models.TaskExecution, taskStatus models.TaskStatus, userID uuid.UUID) error {
+	args := m.Called(ctx, execution, taskStatus, userID)
+	return args.Error(0)
+}
+
 // HandlerIntegrationTest tests the interaction between handlers and middleware
 func TestHandlerIntegration_TaskWithValidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -28,8 +52,9 @@ func TestHandlerIntegration_TaskWithValidation(t *testing.T) {
 	logger := logger.New("test", "debug")
 	
 	// Setup handlers
+	mockExecutionService := new(MockTaskExecutionService)
 	taskHandler := NewTaskHandler(mockTaskRepo, logger.Logger)
-	executionHandler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, logger.Logger)
+	executionHandler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, mockExecutionService, logger.Logger)
 	validationMiddleware := middleware.TaskValidation(logger.Logger)
 
 	// Setup router with middleware
@@ -169,7 +194,8 @@ func TestTaskExecutionIntegration(t *testing.T) {
 	logger := logger.New("test", "debug")
 	
 	// Setup handlers
-	executionHandler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, logger.Logger)
+	mockExecutionService := new(MockTaskExecutionService)
+	executionHandler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, mockExecutionService, logger.Logger)
 
 	// Setup router
 	router := gin.New()
@@ -207,9 +233,15 @@ func TestTaskExecutionIntegration(t *testing.T) {
 			Status: models.TaskStatusPending,
 		}
 
-		mockTaskRepo.On("GetByID", mock.Anything, taskID).Return(task, nil).Once()
-		mockExecutionRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.TaskExecution")).Return(nil).Once()
-		mockTaskRepo.On("UpdateStatus", mock.Anything, taskID, models.TaskStatusRunning).Return(nil).Once()
+		// Create expected execution object
+		expectedExecution := &models.TaskExecution{
+			ID:     executionID,
+			TaskID: taskID,
+			Status: models.ExecutionStatusPending,
+		}
+
+		// Mock the service call instead of repository calls
+		mockExecutionService.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(expectedExecution, nil).Once()
 
 		httpReq := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/tasks/%s/executions", taskID), nil)
 		w := httptest.NewRecorder()
@@ -244,10 +276,14 @@ func TestTaskExecutionIntegration(t *testing.T) {
 		}
 
 		execution.Status = models.ExecutionStatusCompleted
+		execution.ReturnCode = &returnCode
+		execution.Stdout = &stdout
+		
+		// For terminal updates, the Update handler only calls executionRepo.GetByID, then uses the service for atomic completion
+		// The service itself handles task validation, so no direct taskRepo.GetByID call is made by the handler
 		mockExecutionRepo.On("GetByID", mock.Anything, executionID).Return(execution, nil).Once()
-		mockTaskRepo.On("GetByID", mock.Anything, taskID).Return(task, nil).Once()
-		mockExecutionRepo.On("Update", mock.Anything, mock.AnythingOfType("*models.TaskExecution")).Return(nil).Once()
-		mockTaskRepo.On("UpdateStatus", mock.Anything, taskID, models.TaskStatusCompleted).Return(nil).Once()
+		// Mock the service call for atomic completion (handles all validation and updates internally)
+		mockExecutionService.On("CompleteExecutionAndFinalizeTaskStatus", mock.Anything, mock.AnythingOfType("*models.TaskExecution"), models.TaskStatusCompleted, userID).Return(nil).Once()
 
 		reqBody, _ := json.Marshal(updateReq)
 		httpReq = httptest.NewRequest(http.MethodPut, fmt.Sprintf("/executions/%s", executionID), bytes.NewBuffer(reqBody))
@@ -257,20 +293,13 @@ func TestTaskExecutionIntegration(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		mockTaskRepo.AssertExpectations(t)
 		mockExecutionRepo.AssertExpectations(t)
+		mockExecutionService.AssertExpectations(t)
 	})
 
 	t.Run("Cannot Start Execution on Running Task", func(t *testing.T) {
-		runningTask := &models.Task{
-			BaseModel: models.BaseModel{
-				ID: taskID,
-			},
-			UserID: userID,
-			Status: models.TaskStatusRunning, // Already running
-		}
-
-		mockTaskRepo.On("GetByID", mock.Anything, taskID).Return(runningTask, nil).Once()
+		// Mock the service to return an error for already running task
+		mockExecutionService.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(nil, fmt.Errorf("task is already running")).Once()
 
 		httpReq := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/tasks/%s/executions", taskID), nil)
 		w := httptest.NewRecorder()
@@ -283,25 +312,12 @@ func TestTaskExecutionIntegration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, errorResponse["error"], "already running")
 
-		mockTaskRepo.AssertExpectations(t)
+		mockExecutionService.AssertExpectations(t)
 	})
 
 	t.Run("Cannot Cancel Completed Execution", func(t *testing.T) {
-		completedExecution := &models.TaskExecution{
-			ID:     executionID,
-			TaskID: taskID,
-			Status: models.ExecutionStatusCompleted, // Already completed
-		}
-
-		task := &models.Task{
-			BaseModel: models.BaseModel{
-				ID: taskID,
-			},
-			UserID: userID,
-		}
-
-		mockExecutionRepo.On("GetByID", mock.Anything, executionID).Return(completedExecution, nil).Once()
-		mockTaskRepo.On("GetByID", mock.Anything, taskID).Return(task, nil).Once()
+		// Mock the service to return an error for completed execution
+		mockExecutionService.On("CancelExecutionAndResetTaskStatus", mock.Anything, executionID, userID).Return(fmt.Errorf("cannot cancel execution with status: completed")).Once()
 
 		httpReq := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/executions/%s", executionID), nil)
 		w := httptest.NewRecorder()
@@ -312,10 +328,9 @@ func TestTaskExecutionIntegration(t *testing.T) {
 		var errorResponse map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		require.NoError(t, err)
-		assert.Contains(t, errorResponse["error"], "Cannot cancel completed execution")
+		assert.Contains(t, errorResponse["error"], "cannot cancel execution with status:")
 
-		mockExecutionRepo.AssertExpectations(t)
-		mockTaskRepo.AssertExpectations(t)
+		mockExecutionService.AssertExpectations(t)
 	})
 }
 

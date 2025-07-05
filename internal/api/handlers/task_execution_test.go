@@ -126,13 +126,14 @@ func (m *MockTaskExecutionRepository) ListCursor(ctx context.Context, req databa
 	return args.Get(0).([]*models.TaskExecution), args.Get(1).(database.CursorPaginationResponse), args.Error(2)
 }
 
-func setupTaskExecutionHandlerTest() (*gin.Engine, *MockTaskRepository, *MockTaskExecutionRepository, *TaskExecutionHandler) {
+func setupTaskExecutionHandlerTest() (*gin.Engine, *MockTaskRepository, *MockTaskExecutionRepository, *MockTaskExecutionService, *TaskExecutionHandler) {
 	gin.SetMode(gin.TestMode)
 	
 	mockTaskRepo := new(MockTaskRepository)
 	mockExecutionRepo := new(MockTaskExecutionRepository)
+	mockExecutionService := new(MockTaskExecutionService)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, logger)
+	handler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, mockExecutionService, logger)
 	
 	router := gin.New()
 	// Add middleware to set user context
@@ -147,7 +148,7 @@ func setupTaskExecutionHandlerTest() (*gin.Engine, *MockTaskRepository, *MockTas
 		c.Next()
 	})
 	
-	return router, mockTaskRepo, mockExecutionRepo, handler
+	return router, mockTaskRepo, mockExecutionRepo, mockExecutionService, handler
 }
 
 func TestTaskExecutionHandler_Create(t *testing.T) {
@@ -157,31 +158,28 @@ func TestTaskExecutionHandler_Create(t *testing.T) {
 	tests := []struct {
 		name           string
 		taskID         string
-		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository)
+		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository, *MockTaskExecutionService)
 		wantStatus     int
 		wantError      string
 	}{
 		{
 			name:   "successful execution creation",
 			taskID: taskID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
-				task := &models.Task{
-					BaseModel: models.BaseModel{
-						ID: taskID,
-					},
-					UserID: userID,
-					Status: models.TaskStatusPending,
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
+				expectedExecution := &models.TaskExecution{
+					ID:     uuid.New(),
+					TaskID: taskID,
+					Status: models.ExecutionStatusPending,
 				}
-				mt.On("GetByID", mock.Anything, taskID).Return(task, nil)
-				me.On("Create", mock.Anything, mock.AnythingOfType("*models.TaskExecution")).Return(nil)
-				mt.On("UpdateStatus", mock.Anything, taskID, models.TaskStatusRunning).Return(nil)
+				// The Create handler now only calls the service
+				ms.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(expectedExecution, nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
 		{
 			name:   "invalid task ID",
 			taskID: "invalid-uuid",
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				// No mock calls expected
 			},
 			wantStatus: http.StatusBadRequest,
@@ -190,8 +188,8 @@ func TestTaskExecutionHandler_Create(t *testing.T) {
 		{
 			name:   "task not found",
 			taskID: taskID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
-				mt.On("GetByID", mock.Anything, taskID).Return(nil, database.ErrTaskNotFound)
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
+				ms.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(nil, fmt.Errorf("task not found"))
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Task not found",
@@ -199,15 +197,8 @@ func TestTaskExecutionHandler_Create(t *testing.T) {
 		{
 			name:   "access denied - different user",
 			taskID: taskID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
-				task := &models.Task{
-					BaseModel: models.BaseModel{
-						ID: taskID,
-					},
-					UserID: uuid.New(), // Different user
-					Status: models.TaskStatusPending,
-				}
-				mt.On("GetByID", mock.Anything, taskID).Return(task, nil)
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
+				ms.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(nil, fmt.Errorf("access denied: task does not belong to user"))
 			},
 			wantStatus: http.StatusForbidden,
 			wantError:  "Access denied",
@@ -215,15 +206,8 @@ func TestTaskExecutionHandler_Create(t *testing.T) {
 		{
 			name:   "task already running",
 			taskID: taskID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
-				task := &models.Task{
-					BaseModel: models.BaseModel{
-						ID: taskID,
-					},
-					UserID: userID,
-					Status: models.TaskStatusRunning, // Already running
-				}
-				mt.On("GetByID", mock.Anything, taskID).Return(task, nil)
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
+				ms.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(nil, fmt.Errorf("task is already running"))
 			},
 			wantStatus: http.StatusConflict,
 			wantError:  "Task is already running",
@@ -232,8 +216,8 @@ func TestTaskExecutionHandler_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, mockTaskRepo, mockExecutionRepo, handler := setupTaskExecutionHandlerTest()
-			tt.mockSetup(mockTaskRepo, mockExecutionRepo)
+			router, mockTaskRepo, mockExecutionRepo, mockExecutionService, handler := setupTaskExecutionHandlerTest()
+			tt.mockSetup(mockTaskRepo, mockExecutionRepo, mockExecutionService)
 			
 			// Override the user context with known user ID
 			router.Use(func(c *gin.Context) {
@@ -271,6 +255,7 @@ func TestTaskExecutionHandler_Create(t *testing.T) {
 			
 			mockTaskRepo.AssertExpectations(t)
 			mockExecutionRepo.AssertExpectations(t)
+			mockExecutionService.AssertExpectations(t)
 		})
 	}
 }
@@ -283,14 +268,14 @@ func TestTaskExecutionHandler_GetByID(t *testing.T) {
 	tests := []struct {
 		name           string
 		executionID    string
-		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository)
+		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository, *MockTaskExecutionService)
 		wantStatus     int
 		wantError      string
 	}{
 		{
 			name:        "successful execution retrieval",
 			executionID: executionID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				execution := &models.TaskExecution{
 					ID:     executionID,
 					TaskID: taskID,
@@ -310,7 +295,7 @@ func TestTaskExecutionHandler_GetByID(t *testing.T) {
 		{
 			name:        "invalid execution ID",
 			executionID: "invalid-uuid",
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				// No mock calls expected
 			},
 			wantStatus: http.StatusBadRequest,
@@ -319,7 +304,7 @@ func TestTaskExecutionHandler_GetByID(t *testing.T) {
 		{
 			name:        "execution not found",
 			executionID: executionID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				me.On("GetByID", mock.Anything, executionID).Return(nil, database.ErrExecutionNotFound)
 			},
 			wantStatus: http.StatusNotFound,
@@ -329,8 +314,8 @@ func TestTaskExecutionHandler_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, mockTaskRepo, mockExecutionRepo, handler := setupTaskExecutionHandlerTest()
-			tt.mockSetup(mockTaskRepo, mockExecutionRepo)
+			router, mockTaskRepo, mockExecutionRepo, mockExecutionService, handler := setupTaskExecutionHandlerTest()
+			tt.mockSetup(mockTaskRepo, mockExecutionRepo, mockExecutionService)
 			
 			// Override the user context with known user ID
 			router.Use(func(c *gin.Context) {
@@ -362,6 +347,7 @@ func TestTaskExecutionHandler_GetByID(t *testing.T) {
 			
 			mockTaskRepo.AssertExpectations(t)
 			mockExecutionRepo.AssertExpectations(t)
+			mockExecutionService.AssertExpectations(t)
 		})
 	}
 }
@@ -374,7 +360,7 @@ func TestTaskExecutionHandler_ListByTaskID(t *testing.T) {
 		name           string
 		taskID         string
 		query          string
-		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository)
+		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository, *MockTaskExecutionService)
 		wantStatus     int
 		wantError      string
 	}{
@@ -382,7 +368,7 @@ func TestTaskExecutionHandler_ListByTaskID(t *testing.T) {
 			name:   "successful execution listing",
 			taskID: taskID.String(),
 			query:  "?limit=10&offset=0",
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				task := &models.Task{
 					BaseModel: models.BaseModel{
 						ID: taskID,
@@ -407,7 +393,7 @@ func TestTaskExecutionHandler_ListByTaskID(t *testing.T) {
 			name:   "invalid task ID",
 			taskID: "invalid-uuid",
 			query:  "",
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				// No mock calls expected
 			},
 			wantStatus: http.StatusBadRequest,
@@ -417,7 +403,7 @@ func TestTaskExecutionHandler_ListByTaskID(t *testing.T) {
 			name:   "task not found",
 			taskID: taskID.String(),
 			query:  "",
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				mt.On("GetByID", mock.Anything, taskID).Return(nil, database.ErrTaskNotFound)
 			},
 			wantStatus: http.StatusNotFound,
@@ -427,8 +413,8 @@ func TestTaskExecutionHandler_ListByTaskID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, mockTaskRepo, mockExecutionRepo, handler := setupTaskExecutionHandlerTest()
-			tt.mockSetup(mockTaskRepo, mockExecutionRepo)
+			router, mockTaskRepo, mockExecutionRepo, mockExecutionService, handler := setupTaskExecutionHandlerTest()
+			tt.mockSetup(mockTaskRepo, mockExecutionRepo, mockExecutionService)
 			
 			// Override the user context with known user ID
 			router.Use(func(c *gin.Context) {
@@ -460,71 +446,47 @@ func TestTaskExecutionHandler_ListByTaskID(t *testing.T) {
 			
 			mockTaskRepo.AssertExpectations(t)
 			mockExecutionRepo.AssertExpectations(t)
+			mockExecutionService.AssertExpectations(t)
 		})
 	}
 }
 
 func TestTaskExecutionHandler_Cancel(t *testing.T) {
 	executionID := uuid.New()
-	taskID := uuid.New()
 	userID := uuid.New()
 	
 	tests := []struct {
 		name           string
 		executionID    string
-		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository)
+		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository, *MockTaskExecutionService)
 		wantStatus     int
 		wantError      string
 	}{
 		{
 			name:        "successful execution cancellation",
 			executionID: executionID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
-				execution := &models.TaskExecution{
-					ID:     executionID,
-					TaskID: taskID,
-					Status: models.ExecutionStatusRunning, // Can be cancelled
-				}
-				task := &models.Task{
-					BaseModel: models.BaseModel{
-						ID: taskID,
-					},
-					UserID: userID,
-				}
-				me.On("GetByID", mock.Anything, executionID).Return(execution, nil)
-				mt.On("GetByID", mock.Anything, taskID).Return(task, nil)
-				me.On("UpdateStatus", mock.Anything, executionID, models.ExecutionStatusCancelled).Return(nil)
-				mt.On("UpdateStatus", mock.Anything, taskID, models.TaskStatusPending).Return(nil)
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
+				// The Cancel handler only calls the service
+				ms.On("CancelExecutionAndResetTaskStatus", mock.Anything, executionID, userID).Return(nil)
 			},
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:        "cannot cancel completed execution",
 			executionID: executionID.String(),
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
-				execution := &models.TaskExecution{
-					ID:     executionID,
-					TaskID: taskID,
-					Status: models.ExecutionStatusCompleted, // Terminal state
-				}
-				task := &models.Task{
-					BaseModel: models.BaseModel{
-						ID: taskID,
-					},
-					UserID: userID,
-				}
-				me.On("GetByID", mock.Anything, executionID).Return(execution, nil)
-				mt.On("GetByID", mock.Anything, taskID).Return(task, nil)
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
+				// The Cancel handler only calls the service, which returns an error for completed executions
+				ms.On("CancelExecutionAndResetTaskStatus", mock.Anything, executionID, userID).Return(fmt.Errorf("cannot cancel execution with status: completed"))
 			},
 			wantStatus: http.StatusConflict,
-			wantError:  "Cannot cancel completed execution",
+			wantError:  "cannot cancel execution with status:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, mockTaskRepo, mockExecutionRepo, handler := setupTaskExecutionHandlerTest()
-			tt.mockSetup(mockTaskRepo, mockExecutionRepo)
+			router, mockTaskRepo, mockExecutionRepo, mockExecutionService, handler := setupTaskExecutionHandlerTest()
+			tt.mockSetup(mockTaskRepo, mockExecutionRepo, mockExecutionService)
 			
 			// Override the user context with known user ID
 			router.Use(func(c *gin.Context) {
@@ -556,6 +518,7 @@ func TestTaskExecutionHandler_Cancel(t *testing.T) {
 			
 			mockTaskRepo.AssertExpectations(t)
 			mockExecutionRepo.AssertExpectations(t)
+			mockExecutionService.AssertExpectations(t)
 		})
 	}
 }
@@ -569,7 +532,7 @@ func TestTaskExecutionHandler_Update(t *testing.T) {
 		name           string
 		executionID    string
 		request        models.UpdateTaskExecutionRequest
-		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository)
+		mockSetup      func(*MockTaskRepository, *MockTaskExecutionRepository, *MockTaskExecutionService)
 		wantStatus     int
 		wantError      string
 	}{
@@ -579,22 +542,17 @@ func TestTaskExecutionHandler_Update(t *testing.T) {
 			request: models.UpdateTaskExecutionRequest{
 				Status: statusPtr(models.ExecutionStatusCompleted),
 			},
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				execution := &models.TaskExecution{
 					ID:     executionID,
 					TaskID: taskID,
 					Status: models.ExecutionStatusRunning,
 				}
-				task := &models.Task{
-					BaseModel: models.BaseModel{
-						ID: taskID,
-					},
-					UserID: userID,
-				}
+				// For terminal updates, the Update handler only calls executionRepo.GetByID, then the service
+				// The service handles task validation internally, so no taskRepo.GetByID is called by the handler
 				me.On("GetByID", mock.Anything, executionID).Return(execution, nil)
-				mt.On("GetByID", mock.Anything, taskID).Return(task, nil)
-				me.On("Update", mock.Anything, mock.AnythingOfType("*models.TaskExecution")).Return(nil)
-				mt.On("UpdateStatus", mock.Anything, taskID, models.TaskStatusCompleted).Return(nil)
+				// For terminal updates, it calls the service for atomic completion
+				ms.On("CompleteExecutionAndFinalizeTaskStatus", mock.Anything, mock.AnythingOfType("*models.TaskExecution"), models.TaskStatusCompleted, userID).Return(nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -604,7 +562,7 @@ func TestTaskExecutionHandler_Update(t *testing.T) {
 			request: models.UpdateTaskExecutionRequest{
 				Status: statusPtr(models.ExecutionStatusCompleted),
 			},
-			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository) {
+			mockSetup: func(mt *MockTaskRepository, me *MockTaskExecutionRepository, ms *MockTaskExecutionService) {
 				// No mock calls expected
 			},
 			wantStatus: http.StatusBadRequest,
@@ -614,8 +572,8 @@ func TestTaskExecutionHandler_Update(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, mockTaskRepo, mockExecutionRepo, handler := setupTaskExecutionHandlerTest()
-			tt.mockSetup(mockTaskRepo, mockExecutionRepo)
+			router, mockTaskRepo, mockExecutionRepo, mockExecutionService, handler := setupTaskExecutionHandlerTest()
+			tt.mockSetup(mockTaskRepo, mockExecutionRepo, mockExecutionService)
 			
 			// Override the user context with known user ID
 			router.Use(func(c *gin.Context) {
@@ -649,6 +607,7 @@ func TestTaskExecutionHandler_Update(t *testing.T) {
 			
 			mockTaskRepo.AssertExpectations(t)
 			mockExecutionRepo.AssertExpectations(t)
+			mockExecutionService.AssertExpectations(t)
 		})
 	}
 }

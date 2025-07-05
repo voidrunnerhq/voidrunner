@@ -399,13 +399,10 @@ func (r *taskRepository) GetByUserIDCursor(ctx context.Context, userID uuid.UUID
 		cursor = &decodedCursor
 	}
 
-	// Build query
-	orderClause := "ORDER BY created_at DESC, id DESC"
-	if req.SortOrder == "asc" {
-		orderClause = "ORDER BY created_at ASC, id ASC"
-	}
+	// Build dynamic ORDER BY clause based on sort field
+	orderClause := buildOrderByClause(req.SortField, req.SortOrder)
 
-	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, &userID, nil)
+	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, req.SortField, &userID, nil)
 	
 	query := fmt.Sprintf(`
 		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
@@ -468,14 +465,11 @@ func (r *taskRepository) GetByStatusCursor(ctx context.Context, status models.Ta
 		cursor = &decodedCursor
 	}
 
-	// Build query
-	orderClause := "ORDER BY priority DESC, created_at DESC, id DESC"
-	if req.SortOrder == "asc" {
-		orderClause = "ORDER BY priority ASC, created_at ASC, id ASC"
-	}
+	// Build dynamic ORDER BY clause based on sort field
+	orderClause := buildOrderByClause(req.SortField, req.SortOrder)
 
 	statusStr := string(status)
-	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, nil, &statusStr)
+	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, req.SortField, nil, &statusStr)
 	
 	query := fmt.Sprintf(`
 		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
@@ -536,13 +530,10 @@ func (r *taskRepository) ListCursor(ctx context.Context, req CursorPaginationReq
 		cursor = &decodedCursor
 	}
 
-	// Build query
-	orderClause := "ORDER BY priority DESC, created_at DESC, id DESC"
-	if req.SortOrder == "asc" {
-		orderClause = "ORDER BY priority ASC, created_at ASC, id ASC"
-	}
+	// Build dynamic ORDER BY clause based on sort field
+	orderClause := buildOrderByClause(req.SortField, req.SortOrder)
 
-	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, nil, nil)
+	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, req.SortField, nil, nil)
 	
 	query := fmt.Sprintf(`
 		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
@@ -750,4 +741,30 @@ func (r *taskRepository) GetTasksWithLatestExecution(ctx context.Context, userID
 	}
 
 	return tasks, nil
+}
+
+// buildOrderByClause creates the ORDER BY clause based on sort field and order
+func buildOrderByClause(sortField string, sortOrder string) string {
+	direction := "DESC"
+	if sortOrder == "asc" {
+		direction = "ASC"
+	}
+	
+	switch sortField {
+	case "priority":
+		// Sort by priority first, then created_at, then id for consistent ordering
+		return fmt.Sprintf("ORDER BY priority %s, created_at %s, id %s", direction, direction, direction)
+	case "created_at":
+		// Sort by created_at, then id
+		return fmt.Sprintf("ORDER BY created_at %s, id %s", direction, direction)
+	case "updated_at":
+		// Sort by updated_at, then id
+		return fmt.Sprintf("ORDER BY updated_at %s, id %s", direction, direction)
+	case "name":
+		// Sort by name, then created_at, then id
+		return fmt.Sprintf("ORDER BY name %s, created_at %s, id %s", direction, direction, direction)
+	default:
+		// Default to created_at
+		return fmt.Sprintf("ORDER BY created_at %s, id %s", direction, direction)
+	}
 }
