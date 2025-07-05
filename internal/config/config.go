@@ -16,6 +16,19 @@ type Config struct {
 	Logger   LoggerConfig
 	CORS     CORSConfig
 	JWT      JWTConfig
+	Docker   DockerConfig // Added DockerConfig
+}
+
+// DockerConfig holds Docker-specific settings
+type DockerConfig struct {
+	Host                string        // Optional, client uses DOCKER_HOST from env if empty
+	PythonExecutorImage string
+	BashExecutorImage   string
+	DefaultMemoryMB     int64
+	DefaultCPUQuota     int64 // In microseconds (e.g., 50000 for 0.5 CPU)
+	DefaultPidsLimit    int64
+	SeccompProfilePath  string // Path on the host or where daemon can access
+	DefaultExecTimeout  time.Duration
 }
 
 type ServerConfig struct {
@@ -85,6 +98,16 @@ func Load() (*Config, error) {
 			Issuer:               getEnv("JWT_ISSUER", "voidrunner"),
 			Audience:             getEnv("JWT_AUDIENCE", "voidrunner-api"),
 		},
+		Docker: DockerConfig{
+			Host:                getEnv("DOCKER_HOST", ""), // Let Docker client handle default from env
+			PythonExecutorImage: getEnv("PYTHON_EXECUTOR_IMAGE", "voidrunner/python-executor:v1.0"),
+			BashExecutorImage:   getEnv("BASH_EXECUTOR_IMAGE", "voidrunner/bash-executor:v1.0"),
+			DefaultMemoryMB:     getEnvInt64("DEFAULT_MEMORY_MB", 128),
+			DefaultCPUQuota:     getEnvInt64("DEFAULT_CPU_QUOTA", 50000),    // 0.5 CPU
+			DefaultPidsLimit:    getEnvInt64("DEFAULT_PIDS_LIMIT", 128),
+			SeccompProfilePath:  getEnv("SECCOMP_PROFILE_PATH", "/opt/voidrunner/seccomp-profile.json"), // Path on host
+			DefaultExecTimeout:  getEnvDuration("DEFAULT_EXEC_TIMEOUT", 60*time.Second),
+		},
 	}
 
 	if err := config.validate(); err != nil {
@@ -127,6 +150,34 @@ func (c *Config) validate() error {
 		return fmt.Errorf("JWT refresh token duration must be positive")
 	}
 
+	// Docker Config Validation
+	if c.Docker.PythonExecutorImage == "" {
+		return fmt.Errorf("docker python executor image is required")
+	}
+	if c.Docker.BashExecutorImage == "" {
+		return fmt.Errorf("docker bash executor image is required")
+	}
+	if c.Docker.DefaultMemoryMB <= 0 {
+		return fmt.Errorf("docker default memory MB must be positive")
+	}
+	if c.Docker.DefaultCPUQuota < 0 { // 0 might be valid (no limit), but typically positive or specific -1
+		return fmt.Errorf("docker default CPU quota must be non-negative")
+	}
+	if c.Docker.DefaultPidsLimit <= 0 && c.Docker.DefaultPidsLimit != -1 { // -1 often means unlimited
+		return fmt.Errorf("docker default PIDs limit must be positive or -1 (unlimited)")
+	}
+	if c.Docker.SeccompProfilePath == "" {
+		// Allow empty if seccomp is optional or handled differently, but issue implies it's used.
+		// For now, let's consider it required if specified in issue.
+		// However, Docker defaults to a standard seccomp profile if not overridden.
+		// Perhaps warning if empty, or make it truly optional.
+		// For now, let's not make it strictly required here, as Docker has defaults.
+		// If a specific custom profile is always expected, then make this an error.
+	}
+	if c.Docker.DefaultExecTimeout <= 0 {
+		return fmt.Errorf("docker default exec timeout must be positive")
+	}
+
 	return nil
 }
 
@@ -141,6 +192,15 @@ func (c *Config) IsDevelopment() bool {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if valueStr := os.Getenv(key); valueStr != "" {
+		if valueInt, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+			return valueInt
+		}
 	}
 	return defaultValue
 }
