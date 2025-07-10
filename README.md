@@ -18,8 +18,8 @@ VoidRunner is a Kubernetes-based distributed task execution platform that provid
 
 ### Prerequisites
 
-- Go 1.24+ installed
-- PostgreSQL (for future database operations)
+- Go 1.23.4+ installed
+- PostgreSQL 15+ (for database operations)
 - Docker (for containerization)
 
 ### Setup
@@ -56,20 +56,22 @@ The server will start on `http://localhost:8080` by default.
 
 ### Testing
 
-Run all tests:
+Run unit tests:
 ```bash
-go test ./...
+make test
 ```
 
-Run tests with coverage:
+Run integration tests (requires PostgreSQL):
 ```bash
-go test ./... -cover
+make test-integration
 ```
 
-Run specific test suite:
+Run all tests with coverage:
 ```bash
-go test ./internal/api/handlers/... -v
+make coverage
 ```
+
+For detailed testing instructions, database setup, troubleshooting, and performance testing, see [Testing Guide](docs/testing.md).
 
 ### Build
 

@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -118,7 +117,7 @@ func (r *taskRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Tas
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("task with ID %s not found", id)
+			return nil, ErrTaskNotFound
 		}
 		return nil, fmt.Errorf("failed to get task by ID: %w", err)
 	}
@@ -205,7 +204,7 @@ func (r *taskRepository) Update(ctx context.Context, task *models.Task) error {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("task with ID %s not found", task.ID)
+			return ErrTaskNotFound
 		}
 
 		var pgErr *pgconn.PgError
@@ -239,7 +238,7 @@ func (r *taskRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status 
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("task with ID %s not found", id)
+		return ErrTaskNotFound
 	}
 
 	return nil
@@ -255,7 +254,7 @@ func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("task with ID %s not found", id)
+		return ErrTaskNotFound
 	}
 
 	return nil
@@ -403,7 +402,7 @@ func (r *taskRepository) GetByUserIDCursor(ctx context.Context, userID uuid.UUID
 	orderClause := buildOrderByClause(req.SortField, req.SortOrder)
 
 	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, req.SortField, &userID, nil)
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
 		FROM tasks
@@ -470,7 +469,7 @@ func (r *taskRepository) GetByStatusCursor(ctx context.Context, status models.Ta
 
 	statusStr := string(status)
 	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, req.SortField, nil, &statusStr)
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
 		FROM tasks
@@ -534,7 +533,7 @@ func (r *taskRepository) ListCursor(ctx context.Context, req CursorPaginationReq
 	orderClause := buildOrderByClause(req.SortField, req.SortOrder)
 
 	whereClause, args := BuildTaskCursorWhere(cursor, req.SortOrder, req.SortField, nil, nil)
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, user_id, name, description, script_content, script_type, status, priority, timeout_seconds, metadata, created_at, updated_at
 		FROM tasks
@@ -629,19 +628,13 @@ func (r *taskRepository) GetTasksWithExecutionCount(ctx context.Context, userID 
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task with execution count: %w", err)
 		}
-		
+
 		// Add execution count to metadata for now (could be added to model later)
-		metadata := make(map[string]interface{})
-		if task.Metadata != nil {
-			json.Unmarshal(task.Metadata, &metadata)
+		if task.Metadata == nil {
+			task.Metadata = make(models.JSONB)
 		}
-		metadata["execution_count"] = executionCount
-		
-		updatedMetadata, err := json.Marshal(metadata)
-		if err == nil {
-			task.Metadata = updatedMetadata
-		}
-		
+		task.Metadata["execution_count"] = executionCount
+
 		tasks = append(tasks, &task)
 	}
 
@@ -692,7 +685,7 @@ func (r *taskRepository) GetTasksWithLatestExecution(ctx context.Context, userID
 		var latestExecutionID *uuid.UUID
 		var latestExecutionStatus *string
 		var latestExecutionCreatedAt *time.Time
-		
+
 		err := rows.Scan(
 			&task.ID,
 			&task.UserID,
@@ -713,26 +706,20 @@ func (r *taskRepository) GetTasksWithLatestExecution(ctx context.Context, userID
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task with latest execution: %w", err)
 		}
-		
+
 		// Add latest execution info to metadata
-		metadata := make(map[string]interface{})
-		if task.Metadata != nil {
-			json.Unmarshal(task.Metadata, &metadata)
+		if task.Metadata == nil {
+			task.Metadata = make(models.JSONB)
 		}
-		
+
 		if latestExecutionID != nil {
-			metadata["latest_execution"] = map[string]interface{}{
+			task.Metadata["latest_execution"] = map[string]interface{}{
 				"id":         *latestExecutionID,
 				"status":     *latestExecutionStatus,
 				"created_at": *latestExecutionCreatedAt,
 			}
 		}
-		
-		updatedMetadata, err := json.Marshal(metadata)
-		if err == nil {
-			task.Metadata = updatedMetadata
-		}
-		
+
 		tasks = append(tasks, &task)
 	}
 
@@ -749,7 +736,7 @@ func buildOrderByClause(sortField string, sortOrder string) string {
 	if sortOrder == "asc" {
 		direction = "ASC"
 	}
-	
+
 	switch sortField {
 	case "priority":
 		// Sort by priority first, then created_at, then id for consistent ordering

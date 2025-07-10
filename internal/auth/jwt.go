@@ -31,6 +31,10 @@ type TokenPair struct {
 
 // GenerateTokenPair generates both access and refresh tokens for a user
 func (s *JWTService) GenerateTokenPair(user *models.User) (*TokenPair, error) {
+	if user == nil {
+		return nil, fmt.Errorf("user cannot be nil")
+	}
+
 	// Generate access token
 	accessToken, err := s.generateToken(user, "access", s.config.AccessTokenDuration)
 	if err != nil {
@@ -53,11 +57,11 @@ func (s *JWTService) GenerateTokenPair(user *models.User) (*TokenPair, error) {
 // generateToken generates a JWT token for a user
 func (s *JWTService) generateToken(user *models.User, tokenType string, duration time.Duration) (string, error) {
 	expiresAt := time.Now().Add(duration)
-	
+
 	claims := user.ToJWTClaims(tokenType, s.config.Issuer, s.config.Audience, expiresAt)
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	
+
 	tokenString, err := token.SignedString([]byte(s.config.SecretKey))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)

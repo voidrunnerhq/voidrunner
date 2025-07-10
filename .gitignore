@@ -18,6 +18,7 @@ bin/
 *.out
 coverage.*
 *.coverprofile
+*.html
 profile.cov
 
 # Dependency directories (remove the comment below to include it)
@@ -29,6 +30,15 @@ go.work.sum
 
 # env file
 .env
+
+# Security scan reports
+*.sarif
+
+# Benchmark and performance test outputs
+benchmark.txt
+
+# System files
+.DS_Store
 
 # Editor/IDE
 # .idea/

@@ -21,12 +21,12 @@ type ValidationMiddleware struct {
 // NewValidationMiddleware creates a new validation middleware
 func NewValidationMiddleware(logger *slog.Logger) *ValidationMiddleware {
 	v := validator.New()
-	
+
 	// Register custom validators
-	v.RegisterValidation("script_content", validateScriptContent)
-	v.RegisterValidation("script_type", validateScriptType)
-	v.RegisterValidation("task_name", validateTaskName)
-	
+	_ = v.RegisterValidation("script_content", validateScriptContent)
+	_ = v.RegisterValidation("script_type", validateScriptType)
+	_ = v.RegisterValidation("task_name", validateTaskName)
+
 	return &ValidationMiddleware{
 		validator: v,
 		logger:    logger,
@@ -38,7 +38,7 @@ func (vm *ValidationMiddleware) ValidateJSON(modelType interface{}) gin.HandlerF
 	return func(c *gin.Context) {
 		// Create new instance of the model type
 		model := reflect.New(reflect.TypeOf(modelType)).Interface()
-		
+
 		// Bind JSON to model
 		if err := c.ShouldBindJSON(model); err != nil {
 			vm.logger.Warn("JSON binding failed", "error", err)
@@ -49,11 +49,11 @@ func (vm *ValidationMiddleware) ValidateJSON(modelType interface{}) gin.HandlerF
 			c.Abort()
 			return
 		}
-		
+
 		// Validate the model
 		if err := vm.validator.Struct(model); err != nil {
 			vm.logger.Warn("validation failed", "error", err)
-			
+
 			// Format validation errors nicely
 			validationErrors := vm.formatValidationErrors(err)
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -63,7 +63,7 @@ func (vm *ValidationMiddleware) ValidateJSON(modelType interface{}) gin.HandlerF
 			c.Abort()
 			return
 		}
-		
+
 		// Store validated model in context
 		c.Set("validated_body", model)
 		c.Next()
@@ -90,7 +90,7 @@ func (vm *ValidationMiddleware) ValidateRequestSize(maxSize int64) gin.HandlerFu
 	return func(c *gin.Context) {
 		// Check Content-Length header
 		if c.Request.ContentLength > maxSize {
-			vm.logger.Warn("request body too large", 
+			vm.logger.Warn("request body too large",
 				"content_length", c.Request.ContentLength,
 				"max_size", maxSize,
 			)
@@ -100,10 +100,10 @@ func (vm *ValidationMiddleware) ValidateRequestSize(maxSize int64) gin.HandlerFu
 			c.Abort()
 			return
 		}
-		
+
 		// Limit the request body reader
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
-		
+
 		c.Next()
 	}
 }
@@ -111,7 +111,7 @@ func (vm *ValidationMiddleware) ValidateRequestSize(maxSize int64) gin.HandlerFu
 // formatValidationErrors formats validator errors into a user-friendly format
 func (vm *ValidationMiddleware) formatValidationErrors(err error) []map[string]string {
 	var errors []map[string]string
-	
+
 	for _, err := range err.(validator.ValidationErrors) {
 		fieldError := map[string]string{
 			"field":   err.Field(),
@@ -121,7 +121,7 @@ func (vm *ValidationMiddleware) formatValidationErrors(err error) []map[string]s
 		}
 		errors = append(errors, fieldError)
 	}
-	
+
 	return errors
 }
 
@@ -155,11 +155,11 @@ func (vm *ValidationMiddleware) getValidationMessage(err validator.FieldError) s
 func validateScriptContent(fl validator.FieldLevel) bool {
 	content := fl.Field().String()
 	content = strings.ToLower(strings.TrimSpace(content))
-	
+
 	if content == "" {
 		return false
 	}
-	
+
 	// List of dangerous patterns
 	dangerousPatterns := []string{
 		"rm -rf",
@@ -171,7 +171,7 @@ func validateScriptContent(fl validator.FieldLevel) bool {
 		"format c:",
 		"mkfs",
 		"dd if=",
-		":(){ :|:& };:",  // Fork bomb
+		":(){ :|:& };:", // Fork bomb
 		"chmod 777",
 		"chmod +x",
 		"/etc/passwd",
@@ -235,14 +235,14 @@ func validateScriptContent(fl validator.FieldLevel) bool {
 		"exit(",
 		"quit(",
 	}
-	
+
 	// Check for dangerous patterns
 	for _, pattern := range dangerousPatterns {
 		if strings.Contains(content, pattern) {
 			return false
 		}
 	}
-	
+
 	// Check for suspicious file paths
 	suspiciousPaths := []string{
 		"/bin/",
@@ -263,23 +263,23 @@ func validateScriptContent(fl validator.FieldLevel) bool {
 		"./",
 		"~/",
 	}
-	
+
 	for _, path := range suspiciousPaths {
 		if strings.Contains(content, path) {
 			return false
 		}
 	}
-	
+
 	// Check for base64 encoded content that might hide malicious code
 	if strings.Contains(content, "base64") || strings.Contains(content, "b64decode") {
 		return false
 	}
-	
+
 	// Check for hex encoded content
 	if strings.Contains(content, "\\x") || strings.Contains(content, "0x") {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -287,36 +287,36 @@ func validateScriptContent(fl validator.FieldLevel) bool {
 func validateScriptType(fl validator.FieldLevel) bool {
 	scriptType := fl.Field().String()
 	validTypes := []string{"python", "javascript", "bash", "go"}
-	
+
 	for _, validType := range validTypes {
 		if scriptType == validType {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // validateTaskName validates task name
 func validateTaskName(fl validator.FieldLevel) bool {
 	name := strings.TrimSpace(fl.Field().String())
-	
+
 	if name == "" || len(name) > 255 {
 		return false
 	}
-	
+
 	// Check for invalid characters
 	invalidChars := []string{
 		"<", ">", "\"", "'", "&", ";", "|", "`", "$", "(", ")", "{", "}", "[", "]",
 		"\\", "/", ":", "*", "?", "\n", "\r", "\t",
 	}
-	
+
 	for _, char := range invalidChars {
 		if strings.Contains(name, char) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 

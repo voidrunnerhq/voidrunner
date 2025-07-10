@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -252,29 +251,6 @@ func TestUserRepository_UpdateValidation(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "user cannot be nil")
 	})
-}
-
-// Helper functions for testing
-func createTestUser(t *testing.T, email string) *models.User {
-	t.Helper()
-	return &models.User{
-		BaseModel: models.BaseModel{
-			ID:        uuid.New(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Email:        email,
-		PasswordHash: "test_password_hash",
-	}
-}
-
-func assertUserEqual(t *testing.T, expected, actual *models.User) {
-	t.Helper()
-	assert.Equal(t, expected.ID, actual.ID)
-	assert.Equal(t, expected.Email, actual.Email)
-	assert.Equal(t, expected.PasswordHash, actual.PasswordHash)
-	assert.WithinDuration(t, expected.CreatedAt, actual.CreatedAt, time.Second)
-	assert.WithinDuration(t, expected.UpdatedAt, actual.UpdatedAt, time.Second)
 }
 
 // Benchmark tests

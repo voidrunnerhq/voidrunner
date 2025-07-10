@@ -11,18 +11,18 @@ import (
 
 // Common errors
 var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrTaskNotFound = errors.New("task not found")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrTaskNotFound      = errors.New("task not found")
 	ErrExecutionNotFound = errors.New("execution not found")
-	ErrInvalidCursor = errors.New("invalid cursor")
+	ErrInvalidCursor     = errors.New("invalid cursor")
 )
 
 // CursorPaginationRequest represents a cursor-based pagination request
 type CursorPaginationRequest struct {
-	Limit      int       `json:"limit"`
-	Cursor     *string   `json:"cursor,omitempty"`
-	SortOrder  string    `json:"sort_order"` // "asc" or "desc"
-	SortField  string    `json:"sort_field"` // "created_at", "updated_at", "priority", "name"
+	Limit     int     `json:"limit"`
+	Cursor    *string `json:"cursor,omitempty"`
+	SortOrder string  `json:"sort_order"` // "asc" or "desc"
+	SortField string  `json:"sort_field"` // "created_at", "updated_at", "priority", "name"
 }
 
 // CursorPaginationResponse represents a cursor-based pagination response

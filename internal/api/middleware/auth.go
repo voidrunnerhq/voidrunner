@@ -12,12 +12,12 @@ import (
 
 // AuthMiddleware handles JWT authentication
 type AuthMiddleware struct {
-	authService *auth.Service
+	authService auth.AuthService
 	logger      *slog.Logger
 }
 
 // NewAuthMiddleware creates a new auth middleware
-func NewAuthMiddleware(authService *auth.Service, logger *slog.Logger) *AuthMiddleware {
+func NewAuthMiddleware(authService auth.AuthService, logger *slog.Logger) *AuthMiddleware {
 	return &AuthMiddleware{
 		authService: authService,
 		logger:      logger,
@@ -31,7 +31,7 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		if token == "" {
 			m.logger.Warn("missing or invalid authorization header")
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Authorization header required",
+				"error": "authorization header required",
 			})
 			c.Abort()
 			return
@@ -100,7 +100,12 @@ func (m *AuthMiddleware) extractToken(c *gin.Context) string {
 		return ""
 	}
 
-	return parts[1]
+	token := strings.TrimSpace(parts[1])
+	if token == "" {
+		return ""
+	}
+
+	return token
 }
 
 // GetUserFromContext safely extracts user from gin context

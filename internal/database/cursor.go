@@ -106,7 +106,7 @@ func ValidatePaginationRequest(req *CursorPaginationRequest) {
 	if req.Limit <= 0 {
 		req.Limit = 20
 	}
-	
+
 	// Cap maximum limit
 	if req.Limit > 100 {
 		req.Limit = 100
@@ -165,7 +165,7 @@ func BuildTaskCursorWhere(cursor *TaskCursor, sortOrder string, sortField string
 		if cursorCondition != "" {
 			conditions = append(conditions, cursorCondition)
 			args = append(args, cursorArgs...)
-			argIndex += len(cursorArgs)
+			// argIndex is not used after this point, so no need to update it
 		}
 	}
 
@@ -184,20 +184,20 @@ func BuildTaskCursorWhere(cursor *TaskCursor, sortOrder string, sortField string
 func buildCursorCondition(cursor *TaskCursor, sortOrder string, sortField string, startArgIndex int) (string, []interface{}) {
 	var args []interface{}
 	var condition string
-	
+
 	// Determine comparison operators based on sort order
 	primaryOp, secondaryOp := "<", "<"
 	if sortOrder == "asc" {
 		primaryOp, secondaryOp = ">", ">"
 	}
-	
+
 	argIndex := startArgIndex
-	
+
 	switch sortField {
 	case "priority":
 		if cursor.Priority == nil {
 			// Cannot use priority cursor without priority value, fallback to created_at
-			condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))", 
+			condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))",
 				primaryOp, argIndex, argIndex, secondaryOp, argIndex+1)
 			args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
 		} else {
@@ -205,46 +205,39 @@ func buildCursorCondition(cursor *TaskCursor, sortOrder string, sortField string
 			condition = fmt.Sprintf(`(priority %s $%d OR 
 				(priority = $%d AND created_at %s $%d) OR 
 				(priority = $%d AND created_at = $%d AND id %s $%d))`,
-				primaryOp, argIndex,     // priority comparison
-				argIndex, primaryOp, argIndex+1,  // priority = and created_at comparison  
+				primaryOp, argIndex, // priority comparison
+				argIndex, primaryOp, argIndex+1, // priority = and created_at comparison
 				argIndex, argIndex+1, secondaryOp, argIndex+2) // priority = and created_at = and id comparison
-			args = append(args, *cursor.Priority, *cursor.Priority, cursor.CreatedAt, 
+			args = append(args, *cursor.Priority, *cursor.Priority, cursor.CreatedAt,
 				*cursor.Priority, cursor.CreatedAt, cursor.ID)
 		}
-		
+
 	case "created_at":
 		// Created_at-based cursor: created_at, then id
-		condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))", 
+		condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))",
 			primaryOp, argIndex, argIndex, secondaryOp, argIndex+1)
 		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
-		
+
 	case "updated_at":
 		// Updated_at-based cursor: updated_at, then id (using created_at as proxy for updated_at in cursor)
-		condition = fmt.Sprintf("(updated_at %s $%d OR (updated_at = $%d AND id %s $%d))", 
+		condition = fmt.Sprintf("(updated_at %s $%d OR (updated_at = $%d AND id %s $%d))",
 			primaryOp, argIndex, argIndex, secondaryOp, argIndex+1)
 		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
-		
+
 	case "name":
-		// Name-based cursor: name, then created_at, then id (using created_at as proxy for name in cursor)
-		condition = fmt.Sprintf(`(name %s $%d OR 
-			(name = $%d AND created_at %s $%d) OR 
-			(name = $%d AND created_at = $%d AND id %s $%d))`,
-			primaryOp, argIndex,     // name comparison
-			argIndex, primaryOp, argIndex+1,  // name = and created_at comparison
-			argIndex, argIndex+1, secondaryOp, argIndex+2) // name = and created_at = and id comparison
 		// Note: For name sorting, we'd need to store the name in the cursor too
 		// For now, fallback to created_at-based sorting
-		condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))", 
+		condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))",
 			primaryOp, argIndex, argIndex, secondaryOp, argIndex+1)
 		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
-		
+
 	default:
 		// Default to created_at-based cursor
-		condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))", 
+		condition = fmt.Sprintf("(created_at %s $%d OR (created_at = $%d AND id %s $%d))",
 			primaryOp, argIndex, argIndex, secondaryOp, argIndex+1)
 		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
 	}
-	
+
 	return condition, args
 }
 
@@ -276,7 +269,7 @@ func BuildExecutionCursorWhere(cursor *ExecutionCursor, sortOrder string, taskID
 			conditions = append(conditions, fmt.Sprintf("(created_at < $%d OR (created_at = $%d AND id < $%d))", argIndex, argIndex, argIndex+1))
 		}
 		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
-		argIndex += 3
+		// argIndex is not used after this point, so no need to update it
 	}
 
 	if len(conditions) == 0 {

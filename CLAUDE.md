@@ -479,6 +479,27 @@ logging:
   format: json
 ```
 
+### Testing
+
+Testing configuration is unified between CI and local environments for consistency:
+
+```bash
+# Integration test environment variables (used by both CI and local)
+TEST_DB_HOST=localhost
+TEST_DB_PORT=5432
+TEST_DB_USER=testuser
+TEST_DB_PASSWORD=testpassword
+TEST_DB_NAME=voidrunner_test
+TEST_DB_SSLMODE=disable
+JWT_SECRET_KEY=test-secret-key-for-integration
+```
+
+**Key Principles:**
+- **Unified Configuration**: Same database and JWT settings for CI and local testing
+- **Environment Detection**: `CI=true` used only for output formats (SARIF, coverage)
+- **Database Independence**: Tests automatically skip when database unavailable
+- **Consistent Behavior**: Integration tests behave identically in both environments
+
 ## Common Patterns and Anti-Patterns
 
 ### ✅ Preferred Patterns
@@ -576,20 +597,39 @@ func (s *TaskService) ExecuteTask(ctx context.Context, taskID string) error {
 ### Development Commands
 
 ```bash
-# Start development environment
-make dev-up
+# Setup development environment
+make setup
 
-# Run tests with coverage
-make test-coverage
+# Start development server with auto-reload
+make dev
 
-# Build all containers
-make build-all
+# Run tests
+make test              # Unit tests (with coverage in CI)
+make test-fast         # Fast unit tests (short mode)
+make test-integration  # Integration tests
+make test-all          # Both unit and integration tests
 
-# Deploy to staging
-make deploy-staging
+# Coverage analysis
+make coverage          # Generate coverage report
+make coverage-check    # Check coverage meets 80% threshold
 
-# Security scan
-make security-scan
+# Code quality
+make fmt               # Format code
+make vet               # Run go vet
+make lint              # Run linting (with format check in CI)
+make security          # Security scan
+
+# Build and run
+make build             # Build API server
+make run               # Run API server locally
+
+# Documentation
+make docs              # Generate API docs
+make docs-serve        # Serve docs locally
+
+# Development tools
+make install-tools     # Install development tools
+make clean             # Clean build artifacts
 ```
 
 ### Database Operations

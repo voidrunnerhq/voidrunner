@@ -28,6 +28,19 @@ func NewTaskHandler(taskRepo database.TaskRepository, logger *slog.Logger) *Task
 }
 
 // Create handles task creation
+//
+//	@Summary		Create a new task
+//	@Description	Creates a new task with the specified script content and configuration
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		models.CreateTaskRequest	true	"Task creation details"
+//	@Success		201		{object}	models.TaskResponse			"Task created successfully"
+//	@Failure		400		{object}	models.ErrorResponse		"Invalid request format or validation error"
+//	@Failure		401		{object}	models.ErrorResponse		"Unauthorized"
+//	@Failure		429		{object}	models.ErrorResponse		"Rate limit exceeded"
+//	@Router			/tasks [post]
 func (h *TaskHandler) Create(c *gin.Context) {
 	// Get validated request from middleware
 	validatedBody, exists := c.Get("validated_body")
@@ -44,7 +57,7 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		}
 		validatedBody = &req
 	}
-	
+
 	req := *validatedBody.(*models.CreateTaskRequest)
 
 	// Get user from context
@@ -77,7 +90,7 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		ScriptContent:  req.ScriptContent,
 		ScriptType:     req.ScriptType,
 		Status:         models.TaskStatusPending,
-		Priority:       5, // Default priority
+		Priority:       5,   // Default priority
 		TimeoutSeconds: 300, // Default timeout
 		Metadata:       req.Metadata,
 	}
@@ -104,6 +117,21 @@ func (h *TaskHandler) Create(c *gin.Context) {
 }
 
 // GetByID handles retrieving a task by ID
+//
+//	@Summary		Get task details
+//	@Description	Retrieves detailed information about a specific task
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Task ID"
+//	@Success		200	{object}	models.TaskResponse		"Task retrieved successfully"
+//	@Failure		400	{object}	models.ErrorResponse	"Invalid task ID"
+//	@Failure		401	{object}	models.ErrorResponse	"Unauthorized"
+//	@Failure		403	{object}	models.ErrorResponse	"Forbidden"
+//	@Failure		404	{object}	models.ErrorResponse	"Task not found"
+//	@Failure		429	{object}	models.ErrorResponse	"Rate limit exceeded"
+//	@Router			/tasks/{id} [get]
 func (h *TaskHandler) GetByID(c *gin.Context) {
 	taskIDStr := c.Param("id")
 	taskID, err := uuid.Parse(taskIDStr)
@@ -157,6 +185,20 @@ func (h *TaskHandler) GetByID(c *gin.Context) {
 }
 
 // List handles listing user's tasks with pagination
+//
+//	@Summary		List user's tasks
+//	@Description	Retrieves a paginated list of tasks owned by the authenticated user
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			limit	query	int	false	"Maximum number of tasks to return"	default(20)
+//	@Param			offset	query	int	false	"Number of tasks to skip"	default(0)
+//	@Success		200		{object}	models.TaskListResponse	"Tasks retrieved successfully"
+//	@Failure		400		{object}	models.ErrorResponse	"Invalid query parameters"
+//	@Failure		401		{object}	models.ErrorResponse	"Unauthorized"
+//	@Failure		429		{object}	models.ErrorResponse	"Rate limit exceeded"
+//	@Router			/tasks [get]
 func (h *TaskHandler) List(c *gin.Context) {
 	// Get user from context
 	user := middleware.GetUserFromContext(c)
@@ -197,11 +239,11 @@ func (h *TaskHandler) List(c *gin.Context) {
 
 		h.logger.Debug("tasks retrieved successfully with cursor", "user_id", user.ID, "count", len(tasks))
 		c.JSON(http.StatusOK, gin.H{
-			"tasks":       taskResponses,
-			"pagination":  paginationResp,
-			"limit":       cursorReq.Limit,
-			"sort_order":  cursorReq.SortOrder,
-			"sort_field":  cursorReq.SortField,
+			"tasks":      taskResponses,
+			"pagination": paginationResp,
+			"limit":      cursorReq.Limit,
+			"sort_order": cursorReq.SortOrder,
+			"sort_field": cursorReq.SortField,
 		})
 	} else {
 		// Use offset-based pagination (legacy)
@@ -277,7 +319,7 @@ func (h *TaskHandler) Update(c *gin.Context) {
 		}
 		validatedBody = &req
 	}
-	
+
 	req := *validatedBody.(*models.UpdateTaskRequest)
 
 	// Get user from context
@@ -535,18 +577,18 @@ func (h *TaskHandler) parseCursorPagination(c *gin.Context) (database.CursorPagi
 	limitStr := c.Query("limit")
 	sortOrder := c.Query("sort_order")
 	sortField := c.Query("sort_field")
-	
+
 	// Only use cursor pagination if a cursor is actually provided
 	if cursor == "" {
 		return database.CursorPaginationRequest{}, false, nil
 	}
-	
+
 	req := database.CursorPaginationRequest{
-		Limit:     20,        // default
-		SortOrder: "desc",    // default
+		Limit:     20,           // default
+		SortOrder: "desc",       // default
 		SortField: "created_at", // default
 	}
-	
+
 	// Parse limit
 	if limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
@@ -555,16 +597,16 @@ func (h *TaskHandler) parseCursorPagination(c *gin.Context) (database.CursorPagi
 		}
 		req.Limit = limit
 	}
-	
+
 	// Parse cursor (already validated to be non-empty above)
 	req.Cursor = &cursor
-	
+
 	// Parse sort order
 	if sortOrder != "" {
 		req.SortOrder = sortOrder
 	}
-	
-	// Parse sort field  
+
+	// Parse sort field
 	if sortField != "" {
 		// Validate sort field
 		validSortFields := map[string]bool{
@@ -578,9 +620,9 @@ func (h *TaskHandler) parseCursorPagination(c *gin.Context) (database.CursorPagi
 		}
 		req.SortField = sortField
 	}
-	
+
 	// Validate the request
 	database.ValidatePaginationRequest(&req)
-	
+
 	return req, true, nil
 }

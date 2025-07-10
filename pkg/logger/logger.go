@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -10,11 +11,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const (
+	requestIDKey contextKey = "request_id"
+)
+
 type Logger struct {
 	*slog.Logger
 }
 
 func New(level, format string) *Logger {
+	return NewWithWriter(level, format, os.Stdout)
+}
+
+func NewWithWriter(level, format string, writer io.Writer) *Logger {
 	var logLevel slog.Level
 	switch strings.ToLower(level) {
 	case "debug":
@@ -36,11 +48,11 @@ func New(level, format string) *Logger {
 
 	switch strings.ToLower(format) {
 	case "json":
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewJSONHandler(writer, opts)
 	case "text":
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		handler = slog.NewTextHandler(writer, opts)
 	default:
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewJSONHandler(writer, opts)
 	}
 
 	logger := slog.New(handler)
@@ -48,11 +60,11 @@ func New(level, format string) *Logger {
 }
 
 func (l *Logger) WithRequestID(requestID string) *Logger {
-	return &Logger{Logger: l.Logger.With("request_id", requestID)}
+	return &Logger{Logger: l.With("request_id", requestID)}
 }
 
 func (l *Logger) WithContext(ctx context.Context) *Logger {
-	if requestID := ctx.Value("request_id"); requestID != nil {
+	if requestID := ctx.Value(requestIDKey); requestID != nil {
 		if reqIDStr, ok := requestID.(string); ok {
 			return l.WithRequestID(reqIDStr)
 		}
@@ -61,26 +73,26 @@ func (l *Logger) WithContext(ctx context.Context) *Logger {
 }
 
 func (l *Logger) WithUserID(userID string) *Logger {
-	return &Logger{Logger: l.Logger.With("user_id", userID)}
+	return &Logger{Logger: l.With("user_id", userID)}
 }
 
 func (l *Logger) WithOperation(operation string) *Logger {
-	return &Logger{Logger: l.Logger.With("operation", operation)}
+	return &Logger{Logger: l.With("operation", operation)}
 }
 
 func (l *Logger) WithError(err error) *Logger {
-	return &Logger{Logger: l.Logger.With("error", err.Error())}
+	return &Logger{Logger: l.With("error", err.Error())}
 }
 
 func (l *Logger) GinLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		requestID := c.GetString("request_id")
-		
+
 		c.Next()
 
 		duration := time.Since(start)
-		
+
 		l.WithRequestID(requestID).Info("request completed",
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,

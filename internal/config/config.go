@@ -138,6 +138,10 @@ func (c *Config) IsDevelopment() bool {
 	return strings.ToLower(c.Server.Env) == "development"
 }
 
+func (c *Config) IsTest() bool {
+	return strings.ToLower(c.Server.Env) == "test"
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
