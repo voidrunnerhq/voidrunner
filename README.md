@@ -1,18 +1,75 @@
 # VoidRunner
 
-The LLM-powered distributed task execution platform built with Go and Kubernetes.
+A distributed task execution platform that provides secure, scalable code execution in containerized environments with comprehensive task management capabilities.
 
-## Overview
+## What is VoidRunner?
 
-VoidRunner is a Kubernetes-based distributed task execution platform that provides secure, scalable code execution in containerized environments. The platform is designed with security-first principles and follows microservices architecture.
+VoidRunner is designed to safely execute user-submitted code in isolated containers while providing a robust API for task management, real-time monitoring, and execution tracking. The platform prioritizes security, scalability, and developer experience.
 
-## Features
+## Current Features
 
-- **Secure Execution**: Container-based task execution with gVisor security
-- **RESTful API**: Clean HTTP API with structured logging and monitoring
-- **Kubernetes Native**: Designed for cloud-native deployments
-- **Authentication**: JWT-based authentication system
-- **Monitoring**: Built-in health checks and observability
+- **REST API**: Comprehensive HTTP API with 16+ endpoints for complete task lifecycle management
+- **JWT Authentication**: Secure user authentication with access and refresh tokens
+- **Task Management**: Full CRUD operations for code tasks with metadata support
+- **Execution Tracking**: Detailed execution history with performance metrics
+- **Database Integration**: PostgreSQL with optimized schema and cursor pagination
+- **Security**: Input validation, rate limiting, and secure request handling
+- **Testing**: 80%+ code coverage with unit and integration tests
+- **Documentation**: OpenAPI/Swagger specifications with comprehensive examples
+
+## System Architecture
+
+```
+Current Implementation (✅ Complete)
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Web Clients   │    │   API Gateway    │    │   PostgreSQL    │
+│  (Postman/curl) │◄──►│   (Gin Server)   │◄──►│    Database     │
+│                 │    │                  │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                │ JWT Auth & Task Management
+                                ▼
+                       ┌──────────────────┐
+                       │  Internal APIs   │
+                       │ - Auth Service   │
+                       │ - Task Service   │
+                       │ - User Service   │
+                       └──────────────────┘
+
+Planned Extensions (📋 Roadmap)
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Svelte Web UI  │    │  Task Scheduler  │    │ Container Engine│
+│   (Frontend)    │    │   (Microservice) │    │  (Docker/gVisor)│
+│                 │    │                  │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+## API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - User logout
+- `GET /api/v1/auth/me` - Get current user info
+
+### Task Management
+- `POST /api/v1/tasks` - Create new task
+- `GET /api/v1/tasks` - List user's tasks (with pagination)
+- `GET /api/v1/tasks/{id}` - Get task details
+- `PUT /api/v1/tasks/{id}` - Update task
+- `DELETE /api/v1/tasks/{id}` - Delete task
+
+### Task Execution
+- `POST /api/v1/tasks/{id}/executions` - Start task execution
+- `GET /api/v1/tasks/{id}/executions` - List task executions
+- `GET /api/v1/executions/{id}` - Get execution details
+- `PUT /api/v1/executions/{id}` - Update execution status
+- `DELETE /api/v1/executions/{id}` - Cancel execution
+
+### System Health
+- `GET /health` - Health check endpoint
+- `GET /ready` - Readiness check endpoint
 
 ## Quick Start
 
@@ -20,7 +77,7 @@ VoidRunner is a Kubernetes-based distributed task execution platform that provid
 
 - Go 1.24.4+ installed
 - PostgreSQL 15+ (for database operations)
-- Docker (for containerization)
+- Docker (for containerization and testing)
 
 ### Setup
 
@@ -30,9 +87,9 @@ VoidRunner is a Kubernetes-based distributed task execution platform that provid
    cd voidrunner
    ```
 
-2. **Install dependencies**
+2. **Setup development environment**
    ```bash
-   go mod download
+   make setup
    ```
 
 3. **Configure environment**
@@ -41,18 +98,55 @@ VoidRunner is a Kubernetes-based distributed task execution platform that provid
    # Edit .env with your configuration
    ```
 
-4. **Run the development server**
+4. **Start the database (for testing)**
    ```bash
-   go run cmd/api/main.go
+   make db-start
+   ```
+
+5. **Run database migrations**
+   ```bash
+   make migrate-up
+   ```
+
+6. **Start the development server**
+   ```bash
+   make dev
    ```
 
 The server will start on `http://localhost:8080` by default.
 
-### API Endpoints
+## Development
 
-- `GET /health` - Health check endpoint
-- `GET /ready` - Readiness check endpoint
-- `GET /api/v1/ping` - Simple ping endpoint
+### Available Commands
+
+```bash
+# Development
+make dev                # Start with auto-reload
+make run               # Build and run
+make build             # Build binary
+
+# Testing
+make test              # Unit tests
+make test-integration  # Integration tests (requires database)
+make test-all          # All tests
+make coverage          # Generate coverage report
+
+# Database
+make db-start          # Start test database
+make db-stop           # Stop test database
+make migrate-up        # Apply migrations
+make migrate-down      # Rollback migration
+
+# Code Quality
+make lint              # Run linter
+make fmt               # Format code
+make vet               # Run go vet
+make security          # Security scan
+
+# Documentation
+make docs              # Generate API docs
+make docs-serve        # Serve docs locally
+```
 
 ### Testing
 
@@ -66,60 +160,39 @@ Run integration tests (requires PostgreSQL):
 make test-integration
 ```
 
-Run all tests with coverage:
-```bash
-make coverage
-```
-
 For detailed testing instructions, database setup, troubleshooting, and performance testing, see [Testing Guide](docs/testing.md).
 
-### Build
+### API Documentation
 
-Build the application:
+Interactive API documentation is available via Swagger:
 ```bash
-go build -o bin/api cmd/api/main.go
+make docs-serve
+# Visit http://localhost:8081
 ```
 
-Run the binary:
-```bash
-./bin/api
-```
+## Roadmap
 
-## Architecture
+### Phase 1: Core Infrastructure ✅ Complete
+Task management API with authentication, database integration, and comprehensive testing.
 
-VoidRunner follows the standard Go project layout:
+### Phase 2: Container Execution Engine 🔄 In Development
+Secure Docker-based code execution with resource limiting, real-time log streaming, and safety controls.
 
-```
-voidrunner/
-├── cmd/                    # Application entrypoints
-│   └── api/               # API server main
-├── internal/              # Private application code
-│   ├── api/              # API handlers and routes
-│   │   ├── handlers/     # HTTP handlers
-│   │   ├── middleware/   # HTTP middleware
-│   │   └── routes/       # Route definitions
-│   ├── config/           # Configuration management
-│   ├── database/         # Database layer
-│   └── models/           # Data models
-├── pkg/                   # Public libraries
-│   ├── logger/           # Structured logging
-│   ├── metrics/          # Prometheus metrics
-│   └── utils/            # Shared utilities
-├── migrations/           # Database migrations
-├── scripts/              # Build and deployment scripts
-└── docs/                 # Documentation
-```
+### Phase 3: Web Interface 📋 Planned
+Modern Svelte-based frontend with real-time task monitoring, code editor, and user dashboard.
+
+### Phase 4: Advanced Features 📋 Planned
+Collaborative features, advanced search and filtering, system metrics dashboard, and notification system.
 
 ## Configuration
 
-The application uses environment variables for configuration. See `.env.example` for available options:
+The application uses environment variables for configuration. Copy `.env.example` to `.env` and adjust values as needed:
 
-- `SERVER_HOST`: Server bind address (default: localhost)
-- `SERVER_PORT`: Server port (default: 8080)
-- `SERVER_ENV`: Environment (development/production)
-- `LOG_LEVEL`: Logging level (debug/info/warn/error)
-- `LOG_FORMAT`: Log format (json/text)
-- `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed origins
+- **Server**: HOST, PORT, ENV settings
+- **Database**: Connection details for PostgreSQL
+- **JWT**: Token configuration and secrets
+- **CORS**: Frontend domain configuration
+- **Logging**: Level and format settings
 
 ## Contributing
 
@@ -128,6 +201,8 @@ The application uses environment variables for configuration. See `.env.example`
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+Please ensure all tests pass and maintain code coverage above 80%.
 
 ## License
 
