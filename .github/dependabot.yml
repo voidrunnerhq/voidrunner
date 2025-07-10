@@ -8,16 +8,14 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "starbops"
     assignees:
       - "starbops"
     commit-message:
       prefix: "deps"
       include: "scope"
     labels:
-      - "dependencies"
-      - "go"
+      - "area/dependencies"
+      - "area/go"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -27,16 +25,14 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "starbops"
     assignees:
       - "starbops"
     commit-message:
       prefix: "ci"
       include: "scope"
     labels:
-      - "dependencies"
-      - "github-actions"
+      - "area/dependencies"
+      - "area/github-actions"
 
   # Enable version updates for Docker
   - package-ecosystem: "docker"
@@ -46,13 +42,11 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "starbops"
     assignees:
       - "starbops"
     commit-message:
       prefix: "docker"
       include: "scope"
     labels:
-      - "dependencies"
-      - "docker"
+      - "area/dependencies"
+      - "area/docker"
