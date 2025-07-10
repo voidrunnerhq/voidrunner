@@ -41,8 +41,24 @@ func NewTaskExecutionHandler(taskRepo database.TaskRepository, executionRepo dat
 }
 
 // Create handles creating a new task execution
+//
+//	@Summary		Start task execution
+//	@Description	Starts execution of the specified task
+//	@Tags			Executions
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			task_id	path	string	true	"Task ID"
+//	@Success		201		{object}	models.TaskExecutionResponse	"Execution started successfully"
+//	@Failure		400		{object}	models.ErrorResponse			"Invalid task ID"
+//	@Failure		401		{object}	models.ErrorResponse			"Unauthorized"
+//	@Failure		403		{object}	models.ErrorResponse			"Forbidden"
+//	@Failure		404		{object}	models.ErrorResponse			"Task not found"
+//	@Failure		409		{object}	models.ErrorResponse			"Task is already running"
+//	@Failure		429		{object}	models.ErrorResponse			"Rate limit exceeded"
+//	@Router			/tasks/{task_id}/executions [post]
 func (h *TaskExecutionHandler) Create(c *gin.Context) {
-	taskIDStr := c.Param("task_id")
+	taskIDStr := c.Param("id")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		h.logger.Warn("invalid task ID", "task_id", taskIDStr)
@@ -66,7 +82,7 @@ func (h *TaskExecutionHandler) Create(c *gin.Context) {
 	execution, err := h.executionService.CreateExecutionAndUpdateTaskStatus(c.Request.Context(), taskID, user.ID)
 	if err != nil {
 		h.logger.Error("failed to create execution and update task status", "error", err, "task_id", taskID, "user_id", user.ID)
-		
+
 		// Map service errors to appropriate HTTP status codes
 		switch err.Error() {
 		case "task not found":
@@ -164,7 +180,7 @@ func (h *TaskExecutionHandler) GetByID(c *gin.Context) {
 
 // ListByTaskID handles listing executions for a specific task
 func (h *TaskExecutionHandler) ListByTaskID(c *gin.Context) {
-	taskIDStr := c.Param("task_id")
+	taskIDStr := c.Param("id")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		h.logger.Warn("invalid task ID", "task_id", taskIDStr)
@@ -282,7 +298,7 @@ func (h *TaskExecutionHandler) Cancel(c *gin.Context) {
 	err = h.executionService.CancelExecutionAndResetTaskStatus(c.Request.Context(), executionID, user.ID)
 	if err != nil {
 		h.logger.Error("failed to cancel execution and reset task status", "error", err, "execution_id", executionID, "user_id", user.ID)
-		
+
 		// Map service errors to appropriate HTTP status codes
 		switch err.Error() {
 		case "execution not found":
@@ -340,7 +356,7 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 		}
 		validatedBody = &req
 	}
-	
+
 	req := *validatedBody.(*models.UpdateTaskExecutionRequest)
 
 	// Get user from context
@@ -381,7 +397,7 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 
 	// Check if this update makes the execution terminal
 	isTerminalUpdate := execution.IsTerminal()
-	
+
 	if isTerminalUpdate {
 		// Use service layer for atomic completion
 		var taskStatus models.TaskStatus
@@ -401,7 +417,7 @@ func (h *TaskExecutionHandler) Update(c *gin.Context) {
 		err = h.executionService.CompleteExecutionAndFinalizeTaskStatus(c.Request.Context(), execution, taskStatus, user.ID)
 		if err != nil {
 			h.logger.Error("failed to complete execution and finalize task status", "error", err, "execution_id", executionID, "user_id", user.ID)
-			
+
 			// Map service errors to appropriate HTTP status codes
 			switch err.Error() {
 			case "execution not found":

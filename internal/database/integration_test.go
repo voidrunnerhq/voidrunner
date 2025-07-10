@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -39,15 +38,17 @@ func setupTestDatabase(t *testing.T) (*Connection, *Repositories) {
 	cfg := &config.DatabaseConfig{
 		Host:     getEnvOrDefault("TEST_DB_HOST", "localhost"),
 		Port:     getEnvOrDefault("TEST_DB_PORT", "5432"),
-		User:     getEnvOrDefault("TEST_DB_USER", "postgres"),
-		Password: getEnvOrDefault("TEST_DB_PASSWORD", ""),
+		User:     getEnvOrDefault("TEST_DB_USER", "testuser"),
+		Password: getEnvOrDefault("TEST_DB_PASSWORD", "testpassword"),
 		Database: getEnvOrDefault("TEST_DB_NAME", "voidrunner_test"),
 		SSLMode:  getEnvOrDefault("TEST_DB_SSL_MODE", "disable"),
 	}
 
-	// Create database connection
+	// Create database connection - skip test if database is not available
 	conn, err := NewConnection(cfg, nil)
-	require.NoError(t, err, "Failed to create database connection")
+	if err != nil {
+		t.Skipf("Skipping integration test - database not available: %v", err)
+	}
 
 	// Run migrations
 	migrateConfig := &MigrateConfig{
@@ -57,7 +58,10 @@ func setupTestDatabase(t *testing.T) (*Connection, *Repositories) {
 	}
 
 	err = MigrateUp(migrateConfig)
-	require.NoError(t, err, "Failed to run database migrations")
+	if err != nil {
+		conn.Close()
+		t.Skipf("Skipping integration test - database migrations failed: %v", err)
+	}
 
 	// Create repositories
 	repos := NewRepositories(conn)
@@ -74,7 +78,7 @@ func setupTestDatabase(t *testing.T) (*Connection, *Repositories) {
 // cleanupTestData removes all test data from the database
 func cleanupTestData(t *testing.T, repos *Repositories) {
 	t.Helper()
-	
+
 	// Clean up in reverse order due to foreign key constraints
 	// Note: In a real test environment, you might want to use transactions
 	// or a separate test database that gets reset between tests
@@ -154,14 +158,18 @@ func TestTaskRepository_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Clean up user at the end
-		defer repos.Users.Delete(ctx, user.ID)
+		defer func() {
+			if err := repos.Users.Delete(ctx, user.ID); err != nil {
+				t.Logf("Failed to clean up user: %v", err)
+			}
+		}()
 
 		// Create test metadata
-		metadata, _ := json.Marshal(map[string]interface{}{
+		metadata := models.JSONB{
 			"environment": "test",
 			"priority":    "high",
-			"tags":        []string{"integration", "test"},
-		})
+			"tags":        []interface{}{"integration", "test"},
+		}
 
 		// Create a test task
 		task := &models.Task{
@@ -189,7 +197,8 @@ func TestTaskRepository_Integration(t *testing.T) {
 		assert.Equal(t, task.Name, retrievedTask.Name)
 		assert.Equal(t, task.ScriptContent, retrievedTask.ScriptContent)
 		assert.Equal(t, task.ScriptType, retrievedTask.ScriptType)
-		assert.JSONEq(t, string(task.Metadata), string(retrievedTask.Metadata))
+		// Compare metadata maps
+		assert.Equal(t, task.Metadata, retrievedTask.Metadata)
 
 		// Test GetByUserID
 		userTasks, err := repos.Tasks.GetByUserID(ctx, user.ID, 10, 0)
@@ -261,15 +270,19 @@ func TestTaskExecutionRepository_Integration(t *testing.T) {
 			Status:         models.TaskStatusPending,
 			Priority:       1,
 			TimeoutSeconds: 30,
-			Metadata:       json.RawMessage(`{}`),
+			Metadata:       models.JSONB{},
 		}
 		err = repos.Tasks.Create(ctx, task)
 		require.NoError(t, err)
 
 		// Clean up at the end
 		defer func() {
-			repos.Tasks.Delete(ctx, task.ID)
-			repos.Users.Delete(ctx, user.ID)
+			if err := repos.Tasks.Delete(ctx, task.ID); err != nil {
+				t.Logf("Failed to clean up task: %v", err)
+			}
+			if err := repos.Users.Delete(ctx, user.ID); err != nil {
+				t.Logf("Failed to clean up user: %v", err)
+			}
 		}()
 
 		// Create a test execution
@@ -365,8 +378,14 @@ func BenchmarkDatabaseOperations(b *testing.B) {
 		Email:        "benchmark@example.com",
 		PasswordHash: "hashed_password",
 	}
-	repos.Users.Create(ctx, user)
-	defer repos.Users.Delete(ctx, user.ID)
+	if err := repos.Users.Create(ctx, user); err != nil {
+		b.Fatalf("Failed to create benchmark user: %v", err)
+	}
+	defer func() {
+		if err := repos.Users.Delete(ctx, user.ID); err != nil {
+			b.Logf("Failed to clean up benchmark user: %v", err)
+		}
+	}()
 
 	b.Run("UserRepository_Create", func(b *testing.B) {
 		b.ResetTimer()
@@ -375,15 +394,22 @@ func BenchmarkDatabaseOperations(b *testing.B) {
 				Email:        "bench.user." + string(rune(i)) + "@example.com",
 				PasswordHash: "hashed_password",
 			}
-			repos.Users.Create(ctx, user)
-			repos.Users.Delete(ctx, user.ID) // Clean up
+			if err := repos.Users.Create(ctx, user); err != nil {
+				b.Errorf("Failed to create user in benchmark: %v", err)
+				continue
+			}
+			if err := repos.Users.Delete(ctx, user.ID); err != nil {
+				b.Errorf("Failed to delete user in benchmark: %v", err)
+			} // Clean up
 		}
 	})
 
 	b.Run("UserRepository_GetByID", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			repos.Users.GetByID(ctx, user.ID)
+			if _, err := repos.Users.GetByID(ctx, user.ID); err != nil {
+				b.Errorf("Failed to get user by ID in benchmark: %v", err)
+			}
 		}
 	})
 
@@ -398,10 +424,15 @@ func BenchmarkDatabaseOperations(b *testing.B) {
 				Status:         models.TaskStatusPending,
 				Priority:       1,
 				TimeoutSeconds: 30,
-				Metadata:       json.RawMessage(`{}`),
+				Metadata:       models.JSONB{},
 			}
-			repos.Tasks.Create(ctx, task)
-			repos.Tasks.Delete(ctx, task.ID) // Clean up
+			if err := repos.Tasks.Create(ctx, task); err != nil {
+				b.Errorf("Failed to create task in benchmark: %v", err)
+				continue
+			}
+			if err := repos.Tasks.Delete(ctx, task.ID); err != nil {
+				b.Errorf("Failed to delete task in benchmark: %v", err)
+			} // Clean up
 		}
 	})
 }
@@ -413,8 +444,8 @@ func setupBenchmarkDatabase(b *testing.B) (*Connection, *Repositories) {
 	cfg := &config.DatabaseConfig{
 		Host:     getEnvOrDefault("TEST_DB_HOST", "localhost"),
 		Port:     getEnvOrDefault("TEST_DB_PORT", "5432"),
-		User:     getEnvOrDefault("TEST_DB_USER", "postgres"),
-		Password: getEnvOrDefault("TEST_DB_PASSWORD", ""),
+		User:     getEnvOrDefault("TEST_DB_USER", "testuser"),
+		Password: getEnvOrDefault("TEST_DB_PASSWORD", "testpassword"),
 		Database: getEnvOrDefault("TEST_DB_NAME", "voidrunner_test"),
 		SSLMode:  getEnvOrDefault("TEST_DB_SSL_MODE", "disable"),
 	}

@@ -43,11 +43,11 @@ func NewConnection(cfg *config.DatabaseConfig, logger *slog.Logger) (*Connection
 	}
 
 	// Configure connection pool settings for optimal performance
-	poolConfig.MaxConns = 25        // Maximum number of connections
-	poolConfig.MinConns = 5         // Minimum number of connections
-	poolConfig.MaxConnLifetime = time.Hour * 1  // Maximum connection lifetime
+	poolConfig.MaxConns = 25                       // Maximum number of connections
+	poolConfig.MinConns = 5                        // Minimum number of connections
+	poolConfig.MaxConnLifetime = time.Hour * 1     // Maximum connection lifetime
 	poolConfig.MaxConnIdleTime = time.Minute * 30  // Maximum connection idle time
-	poolConfig.HealthCheckPeriod = time.Minute * 5  // Health check frequency
+	poolConfig.HealthCheckPeriod = time.Minute * 5 // Health check frequency
 
 	// Connection timeout settings
 	poolConfig.ConnConfig.ConnectTimeout = time.Second * 10

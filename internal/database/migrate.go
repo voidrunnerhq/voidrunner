@@ -63,13 +63,13 @@ func NewMigrator(cfg *MigrateConfig) (*Migrator, error) {
 
 	// Test the connection
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to create postgres driver: %w", err)
 	}
 
@@ -79,7 +79,7 @@ func NewMigrator(cfg *MigrateConfig) (*Migrator, error) {
 		driver,
 	)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to create migrator: %w", err)
 	}
 
@@ -182,7 +182,7 @@ func MigrateUp(cfg *MigrateConfig) error {
 	if err != nil {
 		return err
 	}
-	defer migrator.Close()
+	defer func() { _ = migrator.Close() }()
 
 	return migrator.Up()
 }
@@ -193,7 +193,7 @@ func MigrateDown(cfg *MigrateConfig) error {
 	if err != nil {
 		return err
 	}
-	defer migrator.Close()
+	defer func() { _ = migrator.Close() }()
 
 	return migrator.Down()
 }
@@ -204,7 +204,7 @@ func MigrateReset(cfg *MigrateConfig) error {
 	if err != nil {
 		return err
 	}
-	defer migrator.Close()
+	defer func() { _ = migrator.Close() }()
 
 	return migrator.Reset()
 }

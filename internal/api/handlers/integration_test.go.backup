@@ -1,0 +1,472 @@
+package handlers
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"github.com/voidrunnerhq/voidrunner/internal/api/middleware"
+	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/pkg/logger"
+)
+
+// MockTaskExecutionService is a mock implementation of TaskExecutionServiceInterface
+type MockTaskExecutionService struct {
+	mock.Mock
+}
+
+func (m *MockTaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Context, taskID uuid.UUID, userID uuid.UUID) (*models.TaskExecution, error) {
+	args := m.Called(ctx, taskID, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.TaskExecution), args.Error(1)
+}
+
+func (m *MockTaskExecutionService) CancelExecutionAndResetTaskStatus(ctx context.Context, executionID uuid.UUID, userID uuid.UUID) error {
+	args := m.Called(ctx, executionID, userID)
+	return args.Error(0)
+}
+
+func (m *MockTaskExecutionService) CompleteExecutionAndFinalizeTaskStatus(ctx context.Context, execution *models.TaskExecution, taskStatus models.TaskStatus, userID uuid.UUID) error {
+	args := m.Called(ctx, execution, taskStatus, userID)
+	return args.Error(0)
+}
+
+// HandlerIntegrationTest tests the interaction between handlers and middleware
+func TestHandlerIntegration_TaskWithValidation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Setup mocks
+	mockTaskRepo := new(MockTaskRepository)
+	mockExecutionRepo := new(MockTaskExecutionRepository)
+	logger := logger.New("test", "debug")
+
+	// Setup handlers
+	mockExecutionService := new(MockTaskExecutionService)
+	taskHandler := NewTaskHandler(mockTaskRepo, logger.Logger)
+	executionHandler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, mockExecutionService, logger.Logger)
+	validationMiddleware := middleware.TaskValidation(logger.Logger)
+
+	// Setup router with middleware
+	router := gin.New()
+
+	// Add test user to context
+	userID := uuid.New()
+	router.Use(func(c *gin.Context) {
+		user := &models.User{
+			BaseModel: models.BaseModel{
+				ID: userID,
+			},
+			Email: "test@example.com",
+		}
+		c.Set("user", user)
+		c.Set("user_id", userID)
+		c.Next()
+	})
+
+	// Setup routes with validation
+	router.POST("/tasks",
+		middleware.RequestSizeLimit(logger.Logger),
+		validationMiddleware.ValidateTaskCreation(),
+		taskHandler.Create,
+	)
+	router.PUT("/tasks/:id",
+		middleware.RequestSizeLimit(logger.Logger),
+		validationMiddleware.ValidateTaskUpdate(),
+		taskHandler.Update,
+	)
+	router.POST("/tasks/:id/executions", executionHandler.Create)
+	router.PUT("/executions/:id",
+		validationMiddleware.ValidateTaskExecutionUpdate(),
+		executionHandler.Update,
+	)
+
+	t.Run("Valid Task Creation with Validation", func(t *testing.T) {
+		// Setup mock expectations
+		mockTaskRepo.On("Create", mock.Anything, mock.AnythingOfType("*models.Task")).Return(nil)
+
+		// Create valid request
+		priority := 5
+		timeout := 300
+		description := "A valid task"
+		req := models.CreateTaskRequest{
+			Name:           "Valid Task",
+			Description:    &description,
+			ScriptContent:  "print('Hello, World!')",
+			ScriptType:     models.ScriptTypePython,
+			Priority:       &priority,
+			TimeoutSeconds: &timeout,
+		}
+
+		reqBody, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		mockTaskRepo.AssertExpectations(t)
+	})
+
+	t.Run("Invalid Task Creation - Dangerous Script", func(t *testing.T) {
+		// Create request with dangerous script
+		req := models.CreateTaskRequest{
+			Name:          "Dangerous Task",
+			ScriptContent: "rm -rf /",
+			ScriptType:    models.ScriptTypePython,
+		}
+
+		reqBody, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var errorResponse map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		require.NoError(t, err)
+		assert.Contains(t, errorResponse["error"], "Validation failed")
+	})
+
+	t.Run("Invalid Task Creation - Empty Name", func(t *testing.T) {
+		// Create request with empty name
+		req := models.CreateTaskRequest{
+			Name:          "",
+			ScriptContent: "print('Hello')",
+			ScriptType:    models.ScriptTypePython,
+		}
+
+		reqBody, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Request Size Limit", func(t *testing.T) {
+		// Create a very large request (over 1MB)
+		largeScript := make([]byte, 1024*1024+1) // 1MB + 1 byte
+		for i := range largeScript {
+			largeScript[i] = 'a'
+		}
+
+		req := models.CreateTaskRequest{
+			Name:          "Large Task",
+			ScriptContent: string(largeScript),
+			ScriptType:    models.ScriptTypePython,
+		}
+
+		reqBody, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	})
+}
+
+// TestTaskExecutionIntegration tests task execution workflow
+func TestTaskExecutionIntegration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Setup mocks
+	mockTaskRepo := new(MockTaskRepository)
+	mockExecutionRepo := new(MockTaskExecutionRepository)
+	logger := logger.New("test", "debug")
+
+	// Setup handlers
+	mockExecutionService := new(MockTaskExecutionService)
+	executionHandler := NewTaskExecutionHandler(mockTaskRepo, mockExecutionRepo, mockExecutionService, logger.Logger)
+
+	// Setup router
+	router := gin.New()
+
+	// Add test user to context
+	userID := uuid.New()
+	taskID := uuid.New()
+	executionID := uuid.New()
+
+	router.Use(func(c *gin.Context) {
+		user := &models.User{
+			BaseModel: models.BaseModel{
+				ID: userID,
+			},
+			Email: "test@example.com",
+		}
+		c.Set("user", user)
+		c.Set("user_id", userID)
+		c.Next()
+	})
+
+	// Setup routes
+	router.POST("/tasks/:id/executions", executionHandler.Create)
+	router.GET("/executions/:id", executionHandler.GetByID)
+	router.PUT("/executions/:id", executionHandler.Update)
+	router.DELETE("/executions/:id", executionHandler.Cancel)
+
+	t.Run("Complete Execution Workflow", func(t *testing.T) {
+		// 1. Create execution
+		task := &models.Task{
+			BaseModel: models.BaseModel{
+				ID: taskID,
+			},
+			UserID: userID,
+			Status: models.TaskStatusPending,
+		}
+
+		// Create expected execution object
+		expectedExecution := &models.TaskExecution{
+			ID:     executionID,
+			TaskID: taskID,
+			Status: models.ExecutionStatusPending,
+		}
+
+		// Mock the service call instead of repository calls
+		mockExecutionService.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(expectedExecution, nil).Once()
+
+		httpReq := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/tasks/%s/executions", taskID), nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+
+		// 2. Get execution
+		execution := &models.TaskExecution{
+			ID:     executionID,
+			TaskID: taskID,
+			Status: models.ExecutionStatusRunning,
+		}
+
+		mockExecutionRepo.On("GetByID", mock.Anything, executionID).Return(execution, nil).Once()
+		mockTaskRepo.On("GetByID", mock.Anything, taskID).Return(task, nil).Once()
+
+		httpReq = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/executions/%s", executionID), nil)
+		w = httptest.NewRecorder()
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		// 3. Update execution to completed
+		status := models.ExecutionStatusCompleted
+		returnCode := 0
+		stdout := "Hello, World!\n"
+		updateReq := models.UpdateTaskExecutionRequest{
+			Status:     &status,
+			ReturnCode: &returnCode,
+			Stdout:     &stdout,
+		}
+
+		execution.Status = models.ExecutionStatusCompleted
+		execution.ReturnCode = &returnCode
+		execution.Stdout = &stdout
+
+		// For terminal updates, the Update handler only calls executionRepo.GetByID, then uses the service for atomic completion
+		// The service itself handles task validation, so no direct taskRepo.GetByID call is made by the handler
+		mockExecutionRepo.On("GetByID", mock.Anything, executionID).Return(execution, nil).Once()
+		// Mock the service call for atomic completion (handles all validation and updates internally)
+		mockExecutionService.On("CompleteExecutionAndFinalizeTaskStatus", mock.Anything, mock.AnythingOfType("*models.TaskExecution"), models.TaskStatusCompleted, userID).Return(nil).Once()
+
+		reqBody, _ := json.Marshal(updateReq)
+		httpReq = httptest.NewRequest(http.MethodPut, fmt.Sprintf("/executions/%s", executionID), bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w = httptest.NewRecorder()
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		mockExecutionRepo.AssertExpectations(t)
+		mockExecutionService.AssertExpectations(t)
+	})
+
+	t.Run("Cannot Start Execution on Running Task", func(t *testing.T) {
+		// Mock the service to return an error for already running task
+		mockExecutionService.On("CreateExecutionAndUpdateTaskStatus", mock.Anything, taskID, userID).Return(nil, fmt.Errorf("task is already running")).Once()
+
+		httpReq := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/tasks/%s/executions", taskID), nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+
+		var errorResponse map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		require.NoError(t, err)
+		assert.Contains(t, errorResponse["error"], "already running")
+
+		mockExecutionService.AssertExpectations(t)
+	})
+
+	t.Run("Cannot Cancel Completed Execution", func(t *testing.T) {
+		// Mock the service to return an error for completed execution
+		mockExecutionService.On("CancelExecutionAndResetTaskStatus", mock.Anything, executionID, userID).Return(fmt.Errorf("cannot cancel execution with status: completed")).Once()
+
+		httpReq := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/executions/%s", executionID), nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+
+		var errorResponse map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		require.NoError(t, err)
+		assert.Contains(t, errorResponse["error"], "cannot cancel execution with status:")
+
+		mockExecutionService.AssertExpectations(t)
+	})
+}
+
+// TestAccessControlIntegration tests access control across handlers
+func TestAccessControlIntegration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Setup mocks
+	mockTaskRepo := new(MockTaskRepository)
+	logger := logger.New("test", "debug")
+
+	// Setup handlers
+	taskHandler := NewTaskHandler(mockTaskRepo, logger.Logger)
+
+	// Setup router
+	router := gin.New()
+
+	// Add test users to context
+	user1ID := uuid.New()
+	user2ID := uuid.New()
+	taskID := uuid.New()
+
+	t.Run("User Cannot Access Another User's Task", func(t *testing.T) {
+		// Setup task owned by user2
+		task := &models.Task{
+			BaseModel: models.BaseModel{
+				ID: taskID,
+			},
+			UserID: user2ID, // Owned by user2
+		}
+
+		// Setup router with user1 context
+		router.Use(func(c *gin.Context) {
+			user := &models.User{
+				BaseModel: models.BaseModel{
+					ID: user1ID, // user1 trying to access
+				},
+				Email: "user1@example.com",
+			}
+			c.Set("user", user)
+			c.Next()
+		})
+
+		router.GET("/tasks/:id", taskHandler.GetByID)
+
+		mockTaskRepo.On("GetByID", mock.Anything, taskID).Return(task, nil).Once()
+
+		httpReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/tasks/%s", taskID), nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+
+		var errorResponse map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		require.NoError(t, err)
+		assert.Contains(t, errorResponse["error"], "Access denied")
+
+		mockTaskRepo.AssertExpectations(t)
+	})
+}
+
+// TestValidationMiddlewareIntegration tests validation middleware integration
+func TestValidationMiddlewareIntegration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	logger := logger.New("test", "debug")
+	validationMiddleware := middleware.TaskValidation(logger.Logger)
+
+	router := gin.New()
+
+	router.POST("/validate-task",
+		validationMiddleware.ValidateTaskCreation(),
+		func(c *gin.Context) {
+			// Get validated body from middleware
+			validatedBody, exists := c.Get("validated_body")
+			if !exists {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "validation middleware failed"})
+				return
+			}
+
+			req := validatedBody.(*models.CreateTaskRequest)
+			c.JSON(http.StatusOK, gin.H{
+				"message": "validation passed",
+				"name":    req.Name,
+			})
+		},
+	)
+
+	t.Run("Validation Middleware Stores Validated Body", func(t *testing.T) {
+		req := models.CreateTaskRequest{
+			Name:          "Valid Task",
+			ScriptContent: "print('hello')",
+			ScriptType:    models.ScriptTypePython,
+		}
+
+		reqBody, _ := json.Marshal(req)
+		httpReq := httptest.NewRequest(http.MethodPost, "/validate-task", bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		assert.Equal(t, "validation passed", response["message"])
+		assert.Equal(t, req.Name, response["name"])
+	})
+
+	t.Run("Validation Middleware Blocks Invalid Data", func(t *testing.T) {
+		invalidReq := models.CreateTaskRequest{
+			Name:          "",         // Invalid: empty name
+			ScriptContent: "rm -rf /", // Invalid: dangerous script
+			ScriptType:    "invalid",  // Invalid: bad script type
+		}
+
+		reqBody, _ := json.Marshal(invalidReq)
+		httpReq := httptest.NewRequest(http.MethodPost, "/validate-task", bytes.NewBuffer(reqBody))
+		httpReq.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, httpReq)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var errorResponse map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		require.NoError(t, err)
+		assert.Contains(t, errorResponse["error"], "Validation failed")
+		assert.NotNil(t, errorResponse["validation_errors"])
+
+		// Check that we have multiple validation errors
+		validationErrors := errorResponse["validation_errors"].([]interface{})
+		assert.GreaterOrEqual(t, len(validationErrors), 2)
+	})
+}

@@ -1,0 +1,21 @@
+services:
+  postgres-test:
+    image: postgres:17
+    container_name: voidrunner-test-db
+    environment:
+      POSTGRES_DB: voidrunner_test
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d voidrunner_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_test_data:

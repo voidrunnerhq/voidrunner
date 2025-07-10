@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -33,53 +32,53 @@ const (
 // Task represents a task in the system
 type Task struct {
 	BaseModel
-	UserID         uuid.UUID       `json:"user_id" db:"user_id"`
-	Name           string          `json:"name" db:"name"`
-	Description    *string         `json:"description,omitempty" db:"description"`
-	ScriptContent  string          `json:"script_content" db:"script_content"`
-	ScriptType     ScriptType      `json:"script_type" db:"script_type"`
-	Status         TaskStatus      `json:"status" db:"status"`
-	Priority       int             `json:"priority" db:"priority"`
-	TimeoutSeconds int             `json:"timeout_seconds" db:"timeout_seconds"`
-	Metadata       json.RawMessage `json:"metadata" db:"metadata"`
+	UserID         uuid.UUID  `json:"user_id" db:"user_id"`
+	Name           string     `json:"name" db:"name"`
+	Description    *string    `json:"description,omitempty" db:"description"`
+	ScriptContent  string     `json:"script_content" db:"script_content"`
+	ScriptType     ScriptType `json:"script_type" db:"script_type"`
+	Status         TaskStatus `json:"status" db:"status"`
+	Priority       int        `json:"priority" db:"priority"`
+	TimeoutSeconds int        `json:"timeout_seconds" db:"timeout_seconds"`
+	Metadata       JSONB      `json:"metadata" db:"metadata"`
 }
 
 // CreateTaskRequest represents the request to create a new task
 type CreateTaskRequest struct {
-	Name           string          `json:"name" validate:"required,task_name,min=1,max=255"`
-	Description    *string         `json:"description,omitempty" validate:"omitempty,max=1000"`
-	ScriptContent  string          `json:"script_content" validate:"required,script_content,min=1,max=65535"`
-	ScriptType     ScriptType      `json:"script_type" validate:"required,script_type"`
-	Priority       *int            `json:"priority,omitempty" validate:"omitempty,min=0,max=10"`
-	TimeoutSeconds *int            `json:"timeout_seconds,omitempty" validate:"omitempty,min=1,max=3600"`
-	Metadata       json.RawMessage `json:"metadata,omitempty"`
+	Name           string     `json:"name" validate:"required,task_name,min=1,max=255"`
+	Description    *string    `json:"description,omitempty" validate:"omitempty,max=1000"`
+	ScriptContent  string     `json:"script_content" validate:"required,script_content,min=1,max=65535"`
+	ScriptType     ScriptType `json:"script_type" validate:"required,script_type"`
+	Priority       *int       `json:"priority,omitempty" validate:"omitempty,min=0,max=10"`
+	TimeoutSeconds *int       `json:"timeout_seconds,omitempty" validate:"omitempty,min=1,max=3600"`
+	Metadata       JSONB      `json:"metadata,omitempty"`
 }
 
 // UpdateTaskRequest represents the request to update a task
 type UpdateTaskRequest struct {
-	Name           *string         `json:"name,omitempty" validate:"omitempty,task_name,min=1,max=255"`
-	Description    *string         `json:"description,omitempty" validate:"omitempty,max=1000"`
-	ScriptContent  *string         `json:"script_content,omitempty" validate:"omitempty,script_content,min=1,max=65535"`
-	ScriptType     *ScriptType     `json:"script_type,omitempty" validate:"omitempty,script_type"`
-	Priority       *int            `json:"priority,omitempty" validate:"omitempty,min=0,max=10"`
-	TimeoutSeconds *int            `json:"timeout_seconds,omitempty" validate:"omitempty,min=1,max=3600"`
-	Metadata       json.RawMessage `json:"metadata,omitempty"`
+	Name           *string     `json:"name,omitempty" validate:"omitempty,task_name,min=1,max=255"`
+	Description    *string     `json:"description,omitempty" validate:"omitempty,max=1000"`
+	ScriptContent  *string     `json:"script_content,omitempty" validate:"omitempty,script_content,min=1,max=65535"`
+	ScriptType     *ScriptType `json:"script_type,omitempty" validate:"omitempty,script_type"`
+	Priority       *int        `json:"priority,omitempty" validate:"omitempty,min=0,max=10"`
+	TimeoutSeconds *int        `json:"timeout_seconds,omitempty" validate:"omitempty,min=1,max=3600"`
+	Metadata       JSONB       `json:"metadata,omitempty"`
 }
 
 // TaskResponse represents the task response
 type TaskResponse struct {
-	ID             uuid.UUID       `json:"id"`
-	UserID         uuid.UUID       `json:"user_id"`
-	Name           string          `json:"name"`
-	Description    *string         `json:"description,omitempty"`
-	ScriptContent  string          `json:"script_content"`
-	ScriptType     ScriptType      `json:"script_type"`
-	Status         TaskStatus      `json:"status"`
-	Priority       int             `json:"priority"`
-	TimeoutSeconds int             `json:"timeout_seconds"`
-	Metadata       json.RawMessage `json:"metadata"`
-	CreatedAt      string          `json:"created_at"`
-	UpdatedAt      string          `json:"updated_at"`
+	ID             uuid.UUID  `json:"id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	Name           string     `json:"name"`
+	Description    *string    `json:"description,omitempty"`
+	ScriptContent  string     `json:"script_content"`
+	ScriptType     ScriptType `json:"script_type"`
+	Status         TaskStatus `json:"status"`
+	Priority       int        `json:"priority"`
+	TimeoutSeconds int        `json:"timeout_seconds"`
+	Metadata       JSONB      `json:"metadata"`
+	CreatedAt      string     `json:"created_at"`
+	UpdatedAt      string     `json:"updated_at"`
 }
 
 // ToResponse converts Task to TaskResponse
@@ -178,4 +177,12 @@ func ValidateTimeout(timeout int) error {
 		return fmt.Errorf("timeout cannot exceed 3600 seconds")
 	}
 	return nil
+}
+
+// TaskListResponse represents the response for listing tasks
+type TaskListResponse struct {
+	Tasks  []TaskResponse `json:"tasks"`
+	Total  int64          `json:"total"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
 }

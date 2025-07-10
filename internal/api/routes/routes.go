@@ -29,9 +29,19 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 	healthHandler := handlers.NewHealthHandler()
 	authHandler := handlers.NewAuthHandler(authService, log.Logger)
 	authMiddleware := middleware.NewAuthMiddleware(authService, log.Logger)
+	docsHandler := handlers.NewDocsHandler()
 
 	router.GET("/health", healthHandler.Health)
 	router.GET("/ready", healthHandler.Readiness)
+
+	// Documentation routes
+	router.GET("/api", docsHandler.GetAPIIndex)
+	router.GET("/docs", docsHandler.RedirectToSwaggerUI)
+	router.GET("/docs/*any", docsHandler.GetSwaggerUI())
+
+	// Swagger spec endpoints at a different path to avoid conflict
+	router.GET("/swagger.json", docsHandler.GetSwaggerJSON)
+	router.GET("/swagger.yaml", docsHandler.GetSwaggerYAML)
 
 	v1 := router.Group("/api/v1")
 	{
@@ -44,15 +54,25 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 		// Auth endpoints (public)
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/register", 
-				middleware.RegisterRateLimit(log.Logger),
+			// Use different rate limits for test vs production
+			var registerRateLimit, authRateLimit gin.HandlerFunc
+			if cfg.IsTest() {
+				registerRateLimit = middleware.RegisterRateLimitForTest(log.Logger)
+				authRateLimit = middleware.AuthRateLimitForTest(log.Logger)
+			} else {
+				registerRateLimit = middleware.RegisterRateLimit(log.Logger)
+				authRateLimit = middleware.AuthRateLimit(log.Logger)
+			}
+
+			auth.POST("/register",
+				registerRateLimit,
 				authHandler.Register,
 			)
-			auth.POST("/login", 
-				middleware.AuthRateLimit(log.Logger),
+			auth.POST("/login",
+				authRateLimit,
 				authHandler.Login,
 			)
-			auth.POST("/refresh", 
+			auth.POST("/refresh",
 				middleware.RefreshRateLimit(log.Logger),
 				authHandler.RefreshToken,
 			)
@@ -71,54 +91,68 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 		taskExecutionService := services.NewTaskExecutionService(dbConn, log.Logger)
 		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, taskExecutionService, log.Logger)
 		taskValidation := middleware.TaskValidation(log.Logger)
-		
+
+		// Use different rate limits for test vs production
+		var taskRateLimit, taskCreationRateLimit, taskExecutionRateLimit, executionCreationRateLimit gin.HandlerFunc
+		if cfg.IsTest() {
+			taskRateLimit = middleware.TaskRateLimitForTest(log.Logger)
+			taskCreationRateLimit = middleware.TaskCreationRateLimitForTest(log.Logger)
+			taskExecutionRateLimit = middleware.TaskExecutionRateLimitForTest(log.Logger)
+			executionCreationRateLimit = middleware.ExecutionCreationRateLimitForTest(log.Logger)
+		} else {
+			taskRateLimit = middleware.TaskRateLimit(log.Logger)
+			taskCreationRateLimit = middleware.TaskCreationRateLimit(log.Logger)
+			taskExecutionRateLimit = middleware.TaskExecutionRateLimit(log.Logger)
+			executionCreationRateLimit = middleware.ExecutionCreationRateLimit(log.Logger)
+		}
+
 		// Task CRUD operations
-		protected.POST("/tasks", 
+		protected.POST("/tasks",
 			middleware.RequestSizeLimit(log.Logger),
-			middleware.TaskCreationRateLimit(log.Logger),
+			taskCreationRateLimit,
 			taskValidation.ValidateTaskCreation(),
 			taskHandler.Create,
 		)
-		protected.GET("/tasks", 
-			middleware.TaskRateLimit(log.Logger),
+		protected.GET("/tasks",
+			taskRateLimit,
 			taskHandler.List,
 		)
-		protected.GET("/tasks/:id", 
-			middleware.TaskRateLimit(log.Logger),
+		protected.GET("/tasks/:id",
+			taskRateLimit,
 			taskHandler.GetByID,
 		)
-		protected.PUT("/tasks/:id", 
+		protected.PUT("/tasks/:id",
 			middleware.RequestSizeLimit(log.Logger),
-			middleware.TaskRateLimit(log.Logger),
+			taskRateLimit,
 			taskValidation.ValidateTaskUpdate(),
 			taskHandler.Update,
 		)
-		protected.DELETE("/tasks/:id", 
-			middleware.TaskRateLimit(log.Logger),
+		protected.DELETE("/tasks/:id",
+			taskRateLimit,
 			taskHandler.Delete,
 		)
-		
+
 		// Task execution operations
-		protected.POST("/tasks/:task_id/executions", 
-			middleware.ExecutionCreationRateLimit(log.Logger),
+		protected.POST("/tasks/:id/executions",
+			executionCreationRateLimit,
 			executionHandler.Create,
 		)
-		protected.GET("/tasks/:task_id/executions", 
-			middleware.TaskExecutionRateLimit(log.Logger),
+		protected.GET("/tasks/:id/executions",
+			taskExecutionRateLimit,
 			executionHandler.ListByTaskID,
 		)
-		protected.GET("/executions/:id", 
-			middleware.TaskExecutionRateLimit(log.Logger),
+		protected.GET("/executions/:id",
+			taskExecutionRateLimit,
 			executionHandler.GetByID,
 		)
-		protected.PUT("/executions/:id", 
+		protected.PUT("/executions/:id",
 			middleware.RequestSizeLimit(log.Logger),
-			middleware.TaskExecutionRateLimit(log.Logger),
+			taskExecutionRateLimit,
 			taskValidation.ValidateTaskExecutionUpdate(),
 			executionHandler.Update,
 		)
-		protected.DELETE("/executions/:id", 
-			middleware.TaskExecutionRateLimit(log.Logger),
+		protected.DELETE("/executions/:id",
+			taskExecutionRateLimit,
 			executionHandler.Cancel,
 		)
 	}

@@ -1,3 +1,31 @@
+// Package main VoidRunner API Server
+//
+//	@title			VoidRunner API
+//	@version		1.0.0
+//	@description	VoidRunner is a distributed task execution platform that allows users to create, manage, and execute code tasks securely in isolated containers.
+//	@termsOfService	https://voidrunner.com/terms
+//
+//	@contact.name	VoidRunner Support
+//	@contact.url	https://github.com/voidrunnerhq/voidrunner
+//	@contact.email	support@voidrunner.com
+//
+//	@license.name	MIT
+//	@license.url	https://opensource.org/licenses/MIT
+//
+//	@host		localhost:8080
+//	@BasePath	/api/v1
+//
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Type "Bearer" followed by a space and JWT token.
+//
+//	@tag.name			Authentication
+//	@tag.description	User authentication and authorization operations
+//	@tag.name			Tasks
+//	@tag.description	Task management operations
+//	@tag.name			Executions
+//	@tag.description	Task execution operations
 package main
 
 import (
@@ -75,8 +103,12 @@ func main() {
 	routes.Setup(router, cfg, log, dbConn, repos, authService)
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
-		Handler: router,
+		Addr:              fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
