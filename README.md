@@ -18,7 +18,7 @@ VoidRunner is a Kubernetes-based distributed task execution platform that provid
 
 ### Prerequisites
 
-- Go 1.23.4+ installed
+- Go 1.24.4+ installed
 - PostgreSQL 15+ (for database operations)
 - Docker (for containerization)
 

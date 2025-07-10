@@ -18,7 +18,7 @@ This guide covers running tests for the VoidRunner distributed task execution pl
 
 Before running tests, ensure you have the following installed:
 
-- **Go 1.23.4** or later
+- **Go 1.24.4** or later
 - **PostgreSQL 15** or later (for integration tests)
 - **Docker** (optional, for containerized testing)
 - **Git** (for cloning and version control)

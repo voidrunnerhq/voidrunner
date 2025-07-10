@@ -1,7 +1,7 @@
 # VoidRunner Makefile
 # Provides standardized commands for building, testing, and running the application
 
-.PHONY: help test test-fast test-integration test-all build run dev clean coverage coverage-check coverage-check-threshold docs docs-serve lint fmt vet security deps deps-update migrate-up migrate-down migrate-reset migration docker-build docker-run clean-docs install-tools setup dev-setup all pre-commit bench db-start db-stop db-reset
+.PHONY: help test test-fast test-integration test-all build run dev clean coverage coverage-check docs docs-serve lint fmt vet security deps deps-update migrate-up migrate-down migrate-reset migration docker-build docker-run clean-docs install-tools setup all pre-commit bench db-start db-stop db-reset
 
 # Default target
 help: ## Show this help message
@@ -65,10 +65,6 @@ coverage-check: ## Check if coverage meets minimum threshold (80%)
 	@go tool cover -func=coverage.out
 	@./scripts/check-coverage.sh coverage.out 80.0
 
-coverage-check-threshold: ## Check coverage with custom threshold (usage: make coverage-check-threshold THRESHOLD=85)
-	@echo "Checking coverage threshold: $(THRESHOLD)% (excluding integration tests)"
-	@go test -v -race -coverprofile=coverage.out ./cmd/... ./internal/... ./pkg/...
-	@./scripts/check-coverage.sh coverage.out $(THRESHOLD)
 
 # Development targets
 run: build ## Run the API server locally
@@ -200,25 +196,21 @@ install-tools: ## Install development tools
 setup: deps install-tools ## Setup development environment
 	@echo "Setting up development environment..."
 	@cp .env.example .env || echo ".env.example not found, skipping"
-	@echo "Development environment setup complete"
-	@echo "Edit .env file with your configuration"
+	@echo "✅ Development environment setup complete!"
+	@echo "  - Tools: installed"
+	@echo "  - Dependencies: downloaded"
+	@echo "  - .env file: created (edit with your configuration)"
+	@echo ""
+	@echo "To run integration tests:"
+	@echo "  make db-start         # Start test database"
+	@echo "  make test-integration # Run integration tests"
+	@echo "  make db-stop          # Stop test database (optional)"
 
 # Performance testing
 bench: ## Run benchmark tests
 	@echo "Running benchmark tests..."
 	@go test -bench=. -benchmem ./...
 
-# All-in-one development commands
-dev-setup: setup ## Complete development setup
-	@echo "Development setup completed"
-	@echo "✅ Ready for development!"
-	@echo "  - Tools: installed"
-	@echo "  - Dependencies: downloaded"
-	@echo ""
-	@echo "To run integration tests:"
-	@echo "  make db-start         # Start test database"
-	@echo "  make test-integration # Run integration tests"
-	@echo "  make db-stop          # Stop test database (optional)"
 
 all: clean deps lint test build ## Run all quality checks and build
 
