@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752165402861,
+  "lastUpdate": 1752199737645,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -432,6 +432,150 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2975174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "starbops@zespre.com",
+            "name": "Zespre Schmidt",
+            "username": "starbops"
+          },
+          "committer": {
+            "email": "starbops@hey.com",
+            "name": "Zespre Chang",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "53cbc4cc1f794a253814f3bad18aece465bc626b",
+          "message": "fix(ci): add contents write permissions for docs and performance jobs\n\n- Add contents: write to docs job for GitHub Pages deployment to gh-pages branch\n- Add contents: write to performance job for benchmark data storage to gh-pages branch\n- Fixes permission denied errors when pushing to repository\n- Maintains security with minimal required permissions for each job function\n\nFixes run #16209410222 failures.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+          "timestamp": "2025-07-11T10:07:40+08:00",
+          "tree_id": "6bfc2cb3d1fe6c8e87eadcd7837889c22f381cd5",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/53cbc4cc1f794a253814f3bad18aece465bc626b"
+        },
+        "date": 1752199736803,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3765,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "269162 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3765,
+            "unit": "ns/op",
+            "extra": "269162 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "269162 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "269162 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 3026,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "364616 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 3026,
+            "unit": "ns/op",
+            "extra": "364616 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "364616 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "364616 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 184828,
+            "unit": "ns/op\t  106060 B/op\t    1456 allocs/op",
+            "extra": "5534 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 184828,
+            "unit": "ns/op",
+            "extra": "5534 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106060,
+            "unit": "B/op",
+            "extra": "5534 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1456,
+            "unit": "allocs/op",
+            "extra": "5534 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 135.7,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "8904964 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 135.7,
+            "unit": "ns/op",
+            "extra": "8904964 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "8904964 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "8904964 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 418.8,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "2879461 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 418.8,
+            "unit": "ns/op",
+            "extra": "2879461 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "2879461 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2879461 times\n4 procs"
           }
         ]
       }
