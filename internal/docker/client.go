@@ -9,16 +9,32 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 )
+
+// SDKClientInterface abstracts the Docker SDK client for testability
+type SDKClientInterface interface {
+	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
+	ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
+	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error)
+	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
+	ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
+	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
+	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
+	Ping(ctx context.Context) (types.Ping, error)
+}
 
 // Client wraps the Docker SDK client and provides higher-level methods
 // for interacting with Docker, tailored for Voidrunner's needs.
 type Client struct {
-	cli    *client.Client
+	cli    SDKClientInterface
 	logger *slog.Logger
 	config *config.DockerConfig
 }
@@ -82,7 +98,7 @@ func (c *Client) Close() error {
 }
 
 // GetClient returns the underlying Docker SDK client if direct access is needed.
-func (c *Client) GetClient() *client.Client {
+func (c *Client) GetClient() SDKClientInterface {
 	return c.cli
 }
 

@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client" // For client.IsErrNotFound
+	"github.com/docker/docker/errdefs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
@@ -40,8 +40,6 @@ func newTestDockerConfig() *config.DockerConfig {
 // TestNewClient_Success tests successful Docker client creation and ping.
 func TestNewClient_Success(t *testing.T) {
 	mockSDK := new(MockSDKClient)
-	logger := newTestLogger()
-	cfg := newTestDockerConfig()
 
 	// Mock Ping
 	mockSDK.On("Ping", mock.Anything).Return(types.Ping{APIVersion: "1.41"}, nil)
@@ -138,10 +136,10 @@ func TestPullImageIfNotExists_PullSuccess(t *testing.T) {
 
 	imageName := "test-image:latest"
 	// Simulate ImageInspectWithRaw returning ErrNotFound
-	mockSDK.On("ImageInspectWithRaw", mock.Anything, imageName).Return(types.ImageInspect{}, nil, client.ErrImageNotFound{ID: imageName})
+	mockSDK.On("ImageInspectWithRaw", mock.Anything, imageName).Return(types.ImageInspect{}, nil, errdefs.NotFound(errors.New("image not found")))
 	// Simulate successful ImagePull
 	pullLogs := io.NopCloser(strings.NewReader("Pulling layer...\nDownload complete"))
-	mockSDK.On("ImagePull", mock.Anything, imageName, mock.AnythingOfType("image.PullOptions")).Return(pullLogs, nil)
+	mockSDK.On("ImagePull", mock.Anything, imageName, image.PullOptions{}).Return(pullLogs, nil)
 
 	err := c.PullImageIfNotExists(context.Background(), imageName)
 	assert.NoError(t, err)
@@ -156,8 +154,8 @@ func TestPullImageIfNotExists_PullFailure(t *testing.T) {
 	c := &Client{cli: mockSDK, logger: logger, config: cfg}
 
 	imageName := "test-image:latest"
-	mockSDK.On("ImageInspectWithRaw", mock.Anything, imageName).Return(types.ImageInspect{}, nil, client.ErrImageNotFound{ID: imageName})
-	mockSDK.On("ImagePull", mock.Anything, imageName, mock.AnythingOfType("image.PullOptions")).Return(nil, errors.New("pull failed"))
+	mockSDK.On("ImageInspectWithRaw", mock.Anything, imageName).Return(types.ImageInspect{}, nil, errdefs.NotFound(errors.New("image not found")))
+	mockSDK.On("ImagePull", mock.Anything, imageName, image.PullOptions{}).Return(nil, errors.New("pull failed"))
 
 	err := c.PullImageIfNotExists(context.Background(), imageName)
 	assert.Error(t, err)
