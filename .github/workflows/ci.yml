@@ -9,6 +9,10 @@ on:
 env:
   GO_VERSION: '1.24.4'
 
+# Security: Define minimal permissions at workflow level
+permissions:
+  contents: read
+
 # CI Strategy:
 # - Uses enhanced Makefile targets that adapt behavior based on CI environment
 # - Testing follows pyramid approach: many unit tests, some integration tests
@@ -74,6 +78,9 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # Required for SARIF upload
     
     steps:
     - name: Checkout code
@@ -175,6 +182,10 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write      # Required for GitHub Pages deployment
+      id-token: write   # Required for GitHub Pages deployment
     
     steps:
     - name: Checkout code
@@ -218,6 +229,10 @@ jobs:
     name: Performance Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: write    # Required for benchmark action auto-push
+      pull-requests: write  # Required for benchmark action comments
     
     steps:
     - name: Checkout code
