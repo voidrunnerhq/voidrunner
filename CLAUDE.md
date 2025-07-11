@@ -4,12 +4,21 @@ This document defines code style guidelines, review criteria, project-specific r
 
 ## Project Overview
 
-VoidRunner is a Kubernetes-based distributed task execution platform built with:
+VoidRunner is a distributed task execution platform designed for secure, scalable code execution. The project follows an incremental development approach through well-defined Epic milestones.
 
-- **Backend**: Go + Gin framework + PostgreSQL + Redis
-- **Frontend**: Svelte + SvelteKit + TypeScript
-- **Infrastructure**: Kubernetes (GKE) + Docker + gVisor
-- **Architecture**: Microservices with container-based task execution
+### Current Implementation Status (Epic 1 ✅ Complete)
+- **Backend**: Go + Gin framework + PostgreSQL (pgx driver)
+- **API**: RESTful API with JWT authentication and comprehensive task management
+- **Database**: PostgreSQL with optimized schema and cursor pagination
+- **Testing**: 80%+ code coverage with unit and integration tests
+- **Documentation**: OpenAPI/Swagger specs with comprehensive examples
+
+### Planned Architecture (Epic 2-4 📋 Roadmap)
+- **Container Execution**: Docker + gVisor security for safe code execution
+- **Frontend**: Svelte + SvelteKit + TypeScript web interface
+- **Infrastructure**: Kubernetes (GKE) deployment with microservices
+- **Queue System**: Redis for task scheduling and real-time updates
+- **Monitoring**: Real-time metrics, logging, and alerting systems
 
 ## Go Code Standards
 
@@ -18,27 +27,59 @@ VoidRunner is a Kubernetes-based distributed task execution platform built with:
 ```
 voidrunner/
 ├── cmd/                    # Application entrypoints
-│   ├── api/               # API server main
-│   ├── scheduler/         # Task scheduler main
-│   └── executor/          # Task executor main
+│   ├── api/               # ✅ API server main (implemented)
+│   ├── migrate/           # ✅ Database migration tool (implemented)
+│   ├── scheduler/         # 📋 Task scheduler main (planned - Epic 2)
+│   └── executor/          # 📋 Task executor main (planned - Epic 2)
 ├── internal/              # Private application code
-│   ├── api/              # API handlers and routes
-│   ├── auth/             # Authentication logic
-│   ├── config/           # Configuration management
-│   ├── database/         # Database layer
-│   ├── executor/         # Task execution engine
-│   ├── models/           # Data models
-│   ├── queue/            # Message queue integration
-│   └── security/         # Security utilities
+│   ├── api/              # ✅ API handlers and routes (implemented)
+│   ├── auth/             # ✅ Authentication logic (implemented)
+│   ├── config/           # ✅ Configuration management (implemented)
+│   ├── database/         # ✅ Database layer (implemented)
+│   ├── models/           # ✅ Data models (implemented)
+│   ├── services/         # ✅ Business logic services (implemented)
+│   ├── executor/         # 📋 Task execution engine (planned - Epic 2)
+│   ├── queue/            # 📋 Message queue integration (planned - Epic 2)
+│   └── security/         # 📋 Security utilities (planned - Epic 2)
 ├── pkg/                   # Public libraries
-│   ├── logger/           # Structured logging
-│   ├── metrics/          # Prometheus metrics
-│   └── utils/            # Shared utilities
-├── api/                   # API specifications (OpenAPI)
-├── deployments/          # Kubernetes manifests
-├── scripts/              # Build and deployment scripts
-└── docs/                 # Documentation
+│   ├── logger/           # ✅ Structured logging (implemented)
+│   ├── metrics/          # 📋 Prometheus metrics (planned - Epic 2)
+│   └── utils/            # 📋 Shared utilities (planned)
+├── api/                   # ✅ API specifications (OpenAPI) (implemented)
+├── migrations/           # ✅ Database migrations (implemented)
+├── tests/                # ✅ Integration tests (implemented)
+├── scripts/              # ✅ Build and deployment scripts (implemented)
+├── docs/                 # ✅ Documentation (implemented)
+├── deployments/          # 📋 Kubernetes manifests (planned - Epic 3)
+└── frontend/             # 📋 Svelte web interface (planned - Epic 3)
 ```
+
+#### Epic Development Roadmap
+
+**Epic 1: Core API Infrastructure** ✅ **Complete**
+- JWT authentication system
+- Task management CRUD operations
+- PostgreSQL database with pgx
+- Comprehensive testing suite
+- OpenAPI documentation
+
+**Epic 2: Container Execution Engine** 🔄 **In Development**
+- Docker client integration with security
+- Task execution workflow and state management
+- Real-time log collection and streaming
+- Error handling and cleanup mechanisms
+
+**Epic 3: Frontend Interface** 📋 **Planned**
+- Svelte project setup and architecture
+- Authentication UI and user management
+- Task creation and management interface
+- Real-time task status updates
+
+**Epic 4: Advanced Features** 📋 **Planned**
+- Collaborative features and sharing
+- Advanced search and filtering
+- Real-time dashboard and system metrics
+- Advanced notifications and alerting
 
 ### Coding Standards
 
@@ -479,6 +520,27 @@ logging:
   format: json
 ```
 
+### Testing
+
+Testing configuration is unified between CI and local environments for consistency:
+
+```bash
+# Integration test environment variables (used by both CI and local)
+TEST_DB_HOST=localhost
+TEST_DB_PORT=5432
+TEST_DB_USER=testuser
+TEST_DB_PASSWORD=testpassword
+TEST_DB_NAME=voidrunner_test
+TEST_DB_SSLMODE=disable
+JWT_SECRET_KEY=test-secret-key-for-integration
+```
+
+**Key Principles:**
+- **Unified Configuration**: Same database and JWT settings for CI and local testing
+- **Environment Detection**: `CI=true` used only for output formats (SARIF, coverage)
+- **Database Independence**: Tests automatically skip when database unavailable
+- **Consistent Behavior**: Integration tests behave identically in both environments
+
 ## Common Patterns and Anti-Patterns
 
 ### ✅ Preferred Patterns
@@ -576,33 +638,74 @@ func (s *TaskService) ExecuteTask(ctx context.Context, taskID string) error {
 ### Development Commands
 
 ```bash
-# Start development environment
-make dev-up
+# Setup development environment
+make setup
 
-# Run tests with coverage
-make test-coverage
+# Start development server with auto-reload
+make dev
 
-# Build all containers
-make build-all
+# Run tests
+make test              # Unit tests (with coverage in CI)
+make test-fast         # Fast unit tests (short mode)
+make test-integration  # Integration tests
+make test-all          # Both unit and integration tests
 
-# Deploy to staging
-make deploy-staging
+# Coverage analysis
+make coverage          # Generate coverage report
+make coverage-check    # Check coverage meets 80% threshold
 
-# Security scan
-make security-scan
+# Code quality
+make fmt               # Format code
+make vet               # Run go vet
+make lint              # Run linting (with format check in CI)
+make security          # Security scan
+
+# Build and run
+make build             # Build API server
+make run               # Run API server locally
+
+# Documentation
+make docs              # Generate API docs
+make docs-serve        # Serve docs locally
+
+# Development tools
+make install-tools     # Install development tools
+make clean             # Clean build artifacts
+
+# Database management
+make db-start          # Start test database (Docker)
+make db-stop           # Stop test database
+make db-reset          # Reset test database (clean slate)
+
+# Database migrations
+make migrate-up        # Run database migrations up
+make migrate-down      # Run database migrations down (rollback one)
+make migrate-reset     # Reset database (rollback all migrations)
+make migration name=X  # Create new migration file
+
+# Dependencies and setup
+make deps              # Download and tidy dependencies
+make deps-update       # Update dependencies
+make setup             # Setup complete development environment
 ```
 
 ### Database Operations
 
 ```bash
-# Run migrations
-./scripts/migrate.sh up
+# Database management (implemented)
+make db-start          # Start test database container
+make db-stop           # Stop test database container
+make db-reset          # Reset test database to clean state
 
-# Create new migration
-./scripts/create-migration.sh "add_task_priority_column"
+# Migration management (implemented)
+make migrate-up        # Apply all pending migrations
+make migrate-down      # Rollback last migration
+make migrate-reset     # Rollback all migrations
+make migration name=add_feature  # Create new migration files
 
-# Backup database
-./scripts/backup-db.sh production
+# Legacy scripts (planned for Epic 2)
+./scripts/backup-db.sh production    # Database backup utility
+./scripts/restore-db.sh backup.sql   # Database restore utility
 ```
 
 ## Documentation Standards
@@ -651,8 +754,8 @@ type TaskExecutor interface {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2025-07-04  
-**Next Review**: 2025-08-01
+**Document Version**: 1.1  
+**Last Updated**: 2025-07-10  
+**Next Review**: 2025-08-10
 
 For questions about these guidelines, please reach out to the technical lead or create an issue in the repository.

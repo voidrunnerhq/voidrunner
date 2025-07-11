@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // RateLimiter implements a simple in-memory rate limiter
@@ -111,7 +112,7 @@ func RateLimit(maxReqs int, window time.Duration, logger *slog.Logger) gin.Handl
 			)
 
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":     "Rate limit exceeded",
+				"error":       "Rate limit exceeded",
 				"retry_after": int(window.Seconds()),
 			})
 			c.Abort()
@@ -132,6 +133,18 @@ func AuthRateLimit(logger *slog.Logger) gin.HandlerFunc {
 func RegisterRateLimit(logger *slog.Logger) gin.HandlerFunc {
 	// 5 registrations per hour
 	return RateLimit(5, time.Hour, logger)
+}
+
+// RegisterRateLimitForTest creates permissive rate limiting middleware for registration endpoint in test mode
+func RegisterRateLimitForTest(logger *slog.Logger) gin.HandlerFunc {
+	// 1000 registrations per hour for testing
+	return RateLimit(1000, time.Hour, logger)
+}
+
+// AuthRateLimitForTest creates permissive rate limiting middleware for auth endpoints in test mode
+func AuthRateLimitForTest(logger *slog.Logger) gin.HandlerFunc {
+	// 1000 requests per hour for testing
+	return RateLimit(1000, time.Hour, logger)
 }
 
 // RefreshRateLimit creates rate limiting middleware for token refresh endpoint
@@ -165,7 +178,8 @@ func RateLimitByUserID(maxReqs int, window time.Duration, logger *slog.Logger) g
 				return
 			}
 		} else {
-			identifier := userID.(string)
+			// userID is uuid.UUID type, convert to string properly
+			identifier := userID.(uuid.UUID).String()
 			if !limiter.Allow(identifier) {
 				logger.Warn("rate limit exceeded for authenticated user",
 					"user_id", identifier,
@@ -208,4 +222,28 @@ func TaskCreationRateLimit(logger *slog.Logger) gin.HandlerFunc {
 func ExecutionCreationRateLimit(logger *slog.Logger) gin.HandlerFunc {
 	// 30 execution starts per hour per user
 	return RateLimitByUserID(30, time.Hour, logger)
+}
+
+// TaskRateLimitForTest creates permissive rate limiting middleware for task endpoints in test mode
+func TaskRateLimitForTest(logger *slog.Logger) gin.HandlerFunc {
+	// 1000 task operations per hour per user for testing
+	return RateLimitByUserID(1000, time.Hour, logger)
+}
+
+// TaskCreationRateLimitForTest creates permissive rate limiting middleware for task creation in test mode
+func TaskCreationRateLimitForTest(logger *slog.Logger) gin.HandlerFunc {
+	// 1000 task creations per hour per user for testing
+	return RateLimitByUserID(1000, time.Hour, logger)
+}
+
+// TaskExecutionRateLimitForTest creates permissive rate limiting middleware for execution endpoints in test mode
+func TaskExecutionRateLimitForTest(logger *slog.Logger) gin.HandlerFunc {
+	// 1000 execution operations per hour per user for testing
+	return RateLimitByUserID(1000, time.Hour, logger)
+}
+
+// ExecutionCreationRateLimitForTest creates permissive rate limiting middleware for execution creation in test mode
+func ExecutionCreationRateLimitForTest(logger *slog.Logger) gin.HandlerFunc {
+	// 1000 execution starts per hour per user for testing
+	return RateLimitByUserID(1000, time.Hour, logger)
 }

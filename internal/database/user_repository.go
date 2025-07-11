@@ -42,12 +42,12 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	}
 
 	query := `
-		INSERT INTO users (id, email, password_hash, created_at, updated_at)
-		VALUES ($1, $2, $3, NOW(), NOW())
+		INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
 		RETURNING created_at, updated_at
 	`
 
-	err := r.querier.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash).
+	err := r.querier.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash, user.Name).
 		Scan(&user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
@@ -70,7 +70,7 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 // GetByID retrieves a user by ID
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	query := `
-		SELECT id, email, password_hash, created_at, updated_at
+		SELECT id, email, password_hash, name, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -80,6 +80,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 		&user.ID,
 		&user.Email,
 		&user.PasswordHash,
+		&user.Name,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -101,7 +102,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.
 	}
 
 	query := `
-		SELECT id, email, password_hash, created_at, updated_at
+		SELECT id, email, password_hash, name, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -111,6 +112,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&user.ID,
 		&user.Email,
 		&user.PasswordHash,
+		&user.Name,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -133,12 +135,12 @@ func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 
 	query := `
 		UPDATE users
-		SET email = $2, password_hash = $3, updated_at = NOW()
+		SET email = $2, password_hash = $3, name = $4, updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at
 	`
 
-	err := r.querier.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash).
+	err := r.querier.QueryRow(ctx, query, user.ID, user.Email, user.PasswordHash, user.Name).
 		Scan(&user.UpdatedAt)
 
 	if err != nil {
@@ -187,7 +189,7 @@ func (r *userRepository) List(ctx context.Context, limit, offset int) ([]*models
 	}
 
 	query := `
-		SELECT id, email, password_hash, created_at, updated_at
+		SELECT id, email, password_hash, name, created_at, updated_at
 		FROM users
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -206,6 +208,7 @@ func (r *userRepository) List(ctx context.Context, limit, offset int) ([]*models
 			&user.ID,
 			&user.Email,
 			&user.PasswordHash,
+			&user.Name,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)

@@ -15,6 +15,7 @@ type User struct {
 	BaseModel
 	Email        string `json:"email" db:"email"`
 	PasswordHash string `json:"-" db:"password_hash"`
+	Name         string `json:"name" db:"name"`
 }
 
 // JWTClaims represents the JWT claims for a user
@@ -40,6 +41,7 @@ type UpdateUserRequest struct {
 type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8"`
+	Name     string `json:"name" validate:"required,min=1,max=255"`
 }
 
 // LoginRequest represents the login request
@@ -66,6 +68,7 @@ type AuthResponse struct {
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
+	Name      string    `json:"name"`
 	CreatedAt string    `json:"created_at"`
 	UpdatedAt string    `json:"updated_at"`
 }
@@ -75,6 +78,7 @@ func (u *User) ToResponse() UserResponse {
 	return UserResponse{
 		ID:        u.ID,
 		Email:     u.Email,
+		Name:      u.Name,
 		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
@@ -104,7 +108,7 @@ func ValidateEmail(email string) error {
 	}
 
 	email = strings.TrimSpace(strings.ToLower(email))
-	
+
 	if len(email) > 255 {
 		return fmt.Errorf("email is too long (max 255 characters)")
 	}

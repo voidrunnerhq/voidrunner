@@ -11,7 +11,7 @@ import (
 
 func TestRequestID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	router := gin.New()
 	router.Use(RequestID())
 	router.GET("/test", func(c *gin.Context) {

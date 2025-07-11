@@ -41,6 +41,167 @@ security:
   - BearerAuth: []
 
 paths:
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a new user account with email and password.
+      operationId: register
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              valid_registration:
+                summary: Valid user registration
+                value:
+                  email: "user@example.com"
+                  password: "SecurePassword123!"
+                  name: "John Doe"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User with this email already exists"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/login:
+    post:
+      summary: Authenticate user
+      description: Authenticates a user with email and password, returns access and refresh tokens.
+      operationId: login
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              valid_login:
+                summary: Valid user login
+                value:
+                  email: "user@example.com"
+                  password: "SecurePassword123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid email or password"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Generates a new access token using a valid refresh token.
+      operationId: refreshToken
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            examples:
+              valid_refresh:
+                summary: Valid token refresh
+                value:
+                  refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid refresh token"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      description: Logs out the current user (client-side token removal).
+      operationId: logout
+      tags:
+        - Authentication
+      security: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Successfully logged out"
+
+  /auth/me:
+    get:
+      summary: Get current user
+      description: Returns information about the currently authenticated user.
+      operationId: getCurrentUser
+      tags:
+        - Authentication
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # Task Management Endpoints
   /tasks:
     post:
@@ -446,6 +607,107 @@ components:
         example: "123e4567-e89b-12d3-a456-426614174001"
 
   schemas:
+    # Authentication Schemas
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "user@example.com"
+        password:
+          type: string
+          minLength: 8
+          description: User's password (minimum 8 characters)
+          example: "SecurePassword123!"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: User's full name
+          example: "John Doe"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "user@example.com"
+        password:
+          type: string
+          description: User's password
+          example: "SecurePassword123!"
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Valid refresh token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          description: JWT refresh token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          description: Token type (always "Bearer")
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Access token expiration time in seconds
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the user
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "user@example.com"
+        name:
+          type: string
+          description: User's full name
+          example: "John Doe"
+        created_at:
+          type: string
+          format: date-time
+          description: When the user was created
+          example: "2023-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: When the user was last updated
+          example: "2023-01-01T00:00:00Z"
+
     CreateTaskRequest:
       type: object
       required:
@@ -812,6 +1074,8 @@ components:
             retry_after: 3600
 
 tags:
+  - name: Authentication
+    description: User authentication and authorization operations
   - name: Tasks
     description: Task management operations
   - name: Executions

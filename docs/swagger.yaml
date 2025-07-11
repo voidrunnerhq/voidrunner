@@ -1,0 +1,665 @@
+basePath: /api/v1
+definitions:
+  github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.UserResponse'
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.CreateTaskRequest:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      metadata:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.JSONB'
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      priority:
+        maximum: 10
+        minimum: 0
+        type: integer
+      script_content:
+        maxLength: 65535
+        minLength: 1
+        type: string
+      script_type:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ScriptType'
+      timeout_seconds:
+        maximum: 3600
+        minimum: 1
+        type: integer
+    required:
+    - name
+    - script_content
+    - script_type
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse:
+    properties:
+      details:
+        type: string
+      error:
+        type: string
+      validation_errors:
+        items:
+          $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ValidationError'
+        type: array
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.ExecutionStatus:
+    enum:
+    - pending
+    - running
+    - completed
+    - failed
+    - timeout
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - ExecutionStatusPending
+    - ExecutionStatusRunning
+    - ExecutionStatusCompleted
+    - ExecutionStatusFailed
+    - ExecutionStatusTimeout
+    - ExecutionStatusCancelled
+  github_com_voidrunnerhq_voidrunner_internal_models.JSONB:
+    additionalProperties: true
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.ScriptType:
+    enum:
+    - python
+    - javascript
+    - bash
+    - go
+    type: string
+    x-enum-varnames:
+    - ScriptTypePython
+    - ScriptTypeJavaScript
+    - ScriptTypeBash
+    - ScriptTypeGo
+  github_com_voidrunnerhq_voidrunner_internal_models.TaskExecutionResponse:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      execution_time_ms:
+        type: integer
+      id:
+        type: string
+      memory_usage_bytes:
+        type: integer
+      return_code:
+        type: integer
+      started_at:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ExecutionStatus'
+      stderr:
+        type: string
+      stdout:
+        type: string
+      task_id:
+        type: string
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.TaskListResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      tasks:
+        items:
+          $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.JSONB'
+      name:
+        type: string
+      priority:
+        type: integer
+      script_content:
+        type: string
+      script_type:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ScriptType'
+      status:
+        $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskStatus'
+      timeout_seconds:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.TaskStatus:
+    enum:
+    - pending
+    - running
+    - completed
+    - failed
+    - timeout
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - TaskStatusPending
+    - TaskStatusRunning
+    - TaskStatusCompleted
+    - TaskStatusFailed
+    - TaskStatusTimeout
+    - TaskStatusCancelled
+  github_com_voidrunnerhq_voidrunner_internal_models.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_voidrunnerhq_voidrunner_internal_models.ValidationError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+      tag:
+        type: string
+      value:
+        type: string
+    type: object
+  internal_api_handlers.HealthResponse:
+    properties:
+      service:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+      uptime:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_api_handlers.ReadinessResponse:
+    properties:
+      checks:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        type: string
+      timestamp:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@voidrunner.com
+    name: VoidRunner Support
+    url: https://github.com/voidrunnerhq/voidrunner
+  description: VoidRunner is a distributed task execution platform that allows users
+    to create, manage, and execute code tasks securely in isolated containers.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://voidrunner.com/terms
+  title: VoidRunner API
+  version: 1.0.0
+paths:
+  /api:
+    get:
+      description: Returns an HTML page with links to various API documentation formats
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML documentation index
+          schema:
+            type: string
+      summary: API Documentation Index
+      tags:
+      - Documentation
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with email and password, returns access and
+        refresh tokens
+      parameters:
+      - description: User login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse'
+        "400":
+          description: Invalid request format or validation error
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      summary: Authenticate user
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out the current user (client-side token removal)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Logout user
+      tags:
+      - Authentication
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Returns information about the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User information retrieved successfully
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.UserResponse'
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Authentication
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generates a new access token using a valid refresh token
+      parameters:
+      - description: Refresh token request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse'
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "401":
+          description: Invalid refresh token
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - Authentication
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account with email and password
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse'
+        "400":
+          description: Invalid request format or validation error
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - Authentication
+  /docs:
+    get:
+      description: Redirects to the Swagger UI interface
+      responses:
+        "302":
+          description: Redirect to Swagger UI
+          schema:
+            type: string
+      summary: Redirect to Swagger UI
+      tags:
+      - Documentation
+  /docs/swagger.json:
+    get:
+      description: Returns the OpenAPI specification in JSON format
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OpenAPI specification
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get OpenAPI JSON specification
+      tags:
+      - Documentation
+  /docs/swagger.yaml:
+    get:
+      description: Returns the OpenAPI specification in YAML format
+      produces:
+      - text/yaml
+      responses:
+        "200":
+          description: OpenAPI specification in YAML
+          schema:
+            type: string
+      summary: Get OpenAPI YAML specification
+      tags:
+      - Documentation
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns the health status of the API service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            $ref: '#/definitions/internal_api_handlers.HealthResponse'
+      summary: Health check
+      tags:
+      - Health
+  /ready:
+    get:
+      consumes:
+      - application/json
+      description: Returns the readiness status of the API service and its dependencies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is ready
+          schema:
+            $ref: '#/definitions/internal_api_handlers.ReadinessResponse'
+        "503":
+          description: Service is not ready
+          schema:
+            $ref: '#/definitions/internal_api_handlers.ReadinessResponse'
+      summary: Readiness check
+      tags:
+      - Health
+  /tasks:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a paginated list of tasks owned by the authenticated
+        user
+      parameters:
+      - default: 20
+        description: Maximum number of tasks to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of tasks to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskListResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List user's tasks
+      tags:
+      - Tasks
+    post:
+      consumes:
+      - application/json
+      description: Creates a new task with the specified script content and configuration
+      parameters:
+      - description: Task creation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Task created successfully
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse'
+        "400":
+          description: Invalid request format or validation error
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new task
+      tags:
+      - Tasks
+  /tasks/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves detailed information about a specific task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task retrieved successfully
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse'
+        "400":
+          description: Invalid task ID
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get task details
+      tags:
+      - Tasks
+  /tasks/{task_id}/executions:
+    post:
+      consumes:
+      - application/json
+      description: Starts execution of the specified task
+      parameters:
+      - description: Task ID
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Execution started successfully
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskExecutionResponse'
+        "400":
+          description: Invalid task ID
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "409":
+          description: Task is already running
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start task execution
+      tags:
+      - Executions
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

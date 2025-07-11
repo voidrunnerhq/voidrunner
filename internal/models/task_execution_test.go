@@ -174,7 +174,7 @@ func TestTaskExecution_GetDuration(t *testing.T) {
 	t.Run("with started and completed times", func(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(2 * time.Second)
-		
+
 		te := &TaskExecution{
 			StartedAt:   &startTime,
 			CompletedAt: &endTime,

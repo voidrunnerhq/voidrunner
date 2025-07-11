@@ -2,14 +2,28 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+)
+
+// Error variables for typed error handling
+var (
+	ErrUserAlreadyExists   = errors.New("user already exists")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrInvalidEmail        = errors.New("invalid email")
+	ErrInvalidPassword     = errors.New("invalid password")
+	ErrValidationFailed    = errors.New("validation error")
+	ErrPasswordRequired    = errors.New("password is required")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+	ErrUserNotFound        = errors.New("user not found")
 )
 
 // Service handles authentication operations
@@ -39,7 +53,6 @@ func NewService(
 func (s *Service) Register(ctx context.Context, req models.RegisterRequest) (*models.AuthResponse, error) {
 	logger := s.logger.With(
 		"operation", "register",
-		"email", req.Email,
 	)
 
 	logger.Info("attempting user registration")
@@ -47,12 +60,17 @@ func (s *Service) Register(ctx context.Context, req models.RegisterRequest) (*mo
 	// Validate input
 	if err := models.ValidateEmail(req.Email); err != nil {
 		logger.Warn("invalid email format", "error", err)
-		return nil, fmt.Errorf("invalid email: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidEmail, err)
 	}
 
 	if err := models.ValidatePassword(req.Password); err != nil {
 		logger.Warn("invalid password format", "error", err)
-		return nil, fmt.Errorf("invalid password: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidPassword, err)
+	}
+
+	if err := validateName(req.Name); err != nil {
+		logger.Warn("invalid name format", "error", err)
+		return nil, fmt.Errorf("%w: %v", ErrValidationFailed, err)
 	}
 
 	// Check if user already exists
@@ -64,7 +82,7 @@ func (s *Service) Register(ctx context.Context, req models.RegisterRequest) (*mo
 
 	if existingUser != nil {
 		logger.Warn("user already exists")
-		return nil, fmt.Errorf("user with email %s already exists", req.Email)
+		return nil, ErrUserAlreadyExists
 	}
 
 	// Hash password
@@ -78,6 +96,7 @@ func (s *Service) Register(ctx context.Context, req models.RegisterRequest) (*mo
 	user := &models.User{
 		Email:        req.Email,
 		PasswordHash: passwordHash,
+		Name:         req.Name,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -107,7 +126,6 @@ func (s *Service) Register(ctx context.Context, req models.RegisterRequest) (*mo
 func (s *Service) Login(ctx context.Context, req models.LoginRequest) (*models.AuthResponse, error) {
 	logger := s.logger.With(
 		"operation", "login",
-		"email", req.Email,
 	)
 
 	logger.Info("attempting user login")
@@ -115,12 +133,12 @@ func (s *Service) Login(ctx context.Context, req models.LoginRequest) (*models.A
 	// Validate input
 	if err := models.ValidateEmail(req.Email); err != nil {
 		logger.Warn("invalid email format", "error", err)
-		return nil, fmt.Errorf("invalid email: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidEmail, err)
 	}
 
 	if req.Password == "" {
 		logger.Warn("empty password")
-		return nil, fmt.Errorf("password is required")
+		return nil, ErrPasswordRequired
 	}
 
 	// Get user by email
@@ -128,7 +146,7 @@ func (s *Service) Login(ctx context.Context, req models.LoginRequest) (*models.A
 	if err != nil {
 		if err == database.ErrUserNotFound {
 			logger.Warn("user not found")
-			return nil, fmt.Errorf("invalid email or password")
+			return nil, ErrInvalidCredentials
 		}
 		logger.Error("failed to get user", "error", err)
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -137,7 +155,7 @@ func (s *Service) Login(ctx context.Context, req models.LoginRequest) (*models.A
 	// Verify password
 	if err := s.verifyPassword(req.Password, user.PasswordHash); err != nil {
 		logger.Warn("invalid password")
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	logger.Info("user logged in successfully", "user_id", user.ID)
@@ -170,7 +188,7 @@ func (s *Service) RefreshToken(ctx context.Context, req models.RefreshTokenReque
 	tokenPair, err := s.jwtSvc.RefreshToken(req.RefreshToken)
 	if err != nil {
 		logger.Warn("invalid refresh token", "error", err)
-		return nil, fmt.Errorf("invalid refresh token: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidRefreshToken, err)
 	}
 
 	// Extract user ID from the new access token to get updated user info
@@ -185,7 +203,7 @@ func (s *Service) RefreshToken(ctx context.Context, req models.RefreshTokenReque
 	if err != nil {
 		if err == database.ErrUserNotFound {
 			logger.Warn("user not found for refresh token", "user_id", userID)
-			return nil, fmt.Errorf("user not found")
+			return nil, ErrUserNotFound
 		}
 		logger.Error("failed to get user for refresh", "error", err)
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -238,4 +256,17 @@ func (s *Service) hashPassword(password string) (string, error) {
 // verifyPassword verifies a password against a hash
 func (s *Service) verifyPassword(password, hash string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
+
+// validateName validates the name field
+func validateName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("name is required")
+	}
+
+	if len(name) > 255 {
+		return fmt.Errorf("name is too long (max 255 characters)")
+	}
+
+	return nil
 }

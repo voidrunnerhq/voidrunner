@@ -80,7 +80,7 @@ func (s *TaskExecutionService) executeTaskInContainer(
 	// Defaulting to Python as task.Language is not yet in the model
 	imageName = s.appConfig.Docker.PythonExecutorImage
 	cmd = []string{"python3", "-c", "%CODE%"} // Placeholder for user code
-	userCode := task.Code                     // Assuming task.Code holds the user's code
+	userCode := task.ScriptContent             // Use ScriptContent field from model
 
 	params := &docker.ExecuteContainerParams{
 		Ctx:            execCtx,
@@ -105,7 +105,9 @@ func (s *TaskExecutionService) executeTaskInContainer(
 		s.logger.Error("failed to create or start container", "task_id", task.ID, "execution_id", execution.ID, "error", err)
 		errMsg := err.Error()
 		execution.Status = models.ExecutionStatusFailed
-		execution.Error = &errMsg
+		execution.Stderr = &errMsg
+		returnCode := -1
+		execution.ReturnCode = &returnCode
 		// This needs to be an atomic update, similar to CompleteExecutionAndFinalizeTaskStatus
 		// but requires careful handling of context and potential user_id if service methods enforce it.
 		// For now, logging the failure. Robust status update needed.
@@ -152,7 +154,8 @@ func (s *TaskExecutionService) executeTaskInContainer(
 	// Determine final execution status
 	execution.Stdout = &stdout
 	execution.Stderr = &stderr
-	execution.ExitCode = &exitCode
+	exitCodeInt := int(exitCode)
+	execution.ReturnCode = &exitCodeInt
 
 	finalTaskStatus := models.TaskStatusCompleted
 	finalExecStatus := models.ExecutionStatusCompleted
@@ -161,15 +164,15 @@ func (s *TaskExecutionService) executeTaskInContainer(
 		finalTaskStatus = models.TaskStatusFailed
 		finalExecStatus = models.ExecutionStatusFailed
 		errMsg := fmt.Sprintf("Execution failed or timed out: %v", waitErr)
-		if execution.Error == nil {
-			execution.Error = &errMsg
+		if execution.Stderr == nil {
+			execution.Stderr = &errMsg
 		} else {
-			appendErr := fmt.Sprintf("%s; %s", *execution.Error, errMsg)
-			execution.Error = &appendErr
+			appendErr := fmt.Sprintf("%s; %s", *execution.Stderr, errMsg)
+			execution.Stderr = &appendErr
 		}
 		if exitCode == -1 && execCtx.Err() == context.DeadlineExceeded { // Common case for timeout
-			timeoutExitCode := int64(137) // Simulate SIGKILL due to timeout (common convention)
-			execution.ExitCode = &timeoutExitCode
+			timeoutExitCode := 137 // Simulate SIGKILL due to timeout (common convention)
+			execution.ReturnCode = &timeoutExitCode
 			timeoutMsg := "Execution timed out."
 			if execution.Stderr == nil || *execution.Stderr == "" {
 				execution.Stderr = &timeoutMsg
@@ -182,16 +185,17 @@ func (s *TaskExecutionService) executeTaskInContainer(
 		finalTaskStatus = models.TaskStatusFailed
 		finalExecStatus = models.ExecutionStatusFailed
 		errMsg := fmt.Sprintf("Container exited with code %d", exitCode)
-		if execution.Error == nil {
-			execution.Error = &errMsg
+		if execution.Stderr == nil {
+			execution.Stderr = &errMsg
 		} else {
-			appendErr := fmt.Sprintf("%s; %s", *execution.Error, errMsg)
-			execution.Error = &appendErr
+			appendErr := fmt.Sprintf("%s; %s", *execution.Stderr, errMsg)
+			execution.Stderr = &appendErr
 		}
 	}
 
 	execution.Status = finalExecStatus
-	execution.FinishedAt = models.NewNullTime(time.Now().UTC())
+	now := time.Now().UTC()
+	execution.CompletedAt = &now
 
 
 	// Atomically update the execution record and the parent task's status.
@@ -213,12 +217,13 @@ func (s *TaskExecutionService) executeTaskInContainer(
 // CreateExecutionAndUpdateTaskStatus atomically creates a task execution and updates the task status.
 // It now also triggers the asynchronous container execution.
 func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Context, taskID uuid.UUID, userID uuid.UUID) (*models.TaskExecution, error) {
-	var executionDetails models.TaskExecution
+	var execution *models.TaskExecution
 	var taskDetails models.Task
 
 	err := s.conn.WithTransaction(ctx, func(tx database.Transaction) error {
 		repos := tx.Repositories()
 
+		// First, verify the task exists and belongs to the user
 		task, err := repos.Tasks.GetByID(ctx, taskID)
 		if err != nil {
 			if err == database.ErrTaskNotFound {
@@ -246,14 +251,13 @@ func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Co
 		}
 
 		// Create task execution
-		exec := &models.TaskExecution{
+		execution = &models.TaskExecution{
 			ID:     uuid.New(),
 			TaskID: taskID,
 			Status: models.ExecutionStatusPending, // Will be updated to Running by executeTaskInContainer or similar
 		}
-		executionDetails = *exec // Store for goroutine
 
-		if err := repos.TaskExecutions.Create(ctx, exec); err != nil {
+		if err := repos.TaskExecutions.Create(ctx, execution); err != nil {
 			return fmt.Errorf("failed to create task execution: %w", err)
 		}
 
@@ -263,7 +267,7 @@ func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Co
 		}
 
 		s.logger.Info("task execution record created and task status updated to running",
-			"execution_id", exec.ID,
+			"execution_id", execution.ID,
 			"task_id", taskID,
 			"user_id", userID,
 		)
@@ -283,11 +287,11 @@ func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Co
 	// Launch the actual container execution in a goroutine
 	// Use context.Background() for the goroutine as the original request context (ctx) may be cancelled.
 	// The executeTaskInContainer method should manage its own timeouts.
-	go s.executeTaskInContainer(context.Background(), taskDetails, executionDetails)
+	go s.executeTaskInContainer(context.Background(), taskDetails, *execution)
 
-	s.logger.Info("dispatched task for container execution", "task_id", taskDetails.ID, "execution_id", executionDetails.ID)
+	s.logger.Info("dispatched task for container execution", "task_id", taskDetails.ID, "execution_id", execution.ID)
 
-	return &executionDetails, nil
+	return execution, nil
 }
 
 
@@ -303,15 +307,15 @@ func (s *TaskExecutionService) updateFailedExecution(
 	s.logger.Error("updating failed execution", "execution_id", executionID, "task_id", taskID, "error_type", errorType, "message", errorMessage)
 
 	now := time.Now().UTC()
-	exitCode := int64(-1) // Generic error exit code
+	returnCode := -1 // Generic error exit code
 
 	failedExecution := models.TaskExecution{
-		ID:         executionID,
-		TaskID:     taskID,
-		Status:     models.ExecutionStatusFailed,
-		Error:      &errorMessage,
-		ExitCode:   &exitCode,
-		FinishedAt: models.NewNullTime(now),
+		ID:          executionID,
+		TaskID:      taskID,
+		Status:      models.ExecutionStatusFailed,
+		Stderr:      &errorMessage,
+		ReturnCode:  &returnCode,
+		CompletedAt: &now,
 		// Stdout/Stderr might be empty or have partial data if applicable
 	}
 
@@ -337,7 +341,7 @@ func (s *TaskExecutionService) updateFailedExecution(
 func (s *TaskExecutionService) UpdateExecutionAndTaskStatus(ctx context.Context, executionID uuid.UUID, executionStatus models.ExecutionStatus, taskID uuid.UUID, taskStatus models.TaskStatus, userID uuid.UUID) error {
 	err := s.conn.WithTransaction(ctx, func(tx database.Transaction) error {
 		repos := tx.Repositories()
-		
+
 		// First, verify the execution exists and belongs to the user's task
 		execution, err := repos.TaskExecutions.GetByID(ctx, executionID)
 		if err != nil {
@@ -346,32 +350,32 @@ func (s *TaskExecutionService) UpdateExecutionAndTaskStatus(ctx context.Context,
 			}
 			return fmt.Errorf("failed to get execution: %w", err)
 		}
-		
+
 		// Verify the task belongs to the user
 		task, err := repos.Tasks.GetByID(ctx, execution.TaskID)
 		if err != nil {
 			return fmt.Errorf("failed to get task: %w", err)
 		}
-		
+
 		if task.UserID != userID {
 			return fmt.Errorf("access denied: task does not belong to user")
 		}
-		
+
 		// Verify the task ID matches
 		if execution.TaskID != taskID {
 			return fmt.Errorf("execution does not belong to the specified task")
 		}
-		
+
 		// Update execution status
 		if err := repos.TaskExecutions.UpdateStatus(ctx, executionID, executionStatus); err != nil {
 			return fmt.Errorf("failed to update execution status: %w", err)
 		}
-		
+
 		// Update task status
 		if err := repos.Tasks.UpdateStatus(ctx, taskID, taskStatus); err != nil {
 			return fmt.Errorf("failed to update task status: %w", err)
 		}
-		
+
 		s.logger.Info("execution and task status updated atomically",
 			"execution_id", executionID,
 			"execution_status", executionStatus,
@@ -379,10 +383,10 @@ func (s *TaskExecutionService) UpdateExecutionAndTaskStatus(ctx context.Context,
 			"task_status", taskStatus,
 			"user_id", userID,
 		)
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		s.logger.Error("failed to update execution and task status",
 			"error", err,
@@ -392,7 +396,7 @@ func (s *TaskExecutionService) UpdateExecutionAndTaskStatus(ctx context.Context,
 		)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -400,7 +404,7 @@ func (s *TaskExecutionService) UpdateExecutionAndTaskStatus(ctx context.Context,
 func (s *TaskExecutionService) CancelExecutionAndResetTaskStatus(ctx context.Context, executionID uuid.UUID, userID uuid.UUID) error {
 	err := s.conn.WithTransaction(ctx, func(tx database.Transaction) error {
 		repos := tx.Repositories()
-		
+
 		// First, verify the execution exists and belongs to the user's task
 		execution, err := repos.TaskExecutions.GetByID(ctx, executionID)
 		if err != nil {
@@ -409,43 +413,43 @@ func (s *TaskExecutionService) CancelExecutionAndResetTaskStatus(ctx context.Con
 			}
 			return fmt.Errorf("failed to get execution: %w", err)
 		}
-		
+
 		// Verify the task belongs to the user
 		task, err := repos.Tasks.GetByID(ctx, execution.TaskID)
 		if err != nil {
 			return fmt.Errorf("failed to get task: %w", err)
 		}
-		
+
 		if task.UserID != userID {
 			return fmt.Errorf("access denied: task does not belong to user")
 		}
-		
+
 		// Check if execution can be cancelled
-		if execution.Status == models.ExecutionStatusCompleted || 
-		   execution.Status == models.ExecutionStatusFailed || 
-		   execution.Status == models.ExecutionStatusCancelled {
+		if execution.Status == models.ExecutionStatusCompleted ||
+			execution.Status == models.ExecutionStatusFailed ||
+			execution.Status == models.ExecutionStatusCancelled {
 			return fmt.Errorf("cannot cancel execution with status: %s", execution.Status)
 		}
-		
+
 		// Update execution status to cancelled
 		if err := repos.TaskExecutions.UpdateStatus(ctx, executionID, models.ExecutionStatusCancelled); err != nil {
 			return fmt.Errorf("failed to cancel execution: %w", err)
 		}
-		
+
 		// Reset task status to pending
 		if err := repos.Tasks.UpdateStatus(ctx, execution.TaskID, models.TaskStatusPending); err != nil {
 			return fmt.Errorf("failed to reset task status: %w", err)
 		}
-		
+
 		s.logger.Info("execution cancelled and task status reset atomically",
 			"execution_id", executionID,
 			"task_id", execution.TaskID,
 			"user_id", userID,
 		)
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		s.logger.Error("failed to cancel execution and reset task status",
 			"error", err,
@@ -454,7 +458,7 @@ func (s *TaskExecutionService) CancelExecutionAndResetTaskStatus(ctx context.Con
 		)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -462,7 +466,7 @@ func (s *TaskExecutionService) CancelExecutionAndResetTaskStatus(ctx context.Con
 func (s *TaskExecutionService) CompleteExecutionAndFinalizeTaskStatus(ctx context.Context, execution *models.TaskExecution, taskStatus models.TaskStatus, userID uuid.UUID) error {
 	err := s.conn.WithTransaction(ctx, func(tx database.Transaction) error {
 		repos := tx.Repositories()
-		
+
 		// First, verify the execution exists and belongs to the user's task
 		existingExecution, err := repos.TaskExecutions.GetByID(ctx, execution.ID)
 		if err != nil {
@@ -471,33 +475,33 @@ func (s *TaskExecutionService) CompleteExecutionAndFinalizeTaskStatus(ctx contex
 			}
 			return fmt.Errorf("failed to get execution: %w", err)
 		}
-		
+
 		// Verify the task belongs to the user
 		task, err := repos.Tasks.GetByID(ctx, existingExecution.TaskID)
 		if err != nil {
 			return fmt.Errorf("failed to get task: %w", err)
 		}
-		
+
 		if task.UserID != userID {
 			return fmt.Errorf("access denied: task does not belong to user")
 		}
-		
+
 		// Check if execution can be completed
-		if existingExecution.Status == models.ExecutionStatusCompleted || 
-		   existingExecution.Status == models.ExecutionStatusCancelled {
+		if existingExecution.Status == models.ExecutionStatusCompleted ||
+			existingExecution.Status == models.ExecutionStatusCancelled {
 			return fmt.Errorf("cannot complete execution with status: %s", existingExecution.Status)
 		}
-		
+
 		// Update execution with results
 		if err := repos.TaskExecutions.Update(ctx, execution); err != nil {
 			return fmt.Errorf("failed to update execution: %w", err)
 		}
-		
+
 		// Update task status
 		if err := repos.Tasks.UpdateStatus(ctx, existingExecution.TaskID, taskStatus); err != nil {
 			return fmt.Errorf("failed to update task status: %w", err)
 		}
-		
+
 		s.logger.Info("execution completed and task status finalized atomically",
 			"execution_id", execution.ID,
 			"execution_status", execution.Status,
@@ -505,10 +509,10 @@ func (s *TaskExecutionService) CompleteExecutionAndFinalizeTaskStatus(ctx contex
 			"task_status", taskStatus,
 			"user_id", userID,
 		)
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		s.logger.Error("failed to complete execution and finalize task status",
 			"error", err,
@@ -517,6 +521,6 @@ func (s *TaskExecutionService) CompleteExecutionAndFinalizeTaskStatus(ctx contex
 		)
 		return err
 	}
-	
+
 	return nil
 }

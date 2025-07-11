@@ -400,7 +400,7 @@ func (r *taskExecutionRepository) GetByTaskIDCursor(ctx context.Context, taskID 
 	}
 
 	whereClause, args := BuildExecutionCursorWhere(cursor, req.SortOrder, &taskID, nil)
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, task_id, status, return_code, stdout, stderr, execution_time_ms, memory_usage_bytes, started_at, completed_at, created_at
 		FROM task_executions
@@ -470,7 +470,7 @@ func (r *taskExecutionRepository) GetByStatusCursor(ctx context.Context, status 
 
 	statusStr := string(status)
 	whereClause, args := BuildExecutionCursorWhere(cursor, req.SortOrder, nil, &statusStr)
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, task_id, status, return_code, stdout, stderr, execution_time_ms, memory_usage_bytes, started_at, completed_at, created_at
 		FROM task_executions
@@ -537,7 +537,7 @@ func (r *taskExecutionRepository) ListCursor(ctx context.Context, req CursorPagi
 	}
 
 	whereClause, args := BuildExecutionCursorWhere(cursor, req.SortOrder, nil, nil)
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, task_id, status, return_code, stdout, stderr, execution_time_ms, memory_usage_bytes, started_at, completed_at, created_at
 		FROM task_executions
