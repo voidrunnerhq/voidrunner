@@ -3,10 +3,17 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
+	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
-	// We will add more imports from "github.com/docker/docker/api/types" etc. as we implement features.
+	"github.com/voidrunnerhq/voidrunner/internal/config"
 )
 
 // Client wraps the Docker SDK client and provides higher-level methods
@@ -14,23 +21,34 @@ import (
 type Client struct {
 	cli    *client.Client
 	logger *slog.Logger
-	// config *config.DockerConfig // We'll add this once config is set up
+	config *config.DockerConfig
 }
 
 // NewClient creates and initializes a new Docker client.
 // It will attempt to connect to the Docker daemon using environment variables
 // (DOCKER_HOST, DOCKER_TLS_VERIFY, DOCKER_CERT_PATH) or default to the local socket.
-func NewClient(logger *slog.Logger /*, cfg *config.DockerConfig */) (*Client, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+// It can also use an explicit host from the config.
+func NewClient(logger *slog.Logger, cfg *config.DockerConfig) (*Client, error) {
+	opts := []client.Opt{client.FromEnv, client.WithAPIVersionNegotiation()}
+	if cfg.Host != "" {
+		opts = append(opts, client.WithHost(cfg.Host))
+		logger.Info("using explicit Docker host from config", "host", cfg.Host)
+	} else {
+		logger.Info("using Docker host from environment (DOCKER_HOST or default socket)")
+	}
+
+	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
-		logger.Error("failed to create Docker client from environment", "error", err)
-		// Potentially fall back to default options or handle specific errors
+		logger.Error("failed to create Docker client", "error", err)
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
 
 	// Ping the Docker daemon to ensure connectivity
-	ctx := context.Background() // Or a context with a timeout
-	ping, err := cli.Ping(ctx)
+	// Use a context with a timeout for the ping operation
+	pingCtx, cancel := context.WithTimeout(context.Background(), cfg.DefaultExecTimeout)
+	defer cancel()
+
+	ping, err := cli.Ping(pingCtx)
 	if err != nil {
 		logger.Error("failed to ping Docker daemon", "error", err)
 		return nil, fmt.Errorf("failed to connect to Docker daemon: %w", err)
@@ -46,7 +64,7 @@ func NewClient(logger *slog.Logger /*, cfg *config.DockerConfig */) (*Client, er
 	return &Client{
 		cli:    cli,
 		logger: logger,
-		// config: cfg,
+		config: cfg,
 	}, nil
 }
 
@@ -68,19 +86,6 @@ func (c *Client) Close() error {
 func (c *Client) GetClient() *client.Client {
 	return c.cli
 }
-
-	"io"
-	"os"
-	"strings"
-	"time"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/go-connections/nat"
-	"github.com/voidrunnerhq/voidrunner/internal/config" // Assuming config will be here
-)
 
 const (
 	DefaultAPIVersion = "1.41" // A common Docker API version, can be made configurable
@@ -310,7 +315,7 @@ func (c *Client) GetContainerLogs(ctx context.Context, containerID string) (stdo
 	// the logs are multiplexed. We should use `stdcopy.StdCopy`.
 
 	// Correct way to demultiplex logs:
-	_, err =DemultiplexStream(&stdoutBuf, &stderrBuf, logReader)
+	_, err = DemultiplexStream(&stdoutBuf, &stderrBuf, logReader)
 	if err != nil && err != io.EOF { // EOF is expected
 		c.logger.Error("failed to demultiplex container logs", "id", containerID, "error", err)
 		// Return what we have, plus the error
@@ -448,121 +453,3 @@ func DemultiplexStream(stdout, stderr io.Writer, stream io.Reader) (written int6
 }
 
 
-// TODOs for subsequent steps:
-// - Integrate with `internal/config/config.go` for Docker settings (host, image names, etc.).
-// - Implement image pulling logic (PullImageIfNotExists).
-// - Implement container creation (CreateContainer) with detailed security and resource configurations.
-// - Implement container starting (StartContainer).
-// - Implement log retrieval (GetContainerLogs).
-// - Implement waiting for container completion (WaitForContainer).
-// - Implement container removal (RemoveContainer).
-// - Implement robust error handling and context propagation for all Docker operations.
-// - Add methods for loading seccomp profiles.
-// - Consider how AppArmor profiles will be managed if they are applied from outside the container.
-// - Add comprehensive unit and integration tests for this package.
-package docker
-
-import (
-	"context"
-	"fmt"
-	"log/slog"
-
-	"github.com/docker/docker/client"
-	// We will add more imports from "github.com/docker/docker/api/types" etc. as we implement features.
-)
-
-	"github.com/voidrunnerhq/voidrunner/internal/config"
-)
-
-// Client wraps the Docker SDK client and provides higher-level methods
-// for interacting with Docker, tailored for Voidrunner's needs.
-type Client struct {
-	cli    *client.Client
-	logger *slog.Logger
-	config *config.DockerConfig // Added DockerConfig
-}
-
-// NewClient creates and initializes a new Docker client.
-// It will attempt to connect to the Docker daemon using environment variables
-// (DOCKER_HOST, DOCKER_TLS_VERIFY, DOCKER_CERT_PATH) or default to the local socket.
-// It can also use an explicit host from the config.
-func NewClient(logger *slog.Logger, cfg *config.DockerConfig) (*Client, error) {
-	opts := []client.Opt{client.FromEnv, client.WithAPIVersionNegotiation()}
-	if cfg.Host != "" {
-		opts = append(opts, client.WithHost(cfg.Host))
-		logger.Info("using explicit Docker host from config", "host", cfg.Host)
-	} else {
-		logger.Info("using Docker host from environment (DOCKER_HOST or default socket)")
-	}
-
-	cli, err := client.NewClientWithOpts(opts...)
-	if err != nil {
-		logger.Error("failed to create Docker client", "error", err)
-		return nil, fmt.Errorf("failed to create Docker client: %w", err)
-	}
-
-	// Ping the Docker daemon to ensure connectivity
-	// Use a context with a timeout for the ping operation
-	pingCtx, cancel := context.WithTimeout(context.Background(), cfg.DefaultExecTimeout) // Use configured timeout
-	defer cancel()
-
-	ping, err := cli.Ping(pingCtx)
-	if err != nil {
-		logger.Error("failed to ping Docker daemon", "error", err)
-		// Attempt to close the client if ping fails, as it might be in a bad state.
-		// Note: The underlying client might not have a meaningful Close() for HTTP.
-		// if clientCloseErr := cli.Close(); clientCloseErr != nil {
-		// 	logger.Error("failed to close docker client after ping failure", "close_error", clientCloseErr)
-		// }
-		return nil, fmt.Errorf("failed to connect to Docker daemon: %w", err)
-	}
-
-	logger.Info("successfully connected to Docker daemon",
-		"api_version", ping.APIVersion,
-		"os_type", ping.OSType,
-		"experimental", ping.Experimental,
-		"builder_version", ping.BuilderVersion,
-	)
-
-	return &Client{
-		cli:    cli,
-		logger: logger,
-		// config: cfg,
-	}, nil
-}
-
-// Close closes the Docker client connection.
-// The underlying Docker client (v27.2.0) using HTTP transport typically doesn't require
-// an explicit close for the client itself, as connections are managed per-request.
-// However, if specific resources were allocated by the client (e.g., specific transports),
-// they would be cleaned up here. For the default client, this is a no-op.
-func (c *Client) Close() error {
-	if c.cli != nil {
-		// The version of github.com/docker/docker/client (e.g., v27.2.0)
-		// does not have an exported Close() method on the *client.Client struct.
-		// Connections are typically managed by the underlying HTTP client.
-		// If a future version introduces a Close() method or if a custom transport
-		// is used that requires closing, it would be handled here.
-		c.logger.Info("Docker client Close() called. No specific action taken for default HTTP transport.")
-	}
-	return nil
-}
-
-// GetClient returns the underlying Docker SDK client if direct access is needed for advanced operations.
-// Users of this method should be aware that they are bypassing the wrapper's abstractions.
-func (c *Client) GetClient() *client.Client {
-	return c.cli
-}
-
-// TODOs for subsequent steps:
-// - Integrate with `internal/config/config.go` for Docker settings (host, image names, etc.).
-// - Implement image pulling logic (PullImageIfNotExists).
-// - Implement container creation (CreateContainer) with detailed security and resource configurations.
-// - Implement container starting (StartContainer).
-// - Implement log retrieval (GetContainerLogs).
-// - Implement waiting for container completion (WaitForContainer).
-// - Implement container removal (RemoveContainer).
-// - Implement robust error handling and context propagation for all Docker operations.
-// - Add methods for loading seccomp profiles.
-// - Consider how AppArmor profiles will be managed if they are applied from outside the container.
-// - Add comprehensive unit and integration tests for this package.

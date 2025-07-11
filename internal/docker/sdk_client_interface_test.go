@@ -40,33 +40,3 @@ type SDKClientInterface interface {
 // This line would ideally be in a non-test_helpers file if the interface was broadly used,
 // or within client_test.go. For now, it's a conceptual check.
 // var _ SDKClientInterface = (*client.Client)(nil)
-package docker
-
-import (
-	"context"
-	"io"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-)
-
-// SDKClientInterface defines the subset of methods from the Docker SDK client
-// (github.com/docker/docker/client.Client) that our internal docker.Client uses.
-// This allows for mocking these interactions in unit tests.
-type SDKClientInterface interface {
-	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
-	ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
-	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error)
-	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
-	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
-	ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
-	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
-	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
-	Ping(ctx context.Context) (types.Ping, error)
-}
-// Note: The //go:build and +build directives are removed as they are not standard for defining interfaces for testing.
-// This interface will be used directly in `client_test.go` by the mock struct.
-// The mock struct will implement this interface.
