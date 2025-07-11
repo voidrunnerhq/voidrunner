@@ -183,7 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
-      contents: read
+      contents: write   # Required for pushing to gh-pages branch
       pages: write      # Required for GitHub Pages deployment
       id-token: write   # Required for GitHub Pages deployment
     
@@ -230,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
-      contents: read
+      contents: write   # Required for pushing benchmark data to gh-pages
       actions: write    # Required for benchmark action auto-push
       pull-requests: write  # Required for benchmark action comments
     
