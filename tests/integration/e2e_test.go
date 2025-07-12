@@ -16,7 +16,9 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/api/routes"
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
+	"github.com/voidrunnerhq/voidrunner/internal/executor"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 	"github.com/voidrunnerhq/voidrunner/tests/testutil"
 )
@@ -51,7 +53,20 @@ func (s *E2EIntegrationSuite) SetupSuite() {
 
 	// Setup router with full middleware stack
 	router := gin.New()
-	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService)
+	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, log.Logger)
+
+	// Create mock executor for e2e tests
+	executorConfig := executor.NewDefaultConfig()
+	mockExecutor := executor.NewMockExecutor(executorConfig, log.Logger)
+	taskExecutorService := services.NewTaskExecutorService(
+		taskExecutionService,
+		s.DB.Repositories.Tasks,
+		mockExecutor,
+		nil, // cleanup manager not needed for mock executor
+		log.Logger,
+	)
+
+	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService, taskExecutionService, taskExecutorService)
 
 	// Initialize helpers
 	s.HTTP = testutil.NewHTTPHelper(router, s.AuthService)

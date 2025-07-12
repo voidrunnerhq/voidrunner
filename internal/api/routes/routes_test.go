@@ -11,6 +11,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
+	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
@@ -37,12 +38,14 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 	log := logger.NewWithWriter("info", "json", &buf)
 
 	// Create minimal test dependencies
-	var dbConn *database.Connection   // nil is fine for route testing
-	repos := &database.Repositories{} // empty is fine for route testing
-	authService := &auth.Service{}    // empty is fine for route testing
+	var dbConn *database.Connection                         // nil is fine for route testing
+	repos := &database.Repositories{}                       // empty is fine for route testing
+	authService := &auth.Service{}                          // empty is fine for route testing
+	var taskExecutionService *services.TaskExecutionService // nil is fine for route testing
+	var taskExecutorService *services.TaskExecutorService   // nil is fine for route testing
 
 	// Setup routes
-	Setup(router, cfg, log, dbConn, repos, authService)
+	Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService)
 
 	return router
 }
@@ -497,11 +500,13 @@ func BenchmarkSetup(b *testing.B) {
 	var dbConn *database.Connection
 	repos := &database.Repositories{}
 	authService := &auth.Service{}
+	var taskExecutionService *services.TaskExecutionService
+	var taskExecutorService *services.TaskExecutorService
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		router := gin.New()
-		Setup(router, cfg, log, dbConn, repos, authService)
+		Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService)
 	}
 }
 

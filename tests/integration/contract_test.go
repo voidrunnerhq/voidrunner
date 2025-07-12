@@ -18,6 +18,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 	"github.com/voidrunnerhq/voidrunner/tests/testutil"
 )
@@ -59,7 +60,9 @@ func (s *ContractTestSuite) SetupSuite() {
 
 	// Setup router
 	s.router = gin.New()
-	routes.Setup(s.router, cfg, log, s.db, s.repos, s.authService)
+	taskExecutionService := services.NewTaskExecutionService(s.db, log.Logger)
+	var taskExecutorService *services.TaskExecutorService // nil is fine for contract tests
+	routes.Setup(s.router, cfg, log, s.db, s.repos, s.authService, taskExecutionService, taskExecutorService)
 
 	// Initialize OpenAPI validator
 	s.validator = testutil.NewOpenAPIValidator()

@@ -145,6 +145,19 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      
+      docker:
+        image: docker:27-dind
+        env:
+          DOCKER_TLS_CERTDIR: /certs
+        options: >-
+          --privileged
+          --health-cmd "docker info"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 2376:2376
 
     steps:
     - name: Checkout code
@@ -176,6 +189,8 @@ jobs:
         TEST_DB_NAME: voidrunner_test
         TEST_DB_SSLMODE: disable
         JWT_SECRET_KEY: test-secret-key-for-integration
+        DOCKER_HOST: tcp://localhost:2376
+        DOCKER_TLS_VERIFY: 0
       run: make test-integration
 
   docs:

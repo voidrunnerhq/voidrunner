@@ -64,7 +64,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.LoginRequest"
+                            "$ref": "#/definitions/models.LoginRequest"
                         }
                     }
                 ],
@@ -72,25 +72,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Login successful",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse"
+                            "$ref": "#/definitions/models.AuthResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request format or validation error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Invalid credentials",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -146,14 +146,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
-                                "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.UserResponse"
+                                "$ref": "#/definitions/models.UserResponse"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -179,7 +179,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.RefreshTokenRequest"
+                            "$ref": "#/definitions/models.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -187,25 +187,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Token refreshed successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse"
+                            "$ref": "#/definitions/models.AuthResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request format",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Invalid refresh token",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -231,7 +231,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.RegisterRequest"
+                            "$ref": "#/definitions/models.RegisterRequest"
                         }
                     }
                 ],
@@ -239,25 +239,25 @@ const docTemplate = `{
                     "201": {
                         "description": "User registered successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse"
+                            "$ref": "#/definitions/models.AuthResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request format or validation error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "User already exists",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -338,7 +338,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Service is healthy",
                         "schema": {
-                            "$ref": "#/definitions/internal_api_handlers.HealthResponse"
+                            "$ref": "#/definitions/handlers.HealthResponse"
                         }
                     }
                 }
@@ -361,13 +361,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Service is ready",
                         "schema": {
-                            "$ref": "#/definitions/internal_api_handlers.ReadinessResponse"
+                            "$ref": "#/definitions/handlers.ReadinessResponse"
                         }
                     },
                     "503": {
                         "description": "Service is not ready",
                         "schema": {
-                            "$ref": "#/definitions/internal_api_handlers.ReadinessResponse"
+                            "$ref": "#/definitions/handlers.ReadinessResponse"
                         }
                     }
                 }
@@ -411,25 +411,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Tasks retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskListResponse"
+                            "$ref": "#/definitions/models.TaskListResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid query parameters",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -458,7 +458,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.CreateTaskRequest"
+                            "$ref": "#/definitions/models.CreateTaskRequest"
                         }
                     }
                 ],
@@ -466,25 +466,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Task created successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse"
+                            "$ref": "#/definitions/models.TaskResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request format or validation error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -521,37 +521,37 @@ const docTemplate = `{
                     "200": {
                         "description": "Task retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse"
+                            "$ref": "#/definitions/models.TaskResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid task ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Task not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -588,43 +588,43 @@ const docTemplate = `{
                     "201": {
                         "description": "Execution started successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskExecutionResponse"
+                            "$ref": "#/definitions/models.TaskExecutionResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid task ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Task not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Task is already running",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit exceeded",
                         "schema": {
-                            "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -632,7 +632,44 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_voidrunnerhq_voidrunner_internal_models.AuthResponse": {
+        "handlers.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.ReadinessResponse": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.AuthResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -648,11 +685,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.UserResponse"
+                    "$ref": "#/definitions/models.UserResponse"
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.CreateTaskRequest": {
+        "models.CreateTaskRequest": {
             "type": "object",
             "required": [
                 "name",
@@ -665,7 +702,7 @@ const docTemplate = `{
                     "maxLength": 1000
                 },
                 "metadata": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.JSONB"
+                    "$ref": "#/definitions/models.JSONB"
                 },
                 "name": {
                     "type": "string",
@@ -683,7 +720,7 @@ const docTemplate = `{
                     "minLength": 1
                 },
                 "script_type": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ScriptType"
+                    "$ref": "#/definitions/models.ScriptType"
                 },
                 "timeout_seconds": {
                     "type": "integer",
@@ -692,7 +729,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.ErrorResponse": {
+        "models.ErrorResponse": {
             "type": "object",
             "properties": {
                 "details": {
@@ -704,12 +741,12 @@ const docTemplate = `{
                 "validation_errors": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ValidationError"
+                        "$ref": "#/definitions/models.ValidationError"
                     }
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.ExecutionStatus": {
+        "models.ExecutionStatus": {
             "type": "string",
             "enum": [
                 "pending",
@@ -728,11 +765,11 @@ const docTemplate = `{
                 "ExecutionStatusCancelled"
             ]
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.JSONB": {
+        "models.JSONB": {
             "type": "object",
             "additionalProperties": true
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.LoginRequest": {
+        "models.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -747,7 +784,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.RefreshTokenRequest": {
+        "models.RefreshTokenRequest": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -758,7 +795,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.RegisterRequest": {
+        "models.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -780,7 +817,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.ScriptType": {
+        "models.ScriptType": {
             "type": "string",
             "enum": [
                 "python",
@@ -795,7 +832,7 @@ const docTemplate = `{
                 "ScriptTypeGo"
             ]
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.TaskExecutionResponse": {
+        "models.TaskExecutionResponse": {
             "type": "object",
             "properties": {
                 "completed_at": {
@@ -820,7 +857,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ExecutionStatus"
+                    "$ref": "#/definitions/models.ExecutionStatus"
                 },
                 "stderr": {
                     "type": "string"
@@ -833,7 +870,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.TaskListResponse": {
+        "models.TaskListResponse": {
             "type": "object",
             "properties": {
                 "limit": {
@@ -845,7 +882,7 @@ const docTemplate = `{
                 "tasks": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse"
+                        "$ref": "#/definitions/models.TaskResponse"
                     }
                 },
                 "total": {
@@ -853,7 +890,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.TaskResponse": {
+        "models.TaskResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -866,7 +903,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "metadata": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.JSONB"
+                    "$ref": "#/definitions/models.JSONB"
                 },
                 "name": {
                     "type": "string"
@@ -878,10 +915,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "script_type": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.ScriptType"
+                    "$ref": "#/definitions/models.ScriptType"
                 },
                 "status": {
-                    "$ref": "#/definitions/github_com_voidrunnerhq_voidrunner_internal_models.TaskStatus"
+                    "$ref": "#/definitions/models.TaskStatus"
                 },
                 "timeout_seconds": {
                     "type": "integer"
@@ -894,7 +931,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.TaskStatus": {
+        "models.TaskStatus": {
             "type": "string",
             "enum": [
                 "pending",
@@ -913,7 +950,7 @@ const docTemplate = `{
                 "TaskStatusCancelled"
             ]
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.UserResponse": {
+        "models.UserResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -933,7 +970,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_voidrunnerhq_voidrunner_internal_models.ValidationError": {
+        "models.ValidationError": {
             "type": "object",
             "properties": {
                 "field": {
@@ -946,43 +983,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "value": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_api_handlers.HealthResponse": {
-            "type": "object",
-            "properties": {
-                "service": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "uptime": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_api_handlers.ReadinessResponse": {
-            "type": "object",
-            "properties": {
-                "checks": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "status": {
-                    "type": "string"
-                },
-                "timestamp": {
                     "type": "string"
                 }
             }
