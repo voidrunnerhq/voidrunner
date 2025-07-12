@@ -186,3 +186,203 @@ type TaskListResponse struct {
 	Limit  int            `json:"limit"`
 	Offset int            `json:"offset"`
 }
+
+// State transition definitions for task status
+var taskStatusTransitions = map[TaskStatus][]TaskStatus{
+	TaskStatusPending: {
+		TaskStatusRunning,
+		TaskStatusCancelled,
+	},
+	TaskStatusRunning: {
+		TaskStatusCompleted,
+		TaskStatusFailed,
+		TaskStatusTimeout,
+		TaskStatusCancelled,
+	},
+	TaskStatusCompleted: {
+		// Terminal state - no transitions allowed
+	},
+	TaskStatusFailed: {
+		TaskStatusPending, // Allow retry by resetting to pending
+	},
+	TaskStatusTimeout: {
+		TaskStatusPending, // Allow retry by resetting to pending
+	},
+	TaskStatusCancelled: {
+		TaskStatusPending, // Allow restart by resetting to pending
+	},
+}
+
+// ValidateTaskStatusTransition validates if a status transition is allowed
+func ValidateTaskStatusTransition(currentStatus, newStatus TaskStatus) error {
+	// Validate both statuses are valid
+	if err := ValidateTaskStatus(currentStatus); err != nil {
+		return fmt.Errorf("invalid current status: %w", err)
+	}
+	
+	if err := ValidateTaskStatus(newStatus); err != nil {
+		return fmt.Errorf("invalid new status: %w", err)
+	}
+
+	// Allow staying in the same status (idempotent updates)
+	if currentStatus == newStatus {
+		return nil
+	}
+
+	// Check if transition is allowed
+	allowedTransitions, exists := taskStatusTransitions[currentStatus]
+	if !exists {
+		return fmt.Errorf("no transitions defined for status: %s", currentStatus)
+	}
+
+	for _, allowedStatus := range allowedTransitions {
+		if newStatus == allowedStatus {
+			return nil // Transition is allowed
+		}
+	}
+
+	return fmt.Errorf("invalid status transition from %s to %s", currentStatus, newStatus)
+}
+
+// IsTerminalStatus returns true if the status is terminal (no further transitions)
+func (t *Task) IsTerminalStatus() bool {
+	return IsTaskStatusTerminal(t.Status)
+}
+
+// IsTaskStatusTerminal returns true if the given status is terminal
+func IsTaskStatusTerminal(status TaskStatus) bool {
+	switch status {
+	case TaskStatusCompleted, TaskStatusFailed, TaskStatusTimeout, TaskStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsRetryableStatus returns true if the task can be retried from this status
+func (t *Task) IsRetryableStatus() bool {
+	return IsTaskStatusRetryable(t.Status)
+}
+
+// IsTaskStatusRetryable returns true if the given status allows retry
+func IsTaskStatusRetryable(status TaskStatus) bool {
+	switch status {
+	case TaskStatusFailed, TaskStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanExecute returns true if the task can be executed (not already running or completed)
+func (t *Task) CanExecute() bool {
+	switch t.Status {
+	case TaskStatusPending:
+		return true
+	case TaskStatusFailed, TaskStatusTimeout, TaskStatusCancelled:
+		return true // Can be retried
+	default:
+		return false
+	}
+}
+
+// IsRunning returns true if the task is currently running
+func (t *Task) IsRunning() bool {
+	return t.Status == TaskStatusRunning
+}
+
+// IsPending returns true if the task is pending execution
+func (t *Task) IsPending() bool {
+	return t.Status == TaskStatusPending
+}
+
+// IsCompleted returns true if the task completed successfully
+func (t *Task) IsCompleted() bool {
+	return t.Status == TaskStatusCompleted
+}
+
+// HasFailed returns true if the task failed, timed out, or was cancelled
+func (t *Task) HasFailed() bool {
+	switch t.Status {
+	case TaskStatusFailed, TaskStatusTimeout, TaskStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// GetAllowedTransitions returns all allowed status transitions from current status
+func (t *Task) GetAllowedTransitions() []TaskStatus {
+	allowedTransitions, exists := taskStatusTransitions[t.Status]
+	if !exists {
+		return []TaskStatus{}
+	}
+	
+	// Return a copy to prevent modification
+	result := make([]TaskStatus, len(allowedTransitions))
+	copy(result, allowedTransitions)
+	return result
+}
+
+// CanTransitionTo checks if the task can transition to the given status
+func (t *Task) CanTransitionTo(newStatus TaskStatus) bool {
+	return ValidateTaskStatusTransition(t.Status, newStatus) == nil
+}
+
+// TransitionTo attempts to transition the task to a new status with validation
+func (t *Task) TransitionTo(newStatus TaskStatus) error {
+	if err := ValidateTaskStatusTransition(t.Status, newStatus); err != nil {
+		return err
+	}
+	
+	oldStatus := t.Status
+	t.Status = newStatus
+	
+	// Log the transition for debugging
+	// Note: In a real system, you might want to inject a logger here
+	fmt.Printf("Task %s transitioned from %s to %s\n", t.ID, oldStatus, newStatus)
+	
+	return nil
+}
+
+// StatusTransitionInfo provides information about a status transition
+type StatusTransitionInfo struct {
+	FromStatus      TaskStatus `json:"from_status"`
+	ToStatus        TaskStatus `json:"to_status"`
+	IsValid         bool       `json:"is_valid"`
+	IsTerminal      bool       `json:"is_terminal"`
+	IsRetryable     bool       `json:"is_retryable"`
+	ErrorMessage    string     `json:"error_message,omitempty"`
+}
+
+// GetStatusTransitionInfo returns detailed information about a potential status transition
+func GetStatusTransitionInfo(fromStatus, toStatus TaskStatus) *StatusTransitionInfo {
+	info := &StatusTransitionInfo{
+		FromStatus: fromStatus,
+		ToStatus:   toStatus,
+		IsTerminal: IsTaskStatusTerminal(toStatus),
+		IsRetryable: IsTaskStatusRetryable(fromStatus),
+	}
+	
+	err := ValidateTaskStatusTransition(fromStatus, toStatus)
+	if err != nil {
+		info.IsValid = false
+		info.ErrorMessage = err.Error()
+	} else {
+		info.IsValid = true
+	}
+	
+	return info
+}
+
+// GetAllTaskStatusTransitions returns all valid transitions for all statuses
+func GetAllTaskStatusTransitions() map[TaskStatus][]TaskStatus {
+	// Return a deep copy to prevent modification
+	result := make(map[TaskStatus][]TaskStatus)
+	for status, transitions := range taskStatusTransitions {
+		transitionsCopy := make([]TaskStatus, len(transitions))
+		copy(transitionsCopy, transitions)
+		result[status] = transitionsCopy
+	}
+	return result
+}
