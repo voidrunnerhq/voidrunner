@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"context"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/voidrunnerhq/voidrunner/internal/api/handlers"
 	"github.com/voidrunnerhq/voidrunner/internal/api/middleware"
@@ -11,9 +14,9 @@ import (
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
-func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service) {
+func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService) {
 	setupMiddleware(router, cfg, log)
-	setupRoutes(router, cfg, log, dbConn, repos, authService)
+	setupRoutes(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService)
 }
 
 func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger) {
@@ -25,8 +28,13 @@ func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger)
 	router.Use(middleware.ErrorHandler())
 }
 
-func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service) {
+func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService) {
 	healthHandler := handlers.NewHealthHandler()
+
+	// Add health checks for different components
+	healthHandler.AddHealthCheck("database", &DatabaseHealthChecker{conn: dbConn})
+	healthHandler.AddHealthCheck("executor", &ExecutorHealthChecker{service: taskExecutorService})
+
 	authHandler := handlers.NewAuthHandler(authService, log.Logger)
 	authMiddleware := middleware.NewAuthMiddleware(authService, log.Logger)
 	docsHandler := handlers.NewDocsHandler()
@@ -88,7 +96,6 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 
 		// Task management endpoints
 		taskHandler := handlers.NewTaskHandler(repos.Tasks, log.Logger)
-		taskExecutionService := services.NewTaskExecutionService(dbConn, log.Logger)
 		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, taskExecutionService, log.Logger)
 		taskValidation := middleware.TaskValidation(log.Logger)
 
@@ -156,4 +163,42 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 			executionHandler.Cancel,
 		)
 	}
+}
+
+// DatabaseHealthChecker implements health checking for database
+type DatabaseHealthChecker struct {
+	conn *database.Connection
+}
+
+func (d *DatabaseHealthChecker) CheckHealth() (status string, err error) {
+	if d.conn == nil {
+		return "ready", nil // For tests, consider nil database as healthy
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := d.conn.HealthCheck(ctx); err != nil {
+		return "unhealthy", err
+	}
+	return "ready", nil
+}
+
+// ExecutorHealthChecker implements health checking for Docker executor
+type ExecutorHealthChecker struct {
+	service *services.TaskExecutorService
+}
+
+func (e *ExecutorHealthChecker) CheckHealth() (status string, err error) {
+	if e.service == nil {
+		return "ready", nil // For tests, consider nil executor as healthy
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.service.GetExecutorHealth(ctx); err != nil {
+		return "unhealthy", err
+	}
+	return "ready", nil
 }

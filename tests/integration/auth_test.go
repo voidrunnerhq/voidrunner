@@ -16,6 +16,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 	"github.com/voidrunnerhq/voidrunner/tests/testutil"
 )
@@ -53,7 +54,9 @@ func (s *AuthIntegrationSuite) SetupSuite() {
 
 	// Setup router with full middleware stack
 	router := gin.New()
-	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService)
+	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, log.Logger)
+	var taskExecutorService *services.TaskExecutorService // nil is fine for auth tests
+	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService, taskExecutionService, taskExecutorService)
 
 	// Initialize helpers
 	s.HTTP = testutil.NewHTTPHelper(router, s.AuthService)

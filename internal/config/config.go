@@ -16,6 +16,7 @@ type Config struct {
 	Logger   LoggerConfig
 	CORS     CORSConfig
 	JWT      JWTConfig
+	Executor ExecutorConfig
 }
 
 type ServerConfig struct {
@@ -52,6 +53,23 @@ type JWTConfig struct {
 	Audience             string
 }
 
+type ExecutorConfig struct {
+	DockerEndpoint        string
+	DefaultMemoryLimitMB  int
+	DefaultCPUQuota       int64
+	DefaultPidsLimit      int64
+	DefaultTimeoutSeconds int
+	PythonImage           string
+	BashImage             string
+	JavaScriptImage       string
+	GoImage               string
+	EnableSeccomp         bool
+	SeccompProfilePath    string
+	EnableAppArmor        bool
+	AppArmorProfile       string
+	ExecutionUser         string
+}
+
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -84,6 +102,22 @@ func Load() (*Config, error) {
 			RefreshTokenDuration: getEnvDuration("JWT_REFRESH_TOKEN_DURATION", 7*24*time.Hour),
 			Issuer:               getEnv("JWT_ISSUER", "voidrunner"),
 			Audience:             getEnv("JWT_AUDIENCE", "voidrunner-api"),
+		},
+		Executor: ExecutorConfig{
+			DockerEndpoint:        getEnv("DOCKER_ENDPOINT", "unix:///var/run/docker.sock"),
+			DefaultMemoryLimitMB:  getEnvInt("EXECUTOR_DEFAULT_MEMORY_LIMIT_MB", 128),
+			DefaultCPUQuota:       getEnvInt64("EXECUTOR_DEFAULT_CPU_QUOTA", 50000),
+			DefaultPidsLimit:      getEnvInt64("EXECUTOR_DEFAULT_PIDS_LIMIT", 128),
+			DefaultTimeoutSeconds: getEnvInt("EXECUTOR_DEFAULT_TIMEOUT_SECONDS", 300),
+			PythonImage:           getEnv("EXECUTOR_PYTHON_IMAGE", "python:3.11-alpine"),
+			BashImage:             getEnv("EXECUTOR_BASH_IMAGE", "alpine:latest"),
+			JavaScriptImage:       getEnv("EXECUTOR_JAVASCRIPT_IMAGE", "node:18-alpine"),
+			GoImage:               getEnv("EXECUTOR_GO_IMAGE", "golang:1.21-alpine"),
+			EnableSeccomp:         getEnvBool("EXECUTOR_ENABLE_SECCOMP", true),
+			SeccompProfilePath:    getEnv("EXECUTOR_SECCOMP_PROFILE_PATH", "/opt/voidrunner/seccomp-profile.json"),
+			EnableAppArmor:        getEnvBool("EXECUTOR_ENABLE_APPARMOR", false),
+			AppArmorProfile:       getEnv("EXECUTOR_APPARMOR_PROFILE", "voidrunner-executor"),
+			ExecutionUser:         getEnv("EXECUTOR_EXECUTION_USER", "1000:1000"),
 		},
 	}
 
@@ -127,6 +161,30 @@ func (c *Config) validate() error {
 		return fmt.Errorf("JWT refresh token duration must be positive")
 	}
 
+	if c.Executor.DefaultMemoryLimitMB <= 0 {
+		return fmt.Errorf("executor default memory limit must be positive")
+	}
+
+	if c.Executor.DefaultCPUQuota <= 0 {
+		return fmt.Errorf("executor default CPU quota must be positive")
+	}
+
+	if c.Executor.DefaultPidsLimit <= 0 {
+		return fmt.Errorf("executor default PID limit must be positive")
+	}
+
+	if c.Executor.DefaultTimeoutSeconds <= 0 {
+		return fmt.Errorf("executor default timeout must be positive")
+	}
+
+	if c.Executor.PythonImage == "" {
+		return fmt.Errorf("executor Python image must be specified")
+	}
+
+	if c.Executor.BashImage == "" {
+		return fmt.Errorf("executor Bash image must be specified")
+	}
+
 	return nil
 }
 
@@ -165,6 +223,36 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 		duration, err := time.ParseDuration(value)
 		if err == nil {
 			return duration
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		intValue, err := strconv.Atoi(value)
+		if err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		intValue, err := strconv.ParseInt(value, 10, 64)
+		if err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		boolValue, err := strconv.ParseBool(value)
+		if err == nil {
+			return boolValue
 		}
 	}
 	return defaultValue
