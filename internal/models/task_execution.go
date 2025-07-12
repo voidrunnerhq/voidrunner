@@ -138,3 +138,188 @@ type ExecutionListResponse struct {
 	Limit      int                     `json:"limit"`
 	Offset     int                     `json:"offset"`
 }
+
+// State transition definitions for execution status
+var executionStatusTransitions = map[ExecutionStatus][]ExecutionStatus{
+	ExecutionStatusPending: {
+		ExecutionStatusRunning,
+		ExecutionStatusCancelled,
+	},
+	ExecutionStatusRunning: {
+		ExecutionStatusCompleted,
+		ExecutionStatusFailed,
+		ExecutionStatusTimeout,
+		ExecutionStatusCancelled,
+	},
+	ExecutionStatusCompleted: {
+		// Terminal state - no transitions allowed
+	},
+	ExecutionStatusFailed: {
+		// Terminal state - no transitions allowed
+	},
+	ExecutionStatusTimeout: {
+		// Terminal state - no transitions allowed
+	},
+	ExecutionStatusCancelled: {
+		// Terminal state - no transitions allowed
+	},
+}
+
+// ValidateExecutionStatusTransition validates if an execution status transition is allowed
+func ValidateExecutionStatusTransition(currentStatus, newStatus ExecutionStatus) error {
+	// Validate both statuses are valid
+	if err := ValidateExecutionStatus(currentStatus); err != nil {
+		return fmt.Errorf("invalid current execution status: %w", err)
+	}
+	
+	if err := ValidateExecutionStatus(newStatus); err != nil {
+		return fmt.Errorf("invalid new execution status: %w", err)
+	}
+
+	// Allow staying in the same status (idempotent updates)
+	if currentStatus == newStatus {
+		return nil
+	}
+
+	// Check if transition is allowed
+	allowedTransitions, exists := executionStatusTransitions[currentStatus]
+	if !exists {
+		return fmt.Errorf("no transitions defined for execution status: %s", currentStatus)
+	}
+
+	for _, allowedStatus := range allowedTransitions {
+		if newStatus == allowedStatus {
+			return nil // Transition is allowed
+		}
+	}
+
+	return fmt.Errorf("invalid execution status transition from %s to %s", currentStatus, newStatus)
+}
+
+// IsExecutionStatusTerminal returns true if the given execution status is terminal
+func IsExecutionStatusTerminal(status ExecutionStatus) bool {
+	switch status {
+	case ExecutionStatusCompleted, ExecutionStatusFailed, ExecutionStatusTimeout, ExecutionStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsExecutionStatusSuccessful returns true if the execution completed successfully
+func IsExecutionStatusSuccessful(status ExecutionStatus) bool {
+	return status == ExecutionStatusCompleted
+}
+
+// IsExecutionStatusFailed returns true if the execution failed for any reason
+func IsExecutionStatusFailed(status ExecutionStatus) bool {
+	switch status {
+	case ExecutionStatusFailed, ExecutionStatusTimeout, ExecutionStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionTo checks if the execution can transition to the given status
+func (te *TaskExecution) CanTransitionTo(newStatus ExecutionStatus) bool {
+	return ValidateExecutionStatusTransition(te.Status, newStatus) == nil
+}
+
+// TransitionTo attempts to transition the execution to a new status with validation
+func (te *TaskExecution) TransitionTo(newStatus ExecutionStatus) error {
+	if err := ValidateExecutionStatusTransition(te.Status, newStatus); err != nil {
+		return err
+	}
+	
+	oldStatus := te.Status
+	te.Status = newStatus
+	
+	// Update timestamps based on status
+	now := time.Now()
+	switch newStatus {
+	case ExecutionStatusRunning:
+		if te.StartedAt == nil {
+			te.StartedAt = &now
+		}
+	case ExecutionStatusCompleted, ExecutionStatusFailed, ExecutionStatusTimeout, ExecutionStatusCancelled:
+		if te.CompletedAt == nil {
+			te.CompletedAt = &now
+		}
+		// Calculate execution time if both timestamps are available
+		if te.StartedAt != nil && te.ExecutionTimeMs == nil {
+			duration := int(te.CompletedAt.Sub(*te.StartedAt).Milliseconds())
+			te.ExecutionTimeMs = &duration
+		}
+	}
+	
+	// Log the transition for debugging
+	fmt.Printf("Execution %s transitioned from %s to %s\n", te.ID, oldStatus, newStatus)
+	
+	return nil
+}
+
+// GetAllowedExecutionTransitions returns all allowed status transitions from current status
+func (te *TaskExecution) GetAllowedTransitions() []ExecutionStatus {
+	allowedTransitions, exists := executionStatusTransitions[te.Status]
+	if !exists {
+		return []ExecutionStatus{}
+	}
+	
+	// Return a copy to prevent modification
+	result := make([]ExecutionStatus, len(allowedTransitions))
+	copy(result, allowedTransitions)
+	return result
+}
+
+// IsSuccessful returns true if the execution completed successfully
+func (te *TaskExecution) IsSuccessful() bool {
+	return IsExecutionStatusSuccessful(te.Status)
+}
+
+// HasFailed returns true if the execution failed for any reason
+func (te *TaskExecution) HasFailed() bool {
+	return IsExecutionStatusFailed(te.Status)
+}
+
+// ExecutionStatusTransitionInfo provides information about an execution status transition
+type ExecutionStatusTransitionInfo struct {
+	FromStatus      ExecutionStatus `json:"from_status"`
+	ToStatus        ExecutionStatus `json:"to_status"`
+	IsValid         bool            `json:"is_valid"`
+	IsTerminal      bool            `json:"is_terminal"`
+	IsSuccessful    bool            `json:"is_successful"`
+	ErrorMessage    string          `json:"error_message,omitempty"`
+}
+
+// GetExecutionStatusTransitionInfo returns detailed information about a potential execution status transition
+func GetExecutionStatusTransitionInfo(fromStatus, toStatus ExecutionStatus) *ExecutionStatusTransitionInfo {
+	info := &ExecutionStatusTransitionInfo{
+		FromStatus:   fromStatus,
+		ToStatus:     toStatus,
+		IsTerminal:   IsExecutionStatusTerminal(toStatus),
+		IsSuccessful: IsExecutionStatusSuccessful(toStatus),
+	}
+	
+	err := ValidateExecutionStatusTransition(fromStatus, toStatus)
+	if err != nil {
+		info.IsValid = false
+		info.ErrorMessage = err.Error()
+	} else {
+		info.IsValid = true
+	}
+	
+	return info
+}
+
+// GetAllExecutionStatusTransitions returns all valid transitions for all execution statuses
+func GetAllExecutionStatusTransitions() map[ExecutionStatus][]ExecutionStatus {
+	// Return a deep copy to prevent modification
+	result := make(map[ExecutionStatus][]ExecutionStatus)
+	for status, transitions := range executionStatusTransitions {
+		transitionsCopy := make([]ExecutionStatus, len(transitions))
+		copy(transitionsCopy, transitions)
+		result[status] = transitionsCopy
+	}
+	return result
+}
