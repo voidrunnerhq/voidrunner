@@ -268,11 +268,8 @@ func startHealthMonitoring(workerManager worker.WorkerManager, queueManager queu
 	ticker := time.NewTicker(30 * time.Second) // Health check every 30 seconds
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			performHealthCheck(workerManager, queueManager, log)
-		}
+	for range ticker.C {
+		performHealthCheck(workerManager, queueManager, log)
 	}
 }
 
@@ -335,11 +332,8 @@ func startMetricsCollection(workerManager worker.WorkerManager, queueManager que
 	ticker := time.NewTicker(1 * time.Minute) // Collect metrics every minute
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			collectMetrics(workerManager, queueManager, log)
-		}
+	for range ticker.C {
+		collectMetrics(workerManager, queueManager, log)
 	}
 }
 
