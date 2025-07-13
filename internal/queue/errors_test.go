@@ -331,7 +331,7 @@ func TestIsTimeoutError(t *testing.T) {
 
 func TestWrapError(t *testing.T) {
 	originalErr := errors.New("original error")
-	
+
 	tests := []struct {
 		name      string
 		operation string

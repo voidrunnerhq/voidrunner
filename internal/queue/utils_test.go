@@ -22,16 +22,16 @@ func TestGenerateReceiptHandle(t *testing.T) {
 			validate: func(t *testing.T, handle string) {
 				assert.NotEmpty(t, handle)
 				assert.True(t, strings.HasPrefix(handle, "test-message-123:"))
-				
+
 				// Should have format: messageID:timestamp:randomHex
 				parts := strings.Split(handle, ":")
 				require.Len(t, parts, 3, "handle should have 3 parts")
-				
+
 				assert.Equal(t, "test-message-123", parts[0])
-				
+
 				// Timestamp should be a valid number - just verify we can parse it
 				// This is implicitly validated by the function working
-				
+
 				// Random part should be hex
 				assert.NotEmpty(t, parts[2])
 				assert.True(t, len(parts[2]) > 0)
@@ -43,7 +43,7 @@ func TestGenerateReceiptHandle(t *testing.T) {
 			validate: func(t *testing.T, handle string) {
 				assert.NotEmpty(t, handle)
 				assert.True(t, strings.HasPrefix(handle, ":"))
-				
+
 				parts := strings.Split(handle, ":")
 				assert.Equal(t, "", parts[0])
 			},
@@ -69,14 +69,14 @@ func TestGenerateReceiptHandle(t *testing.T) {
 func TestGenerateReceiptHandleUniqueness(t *testing.T) {
 	messageID := "test-message"
 	handles := make(map[string]bool)
-	
+
 	// Generate 100 handles and ensure they're all unique
 	for i := 0; i < 100; i++ {
 		handle := GenerateReceiptHandle(messageID)
 		assert.False(t, handles[handle], "generated duplicate handle: %s", handle)
 		handles[handle] = true
 	}
-	
+
 	assert.Len(t, handles, 100, "should have generated 100 unique handles")
 }
 
@@ -136,7 +136,7 @@ func TestValidatePriority(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidatePriority(tt.priority)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -190,7 +190,7 @@ func TestValidateTaskMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateTaskMessage(tt.message)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -203,7 +203,7 @@ func TestValidateTaskMessage(t *testing.T) {
 
 func TestCalculatePriorityScore(t *testing.T) {
 	now := time.Now()
-	
+
 	tests := []struct {
 		name     string
 		priority int
@@ -399,10 +399,10 @@ func TestSerializeDeserializeMessage(t *testing.T) {
 func TestTimePtr(t *testing.T) {
 	now := time.Now()
 	ptr := timePtr(now)
-	
+
 	assert.NotNil(t, ptr)
 	assert.Equal(t, now, *ptr)
-	
+
 	// Ensure it's a different memory address
 	assert.True(t, &now != ptr)
 }
@@ -414,17 +414,17 @@ func TestCopyAttributes(t *testing.T) {
 		expected map[string]string
 	}{
 		{
-			name: "nil map",
+			name:     "nil map",
 			original: nil,
 			expected: map[string]string(nil),
 		},
 		{
-			name: "empty map",
+			name:     "empty map",
 			original: map[string]string{},
 			expected: map[string]string{},
 		},
 		{
-			name: "single entry",
+			name:     "single entry",
 			original: map[string]string{"key": "value"},
 			expected: map[string]string{"key": "value"},
 		},
@@ -446,9 +446,9 @@ func TestCopyAttributes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := copyAttributes(tt.original)
-			
+
 			assert.Equal(t, tt.expected, result)
-			
+
 			// Ensure it's a deep copy (different memory addresses)
 			if len(tt.original) > 0 {
 				// Modify original and ensure copy is not affected
@@ -456,7 +456,7 @@ func TestCopyAttributes(t *testing.T) {
 					tt.original[k] = "modified"
 					break
 				}
-				
+
 				// Copy should still have original values
 				for k, v := range tt.expected {
 					assert.Equal(t, v, result[k], "copy was affected by modification to original")

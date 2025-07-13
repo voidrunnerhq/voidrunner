@@ -18,13 +18,13 @@ func TestTaskMessage(t *testing.T) {
 		{
 			name: "valid task message",
 			message: &TaskMessage{
-				TaskID:      uuid.New(),
-				UserID:      uuid.New(),
-				Priority:    PriorityNormal,
-				QueuedAt:    time.Now(),
-				Attempts:    0,
-				MessageID:   "test-message-123",
-				Attributes:  map[string]string{"key": "value"},
+				TaskID:     uuid.New(),
+				UserID:     uuid.New(),
+				Priority:   PriorityNormal,
+				QueuedAt:   time.Now(),
+				Attempts:   0,
+				MessageID:  "test-message-123",
+				Attributes: map[string]string{"key": "value"},
 			},
 			expected: func(t *testing.T, msg *TaskMessage) {
 				assert.NotEqual(t, uuid.Nil, msg.TaskID)
@@ -217,7 +217,7 @@ func TestDeadLetterStats(t *testing.T) {
 	assert.Equal(t, int64(100), dlqStats.TotalFailedTasks)
 	assert.NotNil(t, dlqStats.AverageFailureAge)
 	assert.Equal(t, 1*time.Hour, *dlqStats.AverageFailureAge)
-	
+
 	require.Len(t, dlqStats.FailureReasons, 3)
 	assert.Equal(t, int64(50), dlqStats.FailureReasons["timeout"])
 	assert.Equal(t, int64(30), dlqStats.FailureReasons["memory_limit"])

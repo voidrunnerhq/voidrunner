@@ -13,13 +13,13 @@ func TestWorkerTypes(t *testing.T) {
 	// Test ProcessingSlot creation
 	slot := ProcessingSlot{
 		ID:         uuid.New(),
-		UserID:     uuid.New(), 
+		UserID:     uuid.New(),
 		TaskID:     uuid.New(),
 		WorkerID:   "worker-1",
 		AcquiredAt: time.Now(),
 		LastActive: time.Now(),
 	}
-	
+
 	assert.NotEqual(t, uuid.Nil, slot.ID)
 	assert.NotEqual(t, uuid.Nil, slot.UserID)
 	assert.NotEqual(t, uuid.Nil, slot.TaskID)
@@ -28,12 +28,12 @@ func TestWorkerTypes(t *testing.T) {
 
 func TestConcurrencyStats(t *testing.T) {
 	stats := ConcurrencyStats{
-		TotalActiveSlots:    5,
-		AvailableSlots:     15,
-		UserConcurrency:    make(map[string]int),
-		LastUpdated:        time.Now(),
+		TotalActiveSlots: 5,
+		AvailableSlots:   15,
+		UserConcurrency:  make(map[string]int),
+		LastUpdated:      time.Now(),
 	}
-	
+
 	assert.Equal(t, 5, stats.TotalActiveSlots)
 	assert.Equal(t, 15, stats.AvailableSlots)
 	assert.NotNil(t, stats.UserConcurrency)
