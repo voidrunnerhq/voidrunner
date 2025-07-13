@@ -14,15 +14,15 @@ import (
 
 // RedisDeadLetterQueue implements the DeadLetterQueue interface using Redis
 type RedisDeadLetterQueue struct {
-	client       *RedisClient
-	config       *config.QueueConfig
-	logger       *slog.Logger
-	queueName    string
-	deadKey      string
-	messagesKey  string
-	statsKey     string
-	reasonsKey   string
-	closed       bool
+	client      *RedisClient
+	config      *config.QueueConfig
+	logger      *slog.Logger
+	queueName   string
+	deadKey     string
+	messagesKey string
+	statsKey    string
+	reasonsKey  string
+	closed      bool
 }
 
 // NewRedisDeadLetterQueue creates a new Redis-based dead letter queue
@@ -337,11 +337,11 @@ func (dlq *RedisDeadLetterQueue) GetDeadLetterStats(ctx context.Context) (*DeadL
 
 	stats := &DeadLetterStats{
 		QueueStats: QueueStats{
-			Name:              dlq.queueName,
+			Name:                dlq.queueName,
 			ApproximateMessages: totalFailed,
-			MessagesInFlight:   0, // Dead letter queue doesn't have in-flight messages
-			MessagesDelayed:    0, // Dead letter queue doesn't have delayed messages
-			OldestMessageAge:   avgFailureAge,
+			MessagesInFlight:    0, // Dead letter queue doesn't have in-flight messages
+			MessagesDelayed:     0, // Dead letter queue doesn't have delayed messages
+			OldestMessageAge:    avgFailureAge,
 		},
 		TotalFailedTasks:  totalFailed,
 		AverageFailureAge: avgFailureAge,

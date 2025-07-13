@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,12 +12,13 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/services"
+	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
-func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService) {
+func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
 	setupMiddleware(router, cfg, log)
-	setupRoutes(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService)
+	setupRoutes(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager)
 }
 
 func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger) {
@@ -28,12 +30,17 @@ func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger)
 	router.Use(middleware.ErrorHandler())
 }
 
-func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService) {
+func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
 	healthHandler := handlers.NewHealthHandler()
 
 	// Add health checks for different components
 	healthHandler.AddHealthCheck("database", &DatabaseHealthChecker{conn: dbConn})
 	healthHandler.AddHealthCheck("executor", &ExecutorHealthChecker{service: taskExecutorService})
+
+	// Add worker health check if embedded workers are enabled
+	if cfg.HasEmbeddedWorkers() && workerManager != nil {
+		healthHandler.AddHealthCheck("workers", &WorkerHealthChecker{manager: workerManager})
+	}
 
 	authHandler := handlers.NewAuthHandler(authService, log.Logger)
 	authMiddleware := middleware.NewAuthMiddleware(authService, log.Logger)
@@ -41,6 +48,12 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 
 	router.GET("/health", healthHandler.Health)
 	router.GET("/ready", healthHandler.Readiness)
+
+	// Worker-specific health endpoint (only available when embedded workers are enabled)
+	if cfg.HasEmbeddedWorkers() && workerManager != nil {
+		workerHandler := handlers.NewWorkerHandler(workerManager, log.Logger)
+		router.GET("/health/workers", workerHandler.GetWorkerStatus)
+	}
 
 	// Documentation routes
 	router.GET("/api", docsHandler.GetAPIIndex)
@@ -200,5 +213,27 @@ func (e *ExecutorHealthChecker) CheckHealth() (status string, err error) {
 	if err := e.service.GetExecutorHealth(ctx); err != nil {
 		return "unhealthy", err
 	}
+	return "ready", nil
+}
+
+// WorkerHealthChecker implements health checking for embedded worker manager
+type WorkerHealthChecker struct {
+	manager worker.WorkerManager
+}
+
+func (w *WorkerHealthChecker) CheckHealth() (status string, err error) {
+	if w.manager == nil {
+		return "ready", nil // For tests or when workers are disabled, consider nil as healthy
+	}
+
+	if !w.manager.IsHealthy() {
+		return "unhealthy", fmt.Errorf("worker manager is not healthy")
+	}
+
+	// Additional check for worker pool health
+	if !w.manager.GetWorkerPool().IsHealthy() {
+		return "unhealthy", fmt.Errorf("worker pool is not healthy")
+	}
+
 	return "ready", nil
 }

@@ -1,0 +1,107 @@
+# VoidRunner Development Configuration
+# This configuration enables embedded workers for simplified local development
+
+# Server Configuration
+server:
+  host: "localhost"
+  port: "8080"
+  env: "development"
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: "5432"
+  user: "voidrunner"
+  password: "voidrunner_dev_password"
+  database: "voidrunner_dev"
+  ssl_mode: "disable"
+
+# Logging Configuration
+logger:
+  level: "debug"
+  format: "console"  # Human-readable format for development
+
+# CORS Configuration
+cors:
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "http://localhost:8080"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-Request-ID"
+
+# JWT Configuration
+jwt:
+  secret_key: "development-secret-key-change-in-production"
+  access_token_duration: "15m"
+  refresh_token_duration: "7d"
+  issuer: "voidrunner-dev"
+  audience: "voidrunner-api-dev"
+
+# Executor Configuration (Relaxed for development)
+executor:
+  docker_endpoint: "unix:///var/run/docker.sock"
+  default_memory_limit_mb: 256
+  default_cpu_quota: 50000
+  default_pids_limit: 128
+  default_timeout_seconds: 300
+  python_image: "python:3.11-alpine"
+  bash_image: "alpine:latest"
+  javascript_image: "node:18-alpine"
+  go_image: "golang:1.21-alpine"
+  enable_seccomp: false  # Disabled for easier development
+  seccomp_profile_path: "/opt/voidrunner/seccomp-profile.json"
+  enable_apparmor: false
+  apparmor_profile: "voidrunner-executor"
+  execution_user: "1000:1000"
+
+# Redis Configuration
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  database: 0
+  pool_size: 10
+  min_idle_connections: 5
+  max_retries: 3
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+  idle_timeout: "5m"
+
+# Queue Configuration
+queue:
+  task_queue_name: "voidrunner:tasks:dev"
+  dead_letter_queue_name: "voidrunner:tasks:dead:dev"
+  retry_queue_name: "voidrunner:tasks:retry:dev"
+  default_priority: 5
+  max_retries: 3
+  retry_delay: "30s"
+  retry_backoff_factor: 2.0
+  max_retry_delay: "15m"
+  visibility_timeout: "30m"
+  message_ttl: "24h"
+  batch_size: 10
+
+# Worker Configuration
+worker:
+  pool_size: 3  # Smaller pool for development
+  max_concurrent_tasks: 10
+  max_user_concurrent_tasks: 3
+  task_timeout: "5m"  # Shorter timeout for development
+  heartbeat_interval: "30s"
+  shutdown_timeout: "30s"
+  cleanup_interval: "5m"
+  stale_task_threshold: "1h"  # Shorter threshold for development
+  worker_id_prefix: "voidrunner-worker-dev"
+
+# Embedded Workers Configuration
+embedded_workers: true  # ENABLED for development simplicity

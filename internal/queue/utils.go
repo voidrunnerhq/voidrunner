@@ -29,14 +29,14 @@ func GenerateReceiptHandle(messageID string) string {
 	timestamp := time.Now().Unix()
 	randomBytes := make([]byte, 8)
 	rand.Read(randomBytes)
-	
+
 	return fmt.Sprintf("%s:%d:%s", messageID, timestamp, hex.EncodeToString(randomBytes))
 }
 
 // ValidatePriority validates task priority value
 func ValidatePriority(priority int) error {
 	if priority < PriorityLowest || priority > PriorityHighest {
-		return NewValidationError("priority", priority, 
+		return NewValidationError("priority", priority,
 			fmt.Sprintf("must be between %d and %d", PriorityLowest, PriorityHighest))
 	}
 	return nil
@@ -117,11 +117,11 @@ func CalculatePriorityScore(priority int, queuedAt time.Time) float64 {
 
 	// Invert priority so higher priority gets lower score
 	priorityScore := float64(PriorityHighest - priority)
-	
+
 	// Add timestamp component for FIFO within same priority
 	// Use microseconds to ensure uniqueness and proper ordering
 	timestampScore := float64(queuedAt.UnixMicro()) / 1e12 // Scale down to avoid overflow
-	
+
 	// Combine: priority has much higher weight than timestamp
 	return priorityScore*1e6 + timestampScore
 }
@@ -138,11 +138,11 @@ func CalculateRetryDelay(attempt int, baseDelay time.Duration, backoffFactor flo
 
 	// Calculate exponential backoff: baseDelay * (backoffFactor ^ (attempt - 1))
 	delay := float64(baseDelay) * math.Pow(backoffFactor, float64(attempt-1))
-	
+
 	// Add some jitter to prevent thundering herd (±10%)
 	jitter := 0.9 + (0.2 * mathrand.Float64()) // Between 0.9 and 1.1
 	delay *= jitter
-	
+
 	// Ensure we don't exceed max delay
 	if time.Duration(delay) > maxDelay {
 		return maxDelay
@@ -154,12 +154,12 @@ func CalculateRetryDelay(attempt int, baseDelay time.Duration, backoffFactor flo
 // CalculateRetryAt calculates when a task should be retried
 func CalculateRetryAt(message *TaskMessage, baseDelay time.Duration, backoffFactor float64, maxDelay time.Duration) time.Time {
 	delay := CalculateRetryDelay(message.Attempts, baseDelay, backoffFactor, maxDelay)
-	
+
 	baseTime := time.Now()
 	if message.LastAttempt != nil {
 		baseTime = *message.LastAttempt
 	}
-	
+
 	return baseTime.Add(delay)
 }
 
@@ -274,6 +274,6 @@ func IsReceiptHandleExpired(receiptHandle string, visibilityTimeout time.Duratio
 
 	issueTime := time.Unix(timestamp, 0)
 	expiryTime := issueTime.Add(visibilityTimeout)
-	
+
 	return time.Now().After(expiryTime)
 }

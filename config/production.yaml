@@ -1,0 +1,107 @@
+# VoidRunner Production Configuration
+# This configuration disables embedded workers for horizontal scaling
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: "8080"
+  env: "production"
+
+# Database Configuration
+database:
+  host: "${DB_HOST}"
+  port: "${DB_PORT:-5432}"
+  user: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+  database: "${DB_NAME}"
+  ssl_mode: "${DB_SSL_MODE:-require}"
+
+# Logging Configuration
+logger:
+  level: "info"
+  format: "json"  # Structured logging for production
+
+# CORS Configuration
+cors:
+  allowed_origins:
+    - "${CORS_ALLOWED_ORIGINS}"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-Request-ID"
+    - "X-Forwarded-For"
+    - "X-Forwarded-Proto"
+
+# JWT Configuration
+jwt:
+  secret_key: "${JWT_SECRET_KEY}"
+  access_token_duration: "${JWT_ACCESS_TOKEN_DURATION:-15m}"
+  refresh_token_duration: "${JWT_REFRESH_TOKEN_DURATION:-7d}"
+  issuer: "${JWT_ISSUER:-voidrunner}"
+  audience: "${JWT_AUDIENCE:-voidrunner-api}"
+
+# Executor Configuration (Security-focused)
+executor:
+  docker_endpoint: "unix:///var/run/docker.sock"
+  default_memory_limit_mb: 512
+  default_cpu_quota: 100000
+  default_pids_limit: 128
+  default_timeout_seconds: 3600
+  python_image: "python:3.11-alpine"
+  bash_image: "alpine:latest"
+  javascript_image: "node:18-alpine"
+  go_image: "golang:1.21-alpine"
+  enable_seccomp: true  # ENABLED for production security
+  seccomp_profile_path: "/opt/voidrunner/seccomp-profile.json"
+  enable_apparmor: false
+  apparmor_profile: "voidrunner-executor"
+  execution_user: "1000:1000"
+
+# Redis Configuration
+redis:
+  host: "${REDIS_HOST}"
+  port: "${REDIS_PORT:-6379}"
+  password: "${REDIS_PASSWORD}"
+  database: "${REDIS_DATABASE:-0}"
+  pool_size: 20
+  min_idle_connections: 10
+  max_retries: 3
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+  idle_timeout: "5m"
+
+# Queue Configuration
+queue:
+  task_queue_name: "voidrunner:tasks"
+  dead_letter_queue_name: "voidrunner:tasks:dead"
+  retry_queue_name: "voidrunner:tasks:retry"
+  default_priority: 5
+  max_retries: 3
+  retry_delay: "30s"
+  retry_backoff_factor: 2.0
+  max_retry_delay: "15m"
+  visibility_timeout: "30m"
+  message_ttl: "24h"
+  batch_size: 10
+
+# Worker Configuration (for scheduler service)
+worker:
+  pool_size: "${WORKER_POOL_SIZE:-5}"
+  max_concurrent_tasks: "${WORKER_MAX_CONCURRENT_TASKS:-50}"
+  max_user_concurrent_tasks: "${WORKER_MAX_USER_CONCURRENT_TASKS:-5}"
+  task_timeout: "${WORKER_TASK_TIMEOUT:-1h}"
+  heartbeat_interval: "30s"
+  shutdown_timeout: "30s"
+  cleanup_interval: "5m"
+  stale_task_threshold: "2h"
+  worker_id_prefix: "voidrunner-worker"
+
+# Embedded Workers Configuration
+embedded_workers: false  # DISABLED for production - use separate scheduler service

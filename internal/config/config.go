@@ -11,15 +11,16 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Logger   LoggerConfig
-	CORS     CORSConfig
-	JWT      JWTConfig
-	Executor ExecutorConfig
-	Redis    RedisConfig
-	Queue    QueueConfig
-	Worker   WorkerConfig
+	Server          ServerConfig
+	Database        DatabaseConfig
+	Logger          LoggerConfig
+	CORS            CORSConfig
+	JWT             JWTConfig
+	Executor        ExecutorConfig
+	Redis           RedisConfig
+	Queue           QueueConfig
+	Worker          WorkerConfig
+	EmbeddedWorkers bool // Enable worker pool in API server process
 }
 
 type ServerConfig struct {
@@ -88,29 +89,29 @@ type RedisConfig struct {
 }
 
 type QueueConfig struct {
-	TaskQueueName         string
-	DeadLetterQueueName   string
-	RetryQueueName        string
-	DefaultPriority       int
-	MaxRetries            int
-	RetryDelay            time.Duration
-	RetryBackoffFactor    float64
-	MaxRetryDelay         time.Duration
-	VisibilityTimeout     time.Duration
-	MessageTTL            time.Duration
-	BatchSize             int
+	TaskQueueName       string
+	DeadLetterQueueName string
+	RetryQueueName      string
+	DefaultPriority     int
+	MaxRetries          int
+	RetryDelay          time.Duration
+	RetryBackoffFactor  float64
+	MaxRetryDelay       time.Duration
+	VisibilityTimeout   time.Duration
+	MessageTTL          time.Duration
+	BatchSize           int
 }
 
 type WorkerConfig struct {
-	PoolSize                int
-	MaxConcurrentTasks      int
-	MaxUserConcurrentTasks  int
-	TaskTimeout             time.Duration
-	HeartbeatInterval       time.Duration
-	ShutdownTimeout         time.Duration
-	CleanupInterval         time.Duration
-	StaleTaskThreshold      time.Duration
-	WorkerIDPrefix          string
+	PoolSize               int
+	MaxConcurrentTasks     int
+	MaxUserConcurrentTasks int
+	TaskTimeout            time.Duration
+	HeartbeatInterval      time.Duration
+	ShutdownTimeout        time.Duration
+	CleanupInterval        time.Duration
+	StaleTaskThreshold     time.Duration
+	WorkerIDPrefix         string
 }
 
 func Load() (*Config, error) {
@@ -176,29 +177,30 @@ func Load() (*Config, error) {
 			IdleTimeout:        getEnvDuration("REDIS_IDLE_TIMEOUT", 5*time.Minute),
 		},
 		Queue: QueueConfig{
-			TaskQueueName:         getEnv("QUEUE_TASK_QUEUE_NAME", "voidrunner:tasks"),
-			DeadLetterQueueName:   getEnv("QUEUE_DEAD_LETTER_QUEUE_NAME", "voidrunner:tasks:dead"),
-			RetryQueueName:        getEnv("QUEUE_RETRY_QUEUE_NAME", "voidrunner:tasks:retry"),
-			DefaultPriority:       getEnvInt("QUEUE_DEFAULT_PRIORITY", 5),
-			MaxRetries:            getEnvInt("QUEUE_MAX_RETRIES", 3),
-			RetryDelay:            getEnvDuration("QUEUE_RETRY_DELAY", 30*time.Second),
-			RetryBackoffFactor:    getEnvFloat64("QUEUE_RETRY_BACKOFF_FACTOR", 2.0),
-			MaxRetryDelay:         getEnvDuration("QUEUE_MAX_RETRY_DELAY", 15*time.Minute),
-			VisibilityTimeout:     getEnvDuration("QUEUE_VISIBILITY_TIMEOUT", 30*time.Minute),
-			MessageTTL:            getEnvDuration("QUEUE_MESSAGE_TTL", 24*time.Hour),
-			BatchSize:             getEnvInt("QUEUE_BATCH_SIZE", 10),
+			TaskQueueName:       getEnv("QUEUE_TASK_QUEUE_NAME", "voidrunner:tasks"),
+			DeadLetterQueueName: getEnv("QUEUE_DEAD_LETTER_QUEUE_NAME", "voidrunner:tasks:dead"),
+			RetryQueueName:      getEnv("QUEUE_RETRY_QUEUE_NAME", "voidrunner:tasks:retry"),
+			DefaultPriority:     getEnvInt("QUEUE_DEFAULT_PRIORITY", 5),
+			MaxRetries:          getEnvInt("QUEUE_MAX_RETRIES", 3),
+			RetryDelay:          getEnvDuration("QUEUE_RETRY_DELAY", 30*time.Second),
+			RetryBackoffFactor:  getEnvFloat64("QUEUE_RETRY_BACKOFF_FACTOR", 2.0),
+			MaxRetryDelay:       getEnvDuration("QUEUE_MAX_RETRY_DELAY", 15*time.Minute),
+			VisibilityTimeout:   getEnvDuration("QUEUE_VISIBILITY_TIMEOUT", 30*time.Minute),
+			MessageTTL:          getEnvDuration("QUEUE_MESSAGE_TTL", 24*time.Hour),
+			BatchSize:           getEnvInt("QUEUE_BATCH_SIZE", 10),
 		},
 		Worker: WorkerConfig{
-			PoolSize:                getEnvInt("WORKER_POOL_SIZE", 5),
-			MaxConcurrentTasks:      getEnvInt("WORKER_MAX_CONCURRENT_TASKS", 10),
-			MaxUserConcurrentTasks:  getEnvInt("WORKER_MAX_USER_CONCURRENT_TASKS", 3),
-			TaskTimeout:             getEnvDuration("WORKER_TASK_TIMEOUT", 1*time.Hour),
-			HeartbeatInterval:       getEnvDuration("WORKER_HEARTBEAT_INTERVAL", 30*time.Second),
-			ShutdownTimeout:         getEnvDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
-			CleanupInterval:         getEnvDuration("WORKER_CLEANUP_INTERVAL", 5*time.Minute),
-			StaleTaskThreshold:      getEnvDuration("WORKER_STALE_TASK_THRESHOLD", 2*time.Hour),
-			WorkerIDPrefix:          getEnv("WORKER_ID_PREFIX", "voidrunner-worker"),
+			PoolSize:               getEnvInt("WORKER_POOL_SIZE", 5),
+			MaxConcurrentTasks:     getEnvInt("WORKER_MAX_CONCURRENT_TASKS", 10),
+			MaxUserConcurrentTasks: getEnvInt("WORKER_MAX_USER_CONCURRENT_TASKS", 3),
+			TaskTimeout:            getEnvDuration("WORKER_TASK_TIMEOUT", 1*time.Hour),
+			HeartbeatInterval:      getEnvDuration("WORKER_HEARTBEAT_INTERVAL", 30*time.Second),
+			ShutdownTimeout:        getEnvDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
+			CleanupInterval:        getEnvDuration("WORKER_CLEANUP_INTERVAL", 5*time.Minute),
+			StaleTaskThreshold:     getEnvDuration("WORKER_STALE_TASK_THRESHOLD", 2*time.Hour),
+			WorkerIDPrefix:         getEnv("WORKER_ID_PREFIX", "voidrunner-worker"),
 		},
+		EmbeddedWorkers: getEnvBool("EMBEDDED_WORKERS", true), // Default true for development simplicity
 	}
 
 	if err := config.validate(); err != nil {
@@ -352,6 +354,18 @@ func (c *Config) validate() error {
 		return fmt.Errorf("worker ID prefix is required")
 	}
 
+	// Embedded workers validation
+	if c.EmbeddedWorkers {
+		// When embedded workers are enabled, Redis and Queue must be properly configured
+		// since workers need the queue system to process tasks
+		if c.Redis.Host == "" {
+			return fmt.Errorf("embedded workers require Redis host to be configured")
+		}
+		if c.Queue.TaskQueueName == "" {
+			return fmt.Errorf("embedded workers require task queue name to be configured")
+		}
+	}
+
 	return nil
 }
 
@@ -365,6 +379,10 @@ func (c *Config) IsDevelopment() bool {
 
 func (c *Config) IsTest() bool {
 	return strings.ToLower(c.Server.Env) == "test"
+}
+
+func (c *Config) HasEmbeddedWorkers() bool {
+	return c.EmbeddedWorkers
 }
 
 func getEnv(key, defaultValue string) string {

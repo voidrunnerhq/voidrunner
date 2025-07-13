@@ -116,11 +116,11 @@ func (r *RedisClient) ZAddWithScore(ctx context.Context, key string, score float
 		Score:  score,
 		Member: member,
 	})
-	
+
 	if result.Err() != nil {
 		return NewQueueError("zadd", result.Err(), true)
 	}
-	
+
 	return nil
 }
 
@@ -132,113 +132,113 @@ func (r *RedisClient) ZRangeByScoreWithLimit(ctx context.Context, key string, mi
 		Offset: offset,
 		Count:  count,
 	})
-	
+
 	if result.Err() != nil {
 		return nil, NewQueueError("zrangebyscore", result.Err(), true)
 	}
-	
+
 	return result.Val(), nil
 }
 
 // ZRem removes members from a sorted set
 func (r *RedisClient) ZRem(ctx context.Context, key string, members ...interface{}) error {
 	result := r.client.ZRem(ctx, key, members...)
-	
+
 	if result.Err() != nil {
 		return NewQueueError("zrem", result.Err(), true)
 	}
-	
+
 	return nil
 }
 
 // ZCard returns the number of members in a sorted set
 func (r *RedisClient) ZCard(ctx context.Context, key string) (int64, error) {
 	result := r.client.ZCard(ctx, key)
-	
+
 	if result.Err() != nil {
 		return 0, NewQueueError("zcard", result.Err(), true)
 	}
-	
+
 	return result.Val(), nil
 }
 
 // HSet sets field-value pairs in a hash
 func (r *RedisClient) HSet(ctx context.Context, key string, values ...interface{}) error {
 	result := r.client.HSet(ctx, key, values...)
-	
+
 	if result.Err() != nil {
 		return NewQueueError("hset", result.Err(), true)
 	}
-	
+
 	return nil
 }
 
 // HGet gets a field value from a hash
 func (r *RedisClient) HGet(ctx context.Context, key, field string) (string, error) {
 	result := r.client.HGet(ctx, key, field)
-	
+
 	if result.Err() != nil {
 		if result.Err() == redis.Nil {
 			return "", nil // Field doesn't exist
 		}
 		return "", NewQueueError("hget", result.Err(), true)
 	}
-	
+
 	return result.Val(), nil
 }
 
 // HGetAll gets all field-value pairs from a hash
 func (r *RedisClient) HGetAll(ctx context.Context, key string) (map[string]string, error) {
 	result := r.client.HGetAll(ctx, key)
-	
+
 	if result.Err() != nil {
 		return nil, NewQueueError("hgetall", result.Err(), true)
 	}
-	
+
 	return result.Val(), nil
 }
 
 // HDel deletes fields from a hash
 func (r *RedisClient) HDel(ctx context.Context, key string, fields ...string) error {
 	result := r.client.HDel(ctx, key, fields...)
-	
+
 	if result.Err() != nil {
 		return NewQueueError("hdel", result.Err(), true)
 	}
-	
+
 	return nil
 }
 
 // Del deletes keys
 func (r *RedisClient) Del(ctx context.Context, keys ...string) error {
 	result := r.client.Del(ctx, keys...)
-	
+
 	if result.Err() != nil {
 		return NewQueueError("del", result.Err(), true)
 	}
-	
+
 	return nil
 }
 
 // Exists checks if keys exist
 func (r *RedisClient) Exists(ctx context.Context, keys ...string) (int64, error) {
 	result := r.client.Exists(ctx, keys...)
-	
+
 	if result.Err() != nil {
 		return 0, NewQueueError("exists", result.Err(), true)
 	}
-	
+
 	return result.Val(), nil
 }
 
 // Expire sets expiration for a key
 func (r *RedisClient) Expire(ctx context.Context, key string, expiration time.Duration) error {
 	result := r.client.Expire(ctx, key, expiration)
-	
+
 	if result.Err() != nil {
 		return NewQueueError("expire", result.Err(), true)
 	}
-	
+
 	return nil
 }
 
@@ -246,11 +246,11 @@ func (r *RedisClient) Expire(ctx context.Context, key string, expiration time.Du
 func (r *RedisClient) ExecuteLuaScript(ctx context.Context, script string, keys []string, args ...interface{}) (interface{}, error) {
 	luaScript := redis.NewScript(script)
 	result := luaScript.Run(ctx, r.client, keys, args...)
-	
+
 	if result.Err() != nil {
 		return nil, NewQueueError("eval", result.Err(), true)
 	}
-	
+
 	return result.Val(), nil
 }
 

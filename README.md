@@ -11,7 +11,11 @@ VoidRunner is designed to safely execute user-submitted code in isolated contain
 - **REST API**: Comprehensive HTTP API with 16+ endpoints for complete task lifecycle management
 - **JWT Authentication**: Secure user authentication with access and refresh tokens
 - **Task Management**: Full CRUD operations for code tasks with metadata support
-- **Execution Tracking**: Detailed execution history with performance metrics
+- **Task Execution**: Asynchronous task execution with embedded or distributed worker architecture
+- **Container Security**: Docker-based execution with seccomp, resource limits, and isolation
+- **Queue System**: Redis-based task queuing with priority support and retry logic
+- **Real-time Monitoring**: Health checks, worker status endpoints, and execution metrics
+- **Flexible Deployment**: Embedded workers for development or separate services for production
 - **Database Integration**: PostgreSQL with optimized schema and cursor pagination
 - **Security**: Input validation, rate limiting, and secure request handling
 - **Testing**: 80%+ code coverage with unit and integration tests
@@ -19,30 +23,96 @@ VoidRunner is designed to safely execute user-submitted code in isolated contain
 
 ## System Architecture
 
+### Embedded Workers (Development/Small Scale) ✅ Complete
 ```
-Current Implementation (✅ Complete)
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web Clients   │    │   API Gateway    │    │   PostgreSQL    │
-│  (Postman/curl) │◄──►│   (Gin Server)   │◄──►│    Database     │
-│                 │    │                  │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                │ JWT Auth & Task Management
-                                ▼
-                       ┌──────────────────┐
-                       │  Internal APIs   │
-                       │ - Auth Service   │
-                       │ - Task Service   │
-                       │ - User Service   │
-                       └──────────────────┘
+┌─────────────────┐    ┌─────────────────────────────────┐    ┌─────────────────┐
+│   Web Clients   │    │        API Server               │    │   PostgreSQL    │
+│  (Postman/curl) │◄──►│  ┌─────────────────────────┐    │◄──►│    Database     │
+│                 │    │  │     HTTP API            │    │    │                 │
+└─────────────────┘    │  │   - Authentication      │    │    └─────────────────┘
+                       │  │   - Task Management     │    │
+                       │  └─────────────────────────┘    │    ┌─────────────────┐
+                       │  ┌─────────────────────────┐    │◄──►│     Redis       │
+                       │  │   Embedded Workers      │    │    │   (Queues)      │
+                       │  │   - Task Processing     │    │    │                 │
+                       │  │   - Docker Execution    │    │    └─────────────────┘
+                       │  │   - Health Monitoring   │    │
+                       │  └─────────────────────────┘    │    ┌─────────────────┐
+                       └─────────────────────────────────┘◄──►│     Docker      │
+                                                               │   (Containers)  │
+                                                               │                 │
+                                                               └─────────────────┘
+```
 
-Planned Extensions (📋 Roadmap)
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Svelte Web UI  │    │  Task Scheduler  │    │ Container Engine│
-│   (Frontend)    │    │   (Microservice) │    │  (Docker/gVisor)│
-│                 │    │                  │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+### Distributed Services (Production/Scale) ✅ Complete
 ```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Clients   │    │   API Server     │    │   PostgreSQL    │    │     Redis       │
+│  (Postman/curl) │◄──►│   - HTTP API     │◄──►│    Database     │◄──►│   (Queues)      │
+│                 │    │   - Auth         │    │                 │    │                 │
+└─────────────────┘    │   - Task Mgmt    │    └─────────────────┘    └─────────────────┘
+                       └──────────────────┘                                    ▲
+                                                                               │
+                       ┌──────────────────┐    ┌─────────────────┐            │
+                       │ Scheduler Service│◄──►│     Docker      │            │
+                       │  - Worker Pools  │    │   (Containers)  │            │
+                       │  - Task Execution│    │                 │            │
+                       │  - Auto-scaling  │    └─────────────────┘            │
+                       └──────────────────┘                                   │
+                                ▲                                             │
+                                └─────────────────────────────────────────────┘
+```
+
+### Future Extensions (📋 Roadmap)
+- **Svelte Web UI**: Modern frontend interface
+- **Kubernetes Deployment**: Container orchestration
+- **Multi-language Support**: Additional runtime environments
+- **Real-time Collaboration**: Shared workspaces and live editing
+
+## Quick Start
+
+### Development Mode (Embedded Workers)
+
+The fastest way to get started with VoidRunner:
+
+```bash
+# 1. Start dependencies
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+./scripts/start-test-db.sh
+
+# 2. Start VoidRunner with embedded workers
+./scripts/start-dev.sh
+```
+
+This starts VoidRunner with embedded workers on http://localhost:8080
+
+**Health Check Endpoints:**
+- API Health: http://localhost:8080/health
+- Worker Status: http://localhost:8080/health/workers
+- API Documentation: http://localhost:8080/docs
+
+### Production Mode (Distributed Services)
+
+For production deployments with horizontal scaling:
+
+```bash
+# Using Docker Compose
+./scripts/docker-deploy.sh -m prod up
+
+# Or manually
+SERVER_ENV=production EMBEDDED_WORKERS=false ./bin/api
+SERVER_ENV=production ./bin/scheduler
+```
+
+### Configuration Modes
+
+VoidRunner supports three deployment configurations:
+
+| Mode | Use Case | Workers | Scaling | Setup |
+|------|----------|---------|---------|-------|
+| **Development** | Local development | Embedded | Single process | `EMBEDDED_WORKERS=true` |
+| **Production** | Enterprise deployment | Separate service | Horizontal | `EMBEDDED_WORKERS=false` |
+| **Test** | CI/CD and testing | Embedded | Single process | `SERVER_ENV=test` |
 
 ## API Endpoints
 

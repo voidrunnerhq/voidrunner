@@ -12,22 +12,22 @@ import (
 
 // RedisQueueManager manages all queue operations using Redis
 type RedisQueueManager struct {
-	client          *RedisClient
-	config          *config.QueueConfig
-	logger          *slog.Logger
-	
+	client *RedisClient
+	config *config.QueueConfig
+	logger *slog.Logger
+
 	// Queue instances
 	taskQueue       TaskQueue
 	retryQueue      RetryQueue
 	deadLetterQueue DeadLetterQueue
-	
+
 	// Background processes
-	retryProcessor  *RetryProcessor
-	
+	retryProcessor *RetryProcessor
+
 	// State management
-	mu       sync.RWMutex
-	started  bool
-	closed   bool
+	mu        sync.RWMutex
+	started   bool
+	closed    bool
 	startTime time.Time
 }
 

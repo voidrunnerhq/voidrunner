@@ -46,7 +46,9 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/executor"
+	"github.com/voidrunnerhq/voidrunner/internal/queue"
 	"github.com/voidrunnerhq/voidrunner/internal/services"
+	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
@@ -92,6 +94,29 @@ func main() {
 	}
 
 	log.Info("database initialized successfully")
+
+	// Initialize queue manager
+	queueManager, err := queue.NewRedisQueueManager(&cfg.Redis, &cfg.Queue, log.Logger)
+	if err != nil {
+		log.Error("failed to initialize queue manager", "error", err)
+		os.Exit(1)
+	}
+
+	// Start queue manager
+	queueCtx, queueCancel := context.WithCancel(context.Background())
+	defer queueCancel()
+
+	if err := queueManager.Start(queueCtx); err != nil {
+		log.Error("failed to start queue manager", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := queueManager.Stop(context.Background()); err != nil {
+			log.Error("failed to stop queue manager", "error", err)
+		}
+	}()
+
+	log.Info("queue manager initialized successfully")
 
 	// Initialize JWT service
 	jwtService := auth.NewJWTService(&cfg.JWT)
@@ -186,8 +211,67 @@ func main() {
 		}
 	}
 
+	// Initialize worker manager if embedded workers are enabled
+	var workerManager worker.WorkerManager
+	var workerCancel context.CancelFunc
+	if cfg.HasEmbeddedWorkers() {
+		log.Info("initializing embedded worker manager")
+
+		// Convert config.WorkerConfig to worker.WorkerConfig
+		workerConfig := worker.WorkerConfig{
+			WorkerIDPrefix:       cfg.Worker.WorkerIDPrefix,
+			HeartbeatInterval:    cfg.Worker.HeartbeatInterval,
+			TaskTimeout:          cfg.Worker.TaskTimeout,
+			HealthCheckInterval:  30 * time.Second, // Default value for health check interval
+			ShutdownTimeout:      cfg.Worker.ShutdownTimeout,
+			MaxRetryAttempts:     3,                // Default value for retry attempts
+			ProcessingSlotTTL:    30 * time.Minute, // Default value for slot TTL
+			StaleTaskThreshold:   cfg.Worker.StaleTaskThreshold,
+			EnableAutoScaling:    true,             // Default enable auto-scaling
+			ScalingCheckInterval: 60 * time.Second, // Default scaling check interval
+		}
+
+		workerManager = worker.NewWorkerManager(
+			queueManager,
+			taskExecutor,
+			repos,
+			workerConfig,
+			log.Logger,
+		)
+
+		// Start worker manager
+		workerCtx, cancel := context.WithCancel(context.Background())
+		workerCancel = cancel
+
+		if err := workerManager.Start(workerCtx); err != nil {
+			log.Error("failed to start embedded worker manager", "error", err)
+			os.Exit(1)
+		}
+
+		// Add cleanup for worker manager
+		defer func() {
+			if workerManager != nil && workerCancel != nil {
+				log.Info("stopping embedded worker manager")
+				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer shutdownCancel()
+				defer workerCancel()
+
+				if err := workerManager.Stop(shutdownCtx); err != nil {
+					log.Error("failed to stop embedded worker manager", "error", err)
+				}
+			}
+		}()
+
+		log.Info("embedded worker manager started successfully",
+			"worker_pool_size", workerManager.GetWorkerPool().GetWorkerCount(),
+			"concurrency_limits", workerManager.GetConcurrencyLimits(),
+		)
+	} else {
+		log.Info("embedded workers disabled, tasks will be processed by separate scheduler service")
+	}
+
 	// Initialize task execution service
-	taskExecutionService := services.NewTaskExecutionService(dbConn, log.Logger)
+	taskExecutionService := services.NewTaskExecutionService(dbConn, queueManager, log.Logger)
 
 	// Initialize task executor service
 	taskExecutorService := services.NewTaskExecutorService(
@@ -203,7 +287,7 @@ func main() {
 	}
 
 	router := gin.New()
-	routes.Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService)
+	routes.Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),

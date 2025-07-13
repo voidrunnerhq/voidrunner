@@ -171,7 +171,7 @@ func ValidateExecutionStatusTransition(currentStatus, newStatus ExecutionStatus)
 	if err := ValidateExecutionStatus(currentStatus); err != nil {
 		return fmt.Errorf("invalid current execution status: %w", err)
 	}
-	
+
 	if err := ValidateExecutionStatus(newStatus); err != nil {
 		return fmt.Errorf("invalid new execution status: %w", err)
 	}
@@ -231,10 +231,10 @@ func (te *TaskExecution) TransitionTo(newStatus ExecutionStatus) error {
 	if err := ValidateExecutionStatusTransition(te.Status, newStatus); err != nil {
 		return err
 	}
-	
+
 	oldStatus := te.Status
 	te.Status = newStatus
-	
+
 	// Update timestamps based on status
 	now := time.Now()
 	switch newStatus {
@@ -252,10 +252,10 @@ func (te *TaskExecution) TransitionTo(newStatus ExecutionStatus) error {
 			te.ExecutionTimeMs = &duration
 		}
 	}
-	
+
 	// Log the transition for debugging
 	fmt.Printf("Execution %s transitioned from %s to %s\n", te.ID, oldStatus, newStatus)
-	
+
 	return nil
 }
 
@@ -265,7 +265,7 @@ func (te *TaskExecution) GetAllowedTransitions() []ExecutionStatus {
 	if !exists {
 		return []ExecutionStatus{}
 	}
-	
+
 	// Return a copy to prevent modification
 	result := make([]ExecutionStatus, len(allowedTransitions))
 	copy(result, allowedTransitions)
@@ -284,12 +284,12 @@ func (te *TaskExecution) HasFailed() bool {
 
 // ExecutionStatusTransitionInfo provides information about an execution status transition
 type ExecutionStatusTransitionInfo struct {
-	FromStatus      ExecutionStatus `json:"from_status"`
-	ToStatus        ExecutionStatus `json:"to_status"`
-	IsValid         bool            `json:"is_valid"`
-	IsTerminal      bool            `json:"is_terminal"`
-	IsSuccessful    bool            `json:"is_successful"`
-	ErrorMessage    string          `json:"error_message,omitempty"`
+	FromStatus   ExecutionStatus `json:"from_status"`
+	ToStatus     ExecutionStatus `json:"to_status"`
+	IsValid      bool            `json:"is_valid"`
+	IsTerminal   bool            `json:"is_terminal"`
+	IsSuccessful bool            `json:"is_successful"`
+	ErrorMessage string          `json:"error_message,omitempty"`
 }
 
 // GetExecutionStatusTransitionInfo returns detailed information about a potential execution status transition
@@ -300,7 +300,7 @@ func GetExecutionStatusTransitionInfo(fromStatus, toStatus ExecutionStatus) *Exe
 		IsTerminal:   IsExecutionStatusTerminal(toStatus),
 		IsSuccessful: IsExecutionStatusSuccessful(toStatus),
 	}
-	
+
 	err := ValidateExecutionStatusTransition(fromStatus, toStatus)
 	if err != nil {
 		info.IsValid = false
@@ -308,7 +308,7 @@ func GetExecutionStatusTransitionInfo(fromStatus, toStatus ExecutionStatus) *Exe
 	} else {
 		info.IsValid = true
 	}
-	
+
 	return info
 }
 

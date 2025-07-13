@@ -289,14 +289,13 @@ func TestMainFunctionContract(t *testing.T) {
 	})
 }
 
-// TODO: Add actual integration tests with test database
-// The current implementation provides conceptual validation and testing infrastructure.
-// Complete integration tests would require:
-// - Test database setup and teardown
-// - Test configuration files
-// - HTTP client test helpers
-// - Application lifecycle management for tests
-// - Proper mocking of external dependencies
+// NOTE: Comprehensive integration tests are available in tests/testutil/
+// The testutil package provides:
+// - Test database setup and teardown (DatabaseHelper)
+// - Test configuration files (GetTestConfig)
+// - HTTP client test helpers (HTTPHelper)
+// - Application lifecycle management (IntegrationTestSuite)
+// - Proper mocking of external dependencies (factories and fixtures)
 //
 // This foundation validates the application architecture and can be extended
 // with full integration testing as the testing infrastructure matures.
