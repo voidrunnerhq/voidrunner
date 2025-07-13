@@ -35,6 +35,21 @@ func GenerateReceiptHandle(messageID string) string {
 	return fmt.Sprintf("%s:%d:%s", messageID, timestamp, hex.EncodeToString(randomBytes))
 }
 
+// GenerateSecureReceiptComponent generates a cryptographically secure random component
+// for receipt handles using crypto/rand. This replaces the insecure math.random()
+// used in Redis Lua scripts.
+func GenerateSecureReceiptComponent() string {
+	// Generate 8 random bytes for a secure component
+	randomBytes := make([]byte, 8)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// Fallback to timestamp-based component if crypto/rand fails
+		return fmt.Sprintf("fb%d", time.Now().UnixNano()%1000000)
+	}
+
+	// Convert to hex string for consistent format with existing receipt handles
+	return hex.EncodeToString(randomBytes)
+}
+
 // ValidatePriority validates task priority value
 func ValidatePriority(priority int) error {
 	if priority < PriorityLowest || priority > PriorityHighest {

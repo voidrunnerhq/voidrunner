@@ -465,3 +465,44 @@ func TestCopyAttributes(t *testing.T) {
 		})
 	}
 }
+
+// Additional edge case tests for the security fix
+
+func TestGenerateSecureReceiptComponent(t *testing.T) {
+	// Test the new secure receipt component function
+	component := GenerateSecureReceiptComponent()
+
+	assert.NotEmpty(t, component)
+	assert.True(t, len(component) > 0, "component should not be empty")
+
+	// Should be hex encoded (even length, only hex chars)
+	assert.True(t, len(component)%2 == 0, "hex string should have even length")
+	for _, c := range component {
+		assert.True(t,
+			(c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'),
+			"should only contain hex characters")
+	}
+}
+
+func TestGenerateSecureReceiptComponent_Uniqueness(t *testing.T) {
+	// Test that secure components are unique
+	components := make(map[string]bool)
+
+	for i := 0; i < 1000; i++ {
+		component := GenerateSecureReceiptComponent()
+		assert.False(t, components[component], "generated duplicate component: %s", component)
+		components[component] = true
+	}
+
+	assert.Len(t, components, 1000, "should have generated 1000 unique components")
+}
+
+func TestGenerateSecureReceiptComponent_Length(t *testing.T) {
+	// Test that secure components have consistent length
+	component1 := GenerateSecureReceiptComponent()
+	component2 := GenerateSecureReceiptComponent()
+
+	// Both should have the same length (16 hex chars for 8 bytes)
+	assert.Equal(t, len(component1), len(component2), "components should have consistent length")
+	assert.Equal(t, 16, len(component1), "component should be 16 hex characters (8 bytes)")
+}
