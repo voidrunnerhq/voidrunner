@@ -42,9 +42,9 @@ func (m *mockQueueManager) StopRetryProcessor() error                     { retu
 
 type mockWorkerManager struct{}
 
-func (m *mockWorkerManager) Start(ctx context.Context) error { return nil }
-func (m *mockWorkerManager) Stop(ctx context.Context) error  { return nil }
-func (m *mockWorkerManager) IsRunning() bool                 { return false }
+func (m *mockWorkerManager) Start(ctx context.Context) error  { return nil }
+func (m *mockWorkerManager) Stop(ctx context.Context) error   { return nil }
+func (m *mockWorkerManager) IsRunning() bool                  { return false }
 func (m *mockWorkerManager) GetWorkerPool() worker.WorkerPool { return nil }
 func (m *mockWorkerManager) GetStats() worker.WorkerManagerStats {
 	return worker.WorkerManagerStats{}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/executor"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
@@ -311,9 +312,9 @@ func (w *BaseWorker) executeTask(task *models.Task, execution *models.TaskExecut
 		Context:   w.ctx,
 		Timeout:   time.Duration(task.TimeoutSeconds) * time.Second,
 		ResourceLimits: executor.ResourceLimits{
-			MemoryLimitBytes: 512 * 1024 * 1024, // 512MB default
-			CPUQuota:         100000,            // 1 CPU core
-			PidsLimit:        128,               // Max processes
+			MemoryLimitBytes: config.DefaultExecutorMemoryLimit,
+			CPUQuota:         config.DefaultExecutorCPUQuota,
+			PidsLimit:        config.DefaultExecutorPidsLimit,
 			TimeoutSeconds:   int(task.TimeoutSeconds),
 		},
 	}

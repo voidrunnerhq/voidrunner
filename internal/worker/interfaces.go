@@ -289,13 +289,16 @@ func NewWorkerError(workerID, operation string, err error, retryable bool) *Work
 
 // Common worker errors
 var (
-	ErrWorkerNotRunning        = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker not running"), Retryable: false}
-	ErrWorkerAlreadyRunning    = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker already running"), Retryable: false}
-	ErrWorkerPoolClosed        = &WorkerError{Operation: "pool_state", Err: fmt.Errorf("worker pool is closed"), Retryable: false}
-	ErrConcurrencyLimitReached = &WorkerError{Operation: "concurrency", Err: fmt.Errorf("concurrency limit reached"), Retryable: true}
-	ErrInvalidTaskMessage      = &WorkerError{Operation: "task_validation", Err: fmt.Errorf("invalid task message"), Retryable: false}
-	ErrTaskProcessingTimeout   = &WorkerError{Operation: "task_execution", Err: fmt.Errorf("task processing timeout"), Retryable: true}
-	ErrWorkerUnhealthy         = &WorkerError{Operation: "health_check", Err: fmt.Errorf("worker is unhealthy"), Retryable: true}
+	ErrWorkerNotRunning            = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker not running"), Retryable: false}
+	ErrWorkerAlreadyRunning        = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker already running"), Retryable: false}
+	ErrWorkerManagerAlreadyRunning = &WorkerError{Operation: "manager_state", Err: fmt.Errorf("worker manager already running"), Retryable: false}
+	ErrWorkerManagerNotRunning     = &WorkerError{Operation: "manager_state", Err: fmt.Errorf("worker manager not running"), Retryable: false}
+	ErrWorkerPoolClosed            = &WorkerError{Operation: "pool_state", Err: fmt.Errorf("worker pool is closed"), Retryable: false}
+	ErrConcurrencyLimitReached     = &WorkerError{Operation: "concurrency", Err: fmt.Errorf("concurrency limit reached"), Retryable: true}
+	ErrSlotNotFound                = &WorkerError{Operation: "concurrency", Err: fmt.Errorf("processing slot not found"), Retryable: false}
+	ErrInvalidTaskMessage          = &WorkerError{Operation: "task_validation", Err: fmt.Errorf("invalid task message"), Retryable: false}
+	ErrTaskProcessingTimeout       = &WorkerError{Operation: "task_execution", Err: fmt.Errorf("task processing timeout"), Retryable: true}
+	ErrWorkerUnhealthy             = &WorkerError{Operation: "health_check", Err: fmt.Errorf("worker is unhealthy"), Retryable: true}
 )
 
 // IsRetryableWorkerError checks if a worker error is retryable

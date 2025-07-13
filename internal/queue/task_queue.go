@@ -137,6 +137,12 @@ func (q *RedisTaskQueue) Dequeue(ctx context.Context, maxMessages int) ([]*TaskM
 		maxMessages = q.config.BatchSize
 	}
 
+	// Generate secure random components for receipt handles (one per potential message)
+	randomComponents := make([]string, maxMessages)
+	for i := 0; i < maxMessages; i++ {
+		randomComponents[i] = GenerateSecureReceiptComponent()
+	}
+
 	// Use Lua script for atomic dequeue operation
 	script := `
 		-- Get messages from priority queue (lowest score first)
@@ -158,8 +164,9 @@ func (q *RedisTaskQueue) Dequeue(ctx context.Context, maxMessages int) ([]*TaskM
 			local visibilityScore = currentTime + visibilityTimeout
 			redis.call('ZADD', KEYS[2], visibilityScore, messageId)
 			
-			-- Generate receipt handle
-			local receiptHandle = messageId .. ':' .. currentTime .. ':' .. math.random(10000, 99999)
+			-- Use secure random component from Go (crypto/rand)
+			local randomComponent = ARGV[3 + i]  -- Skip first 3 args
+			local receiptHandle = messageId .. ':' .. currentTime .. ':' .. randomComponent
 			
 			-- Store receipt handle
 			local messageKey = KEYS[3] .. ':' .. messageId
@@ -182,10 +189,13 @@ func (q *RedisTaskQueue) Dequeue(ctx context.Context, maxMessages int) ([]*TaskM
 		q.statsKey,                              // KEYS[4]: stats key
 	}
 
-	args := []interface{}{
-		maxMessages,
-		time.Now().Unix(),
-		int64(q.config.VisibilityTimeout.Seconds()),
+	// Prepare arguments: maxMessages, currentTime, visibilityTimeout, then random components
+	args := make([]interface{}, 3+len(randomComponents))
+	args[0] = maxMessages
+	args[1] = time.Now().Unix()
+	args[2] = int64(q.config.VisibilityTimeout.Seconds())
+	for i, component := range randomComponents {
+		args[3+i] = component
 	}
 
 	result, err := q.client.ExecuteLuaScript(ctx, script, keys, args...)

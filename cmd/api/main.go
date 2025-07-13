@@ -32,7 +32,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -50,6 +49,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
+	"github.com/voidrunnerhq/voidrunner/pkg/utils"
 )
 
 func main() {
@@ -164,7 +164,7 @@ func main() {
 		} else {
 			// Copy the profile to the configured location
 			if seccompProfilePath != cfg.Executor.SeccompProfilePath {
-				if err := copyFile(seccompProfilePath, cfg.Executor.SeccompProfilePath); err != nil {
+				if err := utils.CopyFile(seccompProfilePath, cfg.Executor.SeccompProfilePath); err != nil {
 					log.Warn("failed to copy seccomp profile to configured location", "error", err)
 				} else {
 					log.Info("seccomp profile created successfully", "path", cfg.Executor.SeccompProfilePath)
@@ -222,13 +222,13 @@ func main() {
 			WorkerIDPrefix:       cfg.Worker.WorkerIDPrefix,
 			HeartbeatInterval:    cfg.Worker.HeartbeatInterval,
 			TaskTimeout:          cfg.Worker.TaskTimeout,
-			HealthCheckInterval:  30 * time.Second, // Default value for health check interval
+			HealthCheckInterval:  config.DefaultHealthCheckInterval,
 			ShutdownTimeout:      cfg.Worker.ShutdownTimeout,
-			MaxRetryAttempts:     3,                // Default value for retry attempts
-			ProcessingSlotTTL:    30 * time.Minute, // Default value for slot TTL
+			MaxRetryAttempts:     config.DefaultMaxRetryAttempts,
+			ProcessingSlotTTL:    config.DefaultProcessingSlotTTL,
 			StaleTaskThreshold:   cfg.Worker.StaleTaskThreshold,
-			EnableAutoScaling:    true,             // Default enable auto-scaling
-			ScalingCheckInterval: 60 * time.Second, // Default scaling check interval
+			EnableAutoScaling:    true, // Default enable auto-scaling
+			ScalingCheckInterval: config.DefaultScalingCheckInterval,
 		}
 
 		workerManager = worker.NewWorkerManager(
@@ -252,7 +252,7 @@ func main() {
 		defer func() {
 			if workerManager != nil && workerCancel != nil {
 				log.Info("stopping embedded worker manager")
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.DefaultShutdownTimeout)
 				defer shutdownCancel()
 				defer workerCancel()
 
@@ -293,8 +293,8 @@ func main() {
 		Addr:              fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
 		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      30 * time.Second,
+		ReadTimeout:       config.DefaultServerReadTimeout,
+		WriteTimeout:      config.DefaultServerWriteTimeout,
 		IdleTimeout:       120 * time.Second,
 	}
 
@@ -317,7 +317,7 @@ func main() {
 
 	log.Info("shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), config.DefaultShutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
@@ -326,42 +326,4 @@ func main() {
 	}
 
 	log.Info("server exited")
-}
-
-// copyFile copies a file from src to dst with proper path validation
-func copyFile(src, dst string) error {
-	// Validate and clean paths to prevent directory traversal
-	cleanSrc := filepath.Clean(src)
-	cleanDst := filepath.Clean(dst)
-
-	// Additional security check: ensure paths don't contain ".." or other suspicious patterns
-	if !filepath.IsAbs(cleanSrc) || !filepath.IsAbs(cleanDst) {
-		return fmt.Errorf("paths must be absolute")
-	}
-	// #nosec G304 - Path traversal mitigation: paths are validated and cleaned above
-	sourceFile, err := os.Open(cleanSrc)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	// Ensure destination directory exists
-	if err := os.MkdirAll(filepath.Dir(cleanDst), 0750); err != nil {
-		return err
-	}
-
-	// #nosec G304 - Path traversal mitigation: paths are validated and cleaned above
-	destFile, err := os.Create(cleanDst)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, sourceFile)
-	if err != nil {
-		return err
-	}
-
-	// Set file permissions to 0600 for security
-	return os.Chmod(cleanDst, 0600)
 }

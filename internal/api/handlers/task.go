@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/voidrunnerhq/voidrunner/internal/api/middleware"
+	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
 )
@@ -90,8 +91,8 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		ScriptContent:  req.ScriptContent,
 		ScriptType:     req.ScriptType,
 		Status:         models.TaskStatusPending,
-		Priority:       5,   // Default priority
-		TimeoutSeconds: 300, // Default timeout
+		Priority:       5, // Default priority
+		TimeoutSeconds: config.DefaultTaskTimeout,
 		Metadata:       req.Metadata,
 	}
 

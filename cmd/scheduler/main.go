@@ -22,6 +22,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/queue"
 	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
+	"github.com/voidrunnerhq/voidrunner/pkg/utils"
 )
 
 func main() {
@@ -132,13 +133,13 @@ func main() {
 		WorkerIDPrefix:       cfg.Worker.WorkerIDPrefix,
 		HeartbeatInterval:    cfg.Worker.HeartbeatInterval,
 		TaskTimeout:          cfg.Worker.TaskTimeout,
-		HealthCheckInterval:  30 * time.Second, // Default value for health check interval
+		HealthCheckInterval:  config.DefaultHealthCheckInterval,
 		ShutdownTimeout:      cfg.Worker.ShutdownTimeout,
-		MaxRetryAttempts:     3,                // Default value for retry attempts
-		ProcessingSlotTTL:    30 * time.Minute, // Default value for slot TTL
+		MaxRetryAttempts:     config.DefaultMaxRetryAttempts,
+		ProcessingSlotTTL:    config.DefaultProcessingSlotTTL,
 		StaleTaskThreshold:   cfg.Worker.StaleTaskThreshold,
-		EnableAutoScaling:    true,             // Default enable auto-scaling
-		ScalingCheckInterval: 60 * time.Second, // Default scaling check interval
+		EnableAutoScaling:    true, // Default enable auto-scaling
+		ScalingCheckInterval: config.DefaultScalingCheckInterval,
 	}
 
 	workerManager := worker.NewWorkerManager(
@@ -159,7 +160,7 @@ func main() {
 	}
 	defer func() {
 		log.Info("stopping worker manager")
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.DefaultShutdownTimeout)
 		defer shutdownCancel()
 
 		if err := workerManager.Stop(shutdownCtx); err != nil {
@@ -188,7 +189,7 @@ func main() {
 	log.Info("shutdown signal received, initiating graceful shutdown")
 
 	// Create shutdown context with timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.DefaultShutdownTimeout)
 	defer shutdownCancel()
 
 	// Shutdown components in reverse order
@@ -222,7 +223,7 @@ func setupSeccompProfile(executorConfig *executor.Config, log *logger.Logger) er
 
 	// Copy the profile to the configured location if needed
 	if seccompProfilePath != executorConfig.Security.SeccompProfilePath {
-		if err := copyFile(seccompProfilePath, executorConfig.Security.SeccompProfilePath); err != nil {
+		if err := utils.CopyFile(seccompProfilePath, executorConfig.Security.SeccompProfilePath); err != nil {
 			return fmt.Errorf("failed to copy seccomp profile: %w", err)
 		}
 		// Clean up temporary profile
@@ -265,7 +266,7 @@ func initializeExecutor(executorConfig *executor.Config, log *logger.Logger) (ex
 
 // startHealthMonitoring starts the health monitoring routine
 func startHealthMonitoring(workerManager worker.WorkerManager, queueManager queue.QueueManager, log *logger.Logger) {
-	ticker := time.NewTicker(30 * time.Second) // Health check every 30 seconds
+	ticker := time.NewTicker(config.DefaultHealthCheckInterval2)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -329,7 +330,7 @@ func startMetricsCollection(workerManager worker.WorkerManager, queueManager que
 	// This is a placeholder for metrics collection
 	// In a production system, you would integrate with Prometheus, StatsD, or other metrics systems
 
-	ticker := time.NewTicker(1 * time.Minute) // Collect metrics every minute
+	ticker := time.NewTicker(config.DefaultMetricsInterval)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -379,43 +380,4 @@ func collectMetrics(workerManager worker.WorkerManager, queueManager queue.Queue
 		"dead_letter_messages", queueStats.DeadLetterQueue.ApproximateMessages,
 		"total_throughput", queueStats.TotalThroughput,
 	)
-}
-
-// copyFile copies a file from src to dst with proper validation
-func copyFile(src, dst string) error {
-	// Validate and clean paths to prevent directory traversal
-	cleanSrc := filepath.Clean(src)
-	cleanDst := filepath.Clean(dst)
-
-	// Additional security check: ensure paths don't contain ".." or other suspicious patterns
-	if !filepath.IsAbs(cleanSrc) || !filepath.IsAbs(cleanDst) {
-		return fmt.Errorf("paths must be absolute")
-	}
-
-	// #nosec G304 - Path traversal mitigation: paths are validated and cleaned above
-	sourceFile, err := os.Open(cleanSrc)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	// Ensure destination directory exists
-	if err := os.MkdirAll(filepath.Dir(cleanDst), 0750); err != nil {
-		return err
-	}
-
-	// #nosec G304 - Path traversal mitigation: paths are validated and cleaned above
-	destFile, err := os.Create(cleanDst)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	// Copy file contents
-	if _, err := sourceFile.WriteTo(destFile); err != nil {
-		return err
-	}
-
-	// Set file permissions to 0600 for security
-	return os.Chmod(cleanDst, 0600)
 }
