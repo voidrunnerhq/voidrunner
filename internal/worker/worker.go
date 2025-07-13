@@ -259,7 +259,11 @@ func (w *BaseWorker) processTask(message *queue.TaskMessage) error {
 		}
 		return NewWorkerError(w.id, "acquire_slot", err, true)
 	}
-	defer w.concurrency.ReleaseSlot(slot)
+	defer func() {
+		if err := w.concurrency.ReleaseSlot(slot); err != nil {
+			w.logger.Error("failed to release concurrency slot", "slot_id", slot.ID, "error", err)
+		}
+	}()
 
 	// Get task from database
 	task, err := w.repos.Tasks.GetByID(w.ctx, message.TaskID)

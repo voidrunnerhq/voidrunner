@@ -28,7 +28,10 @@ func GenerateReceiptHandle(messageID string) string {
 	// Combine message ID with timestamp and random component
 	timestamp := time.Now().Unix()
 	randomBytes := make([]byte, 8)
-	rand.Read(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// Fallback to timestamp-only if random generation fails
+		return fmt.Sprintf("%s:%d", messageID, timestamp)
+	}
 
 	return fmt.Sprintf("%s:%d:%s", messageID, timestamp, hex.EncodeToString(randomBytes))
 }
@@ -216,10 +219,6 @@ func timePtr(t time.Time) *time.Time {
 	return &t
 }
 
-// stringPtr returns a pointer to a string value
-func stringPtr(s string) *string {
-	return &s
-}
 
 // copyAttributes creates a copy of attributes map
 func copyAttributes(original map[string]string) map[string]string {
