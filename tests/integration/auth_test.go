@@ -3,12 +3,14 @@
 package integration_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -16,10 +18,50 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/queue"
 	"github.com/voidrunnerhq/voidrunner/internal/services"
+	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 	"github.com/voidrunnerhq/voidrunner/tests/testutil"
 )
+
+// Mock implementations for testing
+type mockQueueManager struct{}
+
+func (m *mockQueueManager) TaskQueue() queue.TaskQueue             { return nil }
+func (m *mockQueueManager) RetryQueue() queue.RetryQueue           { return nil }
+func (m *mockQueueManager) DeadLetterQueue() queue.DeadLetterQueue { return nil }
+func (m *mockQueueManager) Start(ctx context.Context) error        { return nil }
+func (m *mockQueueManager) Stop(ctx context.Context) error         { return nil }
+func (m *mockQueueManager) IsHealthy(ctx context.Context) error    { return nil }
+func (m *mockQueueManager) GetStats(ctx context.Context) (*queue.QueueManagerStats, error) {
+	return &queue.QueueManagerStats{}, nil
+}
+func (m *mockQueueManager) StartRetryProcessor(ctx context.Context) error { return nil }
+func (m *mockQueueManager) StopRetryProcessor() error                     { return nil }
+
+type mockWorkerManager struct{}
+
+func (m *mockWorkerManager) Start(ctx context.Context) error { return nil }
+func (m *mockWorkerManager) Stop(ctx context.Context) error  { return nil }
+func (m *mockWorkerManager) IsRunning() bool                 { return false }
+func (m *mockWorkerManager) GetWorkerPool() worker.WorkerPool { return nil }
+func (m *mockWorkerManager) GetStats() worker.WorkerManagerStats {
+	return worker.WorkerManagerStats{}
+}
+func (m *mockWorkerManager) IsHealthy() bool { return true }
+func (m *mockWorkerManager) HandleTaskExecution(ctx context.Context, message *queue.TaskMessage) error {
+	return nil
+}
+func (m *mockWorkerManager) HandleTaskCancellation(ctx context.Context, executionID uuid.UUID) error {
+	return nil
+}
+func (m *mockWorkerManager) GetConcurrencyLimits() worker.ConcurrencyLimits {
+	return worker.ConcurrencyLimits{}
+}
+func (m *mockWorkerManager) UpdateConcurrencyLimits(limits worker.ConcurrencyLimits) error {
+	return nil
+}
 
 // AuthIntegrationSuite provides comprehensive authentication integration testing with real JWT validation
 type AuthIntegrationSuite struct {
@@ -54,9 +96,11 @@ func (s *AuthIntegrationSuite) SetupSuite() {
 
 	// Setup router with full middleware stack
 	router := gin.New()
-	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, log.Logger)
+	queueManager := &mockQueueManager{}
+	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, queueManager, log.Logger)
 	var taskExecutorService *services.TaskExecutorService // nil is fine for auth tests
-	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService, taskExecutionService, taskExecutorService)
+	workerManager := &mockWorkerManager{}
+	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService, taskExecutionService, taskExecutorService, workerManager)
 
 	// Initialize helpers
 	s.HTTP = testutil.NewHTTPHelper(router, s.AuthService)

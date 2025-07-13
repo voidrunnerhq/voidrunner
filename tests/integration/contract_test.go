@@ -60,9 +60,11 @@ func (s *ContractTestSuite) SetupSuite() {
 
 	// Setup router
 	s.router = gin.New()
-	taskExecutionService := services.NewTaskExecutionService(s.db, log.Logger)
+	queueManager := &mockQueueManager{}
+	taskExecutionService := services.NewTaskExecutionService(s.db, queueManager, log.Logger)
 	var taskExecutorService *services.TaskExecutorService // nil is fine for contract tests
-	routes.Setup(s.router, cfg, log, s.db, s.repos, s.authService, taskExecutionService, taskExecutorService)
+	workerManager := &mockWorkerManager{}
+	routes.Setup(s.router, cfg, log, s.db, s.repos, s.authService, taskExecutionService, taskExecutorService, workerManager)
 
 	// Initialize OpenAPI validator
 	s.validator = testutil.NewOpenAPIValidator()

@@ -82,7 +82,8 @@ func (r *RedisClient) IsHealthy(ctx context.Context) error {
 	)
 
 	// Warn if pool is under stress
-	if stats.TotalConns >= uint32(r.config.PoolSize) {
+	// Use int64 comparison to avoid unsafe int to uint32 conversion
+	if r.config.PoolSize > 0 && int64(stats.TotalConns) >= int64(r.config.PoolSize) {
 		r.logger.Warn("Redis connection pool at capacity",
 			"total_conns", stats.TotalConns,
 			"pool_size", r.config.PoolSize,

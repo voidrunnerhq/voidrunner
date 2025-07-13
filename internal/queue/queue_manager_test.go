@@ -195,49 +195,49 @@ func TestNewRedisQueueManager(t *testing.T) {
 func TestRedisQueueManagerLifecycle(t *testing.T) {
 	// This test would require a running Redis instance
 	// We'll create a basic test structure that can be extended
-	
+
 	t.Run("start and stop lifecycle", func(t *testing.T) {
 		// Skip this test if Redis is not available
 		t.Skip("Redis integration test - requires running Redis instance")
-		
+
 		redisConfig := &config.RedisConfig{
 			Host:     "localhost",
 			Port:     "6379",
 			Database: 0,
 		}
-		
+
 		queueConfig := &config.QueueConfig{
 			TaskQueueName:       "test-tasks",
-			RetryQueueName:      "test-retry", 
+			RetryQueueName:      "test-retry",
 			DeadLetterQueueName: "test-dlq",
 			MaxRetries:          3,
 			RetryDelay:          time.Minute,
 		}
-		
+
 		manager, err := NewRedisQueueManager(redisConfig, queueConfig, slog.Default())
 		require.NoError(t, err)
 		require.NotNil(t, manager)
-		
+
 		ctx := context.Background()
-		
+
 		// Test Start
 		err = manager.Start(ctx)
 		assert.NoError(t, err)
-		
+
 		// Test that queues are accessible
 		assert.NotNil(t, manager.TaskQueue())
 		assert.NotNil(t, manager.RetryQueue())
 		assert.NotNil(t, manager.DeadLetterQueue())
-		
+
 		// Test health check
 		err = manager.IsHealthy(ctx)
 		assert.NoError(t, err)
-		
+
 		// Test stats
 		stats, err := manager.GetStats(ctx)
 		assert.NoError(t, err)
 		assert.NotNil(t, stats)
-		
+
 		// Test Stop
 		err = manager.Stop(ctx)
 		assert.NoError(t, err)
@@ -289,15 +289,15 @@ func TestQueueManagerStats(t *testing.T) {
 				assert.NotNil(t, stats.TaskQueue)
 				assert.Equal(t, "tasks", stats.TaskQueue.Name)
 				assert.Equal(t, int64(100), stats.TaskQueue.ApproximateMessages)
-				
+
 				assert.NotNil(t, stats.RetryQueue)
 				assert.Equal(t, "retry", stats.RetryQueue.Name)
 				assert.Equal(t, int64(8), stats.RetryQueue.PendingRetries)
-				
+
 				assert.NotNil(t, stats.DeadLetterQueue)
 				assert.Equal(t, "dlq", stats.DeadLetterQueue.Name)
 				assert.Equal(t, int64(25), stats.DeadLetterQueue.TotalFailedTasks)
-				
+
 				assert.True(t, stats.Uptime >= 0)
 				assert.False(t, stats.LastUpdated.IsZero())
 			},
@@ -314,7 +314,7 @@ func TestQueueManagerStats(t *testing.T) {
 				Uptime:          2 * time.Hour,
 				LastUpdated:     time.Now(),
 			}
-			
+
 			tt.expectedFunc(t, stats)
 		})
 	}
@@ -355,10 +355,10 @@ func TestQueueManagerErrorHandling(t *testing.T) {
 			mockTaskQueue := &MockTaskQueue{}
 			mockRetryQueue := &MockRetryQueue{}
 			mockDLQ := &MockDeadLetterQueue{}
-			
+
 			// Setup mock expectations
 			tt.setupMocks(mockTaskQueue, mockRetryQueue, mockDLQ)
-			
+
 			// Create a basic queue manager structure for testing
 			// Note: This is a simplified test that focuses on the interface behavior
 			qm := &testQueueManager{
@@ -366,16 +366,16 @@ func TestQueueManagerErrorHandling(t *testing.T) {
 				retryQueue:      mockRetryQueue,
 				deadLetterQueue: mockDLQ,
 			}
-			
+
 			// Execute operation
 			err := tt.operation(qm)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			// Verify mock expectations
 			mockTaskQueue.AssertExpectations(t)
 			mockRetryQueue.AssertExpectations(t)
@@ -392,8 +392,8 @@ type testQueueManager struct {
 	started         bool
 }
 
-func (tqm *testQueueManager) TaskQueue() TaskQueue           { return tqm.taskQueue }
-func (tqm *testQueueManager) RetryQueue() RetryQueue         { return tqm.retryQueue }
+func (tqm *testQueueManager) TaskQueue() TaskQueue             { return tqm.taskQueue }
+func (tqm *testQueueManager) RetryQueue() RetryQueue           { return tqm.retryQueue }
 func (tqm *testQueueManager) DeadLetterQueue() DeadLetterQueue { return tqm.deadLetterQueue }
 
 func (tqm *testQueueManager) IsHealthy(ctx context.Context) error {

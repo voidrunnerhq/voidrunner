@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	mathrand "math/rand"
 	"time"
 
 	"github.com/google/uuid"
@@ -143,8 +142,22 @@ func CalculateRetryDelay(attempt int, baseDelay time.Duration, backoffFactor flo
 	delay := float64(baseDelay) * math.Pow(backoffFactor, float64(attempt-1))
 
 	// Add some jitter to prevent thundering herd (±10%)
-	jitter := 0.9 + (0.2 * mathrand.Float64()) // Between 0.9 and 1.1
-	delay *= jitter
+	// Use crypto/rand for secure random number generation
+	jitterBytes := make([]byte, 8)
+	if _, err := rand.Read(jitterBytes); err != nil {
+		// Fallback to deterministic jitter if random generation fails
+		jitter := 1.0
+		delay *= jitter
+	} else {
+		// Convert random bytes to float64 in range [0.9, 1.1]
+		randomUint64 := uint64(jitterBytes[0])<<56 | uint64(jitterBytes[1])<<48 |
+			uint64(jitterBytes[2])<<40 | uint64(jitterBytes[3])<<32 |
+			uint64(jitterBytes[4])<<24 | uint64(jitterBytes[5])<<16 |
+			uint64(jitterBytes[6])<<8 | uint64(jitterBytes[7])
+		randomFloat := float64(randomUint64) / float64(^uint64(0)) // Normalize to [0,1]
+		jitter := 0.9 + (0.2 * randomFloat)                        // Scale to [0.9, 1.1]
+		delay *= jitter
+	}
 
 	// Ensure we don't exceed max delay
 	if time.Duration(delay) > maxDelay {
@@ -218,7 +231,6 @@ func FormatStatsKey(queueName string) string {
 func timePtr(t time.Time) *time.Time {
 	return &t
 }
-
 
 // copyAttributes creates a copy of attributes map
 func copyAttributes(original map[string]string) map[string]string {

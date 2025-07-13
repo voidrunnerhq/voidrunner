@@ -56,28 +56,36 @@ func NewRedisQueueManager(redisConfig *config.RedisConfig, queueConfig *config.Q
 	defer cancel()
 
 	if err := client.IsHealthy(ctx); err != nil {
-		client.Close()
+		if closeErr := client.Close(); closeErr != nil {
+			logger.Error("failed to close Redis client after health check failure", "error", closeErr)
+		}
 		return nil, fmt.Errorf("Redis health check failed: %w", err)
 	}
 
 	// Create task queue
 	taskQueue, err := NewRedisTaskQueue(client, queueConfig, logger)
 	if err != nil {
-		client.Close()
+		if closeErr := client.Close(); closeErr != nil {
+			logger.Error("failed to close Redis client after task queue creation failure", "error", closeErr)
+		}
 		return nil, fmt.Errorf("failed to create task queue: %w", err)
 	}
 
 	// Create retry queue
 	retryQueue, err := NewRedisRetryQueue(client, queueConfig, logger)
 	if err != nil {
-		client.Close()
+		if closeErr := client.Close(); closeErr != nil {
+			logger.Error("failed to close Redis client after retry queue creation failure", "error", closeErr)
+		}
 		return nil, fmt.Errorf("failed to create retry queue: %w", err)
 	}
 
 	// Create dead letter queue
 	deadLetterQueue, err := NewRedisDeadLetterQueue(client, queueConfig, logger)
 	if err != nil {
-		client.Close()
+		if closeErr := client.Close(); closeErr != nil {
+			logger.Error("failed to close Redis client after dead letter queue creation failure", "error", closeErr)
+		}
 		return nil, fmt.Errorf("failed to create dead letter queue: %w", err)
 	}
 

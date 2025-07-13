@@ -53,7 +53,8 @@ func (s *E2EIntegrationSuite) SetupSuite() {
 
 	// Setup router with full middleware stack
 	router := gin.New()
-	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, log.Logger)
+	queueManager := &mockQueueManager{}
+	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, queueManager, log.Logger)
 
 	// Create mock executor for e2e tests
 	executorConfig := executor.NewDefaultConfig()
@@ -66,7 +67,8 @@ func (s *E2EIntegrationSuite) SetupSuite() {
 		log.Logger,
 	)
 
-	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService, taskExecutionService, taskExecutorService)
+	workerManager := &mockWorkerManager{}
+	routes.Setup(router, s.Config, log, s.DB.DB, s.DB.Repositories, s.AuthService, taskExecutionService, taskExecutorService, workerManager)
 
 	// Initialize helpers
 	s.HTTP = testutil.NewHTTPHelper(router, s.AuthService)
