@@ -219,7 +219,7 @@ func ValidateTaskStatusTransition(currentStatus, newStatus TaskStatus) error {
 	if err := ValidateTaskStatus(currentStatus); err != nil {
 		return fmt.Errorf("invalid current status: %w", err)
 	}
-	
+
 	if err := ValidateTaskStatus(newStatus); err != nil {
 		return fmt.Errorf("invalid new status: %w", err)
 	}
@@ -317,7 +317,7 @@ func (t *Task) GetAllowedTransitions() []TaskStatus {
 	if !exists {
 		return []TaskStatus{}
 	}
-	
+
 	// Return a copy to prevent modification
 	result := make([]TaskStatus, len(allowedTransitions))
 	copy(result, allowedTransitions)
@@ -334,36 +334,36 @@ func (t *Task) TransitionTo(newStatus TaskStatus) error {
 	if err := ValidateTaskStatusTransition(t.Status, newStatus); err != nil {
 		return err
 	}
-	
+
 	oldStatus := t.Status
 	t.Status = newStatus
-	
+
 	// Log the transition for debugging
 	// Note: In a real system, you might want to inject a logger here
 	fmt.Printf("Task %s transitioned from %s to %s\n", t.ID, oldStatus, newStatus)
-	
+
 	return nil
 }
 
 // StatusTransitionInfo provides information about a status transition
 type StatusTransitionInfo struct {
-	FromStatus      TaskStatus `json:"from_status"`
-	ToStatus        TaskStatus `json:"to_status"`
-	IsValid         bool       `json:"is_valid"`
-	IsTerminal      bool       `json:"is_terminal"`
-	IsRetryable     bool       `json:"is_retryable"`
-	ErrorMessage    string     `json:"error_message,omitempty"`
+	FromStatus   TaskStatus `json:"from_status"`
+	ToStatus     TaskStatus `json:"to_status"`
+	IsValid      bool       `json:"is_valid"`
+	IsTerminal   bool       `json:"is_terminal"`
+	IsRetryable  bool       `json:"is_retryable"`
+	ErrorMessage string     `json:"error_message,omitempty"`
 }
 
 // GetStatusTransitionInfo returns detailed information about a potential status transition
 func GetStatusTransitionInfo(fromStatus, toStatus TaskStatus) *StatusTransitionInfo {
 	info := &StatusTransitionInfo{
-		FromStatus: fromStatus,
-		ToStatus:   toStatus,
-		IsTerminal: IsTaskStatusTerminal(toStatus),
+		FromStatus:  fromStatus,
+		ToStatus:    toStatus,
+		IsTerminal:  IsTaskStatusTerminal(toStatus),
 		IsRetryable: IsTaskStatusRetryable(fromStatus),
 	}
-	
+
 	err := ValidateTaskStatusTransition(fromStatus, toStatus)
 	if err != nil {
 		info.IsValid = false
@@ -371,7 +371,7 @@ func GetStatusTransitionInfo(fromStatus, toStatus TaskStatus) *StatusTransitionI
 	} else {
 		info.IsValid = true
 	}
-	
+
 	return info
 }
 

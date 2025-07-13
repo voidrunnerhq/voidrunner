@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/queue"
 )
 
 // ConnectionInterface defines what we need from a database connection for testing
@@ -545,7 +546,8 @@ func TestNewTaskExecutionService(t *testing.T) {
 
 	// This would normally be a real connection, but for now we'll just test the constructor
 	var conn *database.Connection
-	service := NewTaskExecutionService(conn, logger)
+	var queueManager queue.QueueManager
+	service := NewTaskExecutionService(conn, queueManager, logger)
 
 	assert.NotNil(t, service)
 	assert.Equal(t, conn, service.conn)

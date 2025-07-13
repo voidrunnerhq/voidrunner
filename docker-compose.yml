@@ -1,0 +1,84 @@
+# Default Docker Compose for VoidRunner
+# Simple setup for quick local development and testing
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: voidrunner
+      POSTGRES_USER: voidrunner
+      POSTGRES_PASSWORD: voidrunner_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voidrunner -d voidrunner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Queue Management  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # VoidRunner API with Embedded Workers (Default)
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Basic Configuration
+      SERVER_ENV: development
+      EMBEDDED_WORKERS: "true"
+      
+      # Database
+      DB_HOST: postgres
+      DB_USER: voidrunner
+      DB_PASSWORD: voidrunner_password
+      DB_NAME: voidrunner
+      DB_SSL_MODE: disable
+      
+      # Redis
+      REDIS_HOST: redis
+      
+      # Development Settings
+      LOG_LEVEL: debug
+      LOG_FORMAT: console
+      JWT_SECRET_KEY: "development-secret-key"
+      
+      # Worker Pool
+      WORKER_POOL_SIZE: "2"
+      EXECUTOR_DEFAULT_MEMORY_LIMIT_MB: "256"
+      EXECUTOR_ENABLE_SECCOMP: "false"
+    
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+  redis_data:

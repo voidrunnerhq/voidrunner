@@ -10,7 +10,9 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/executor"
+	"github.com/voidrunnerhq/voidrunner/internal/queue"
 	"github.com/voidrunnerhq/voidrunner/internal/services"
+	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
@@ -45,7 +47,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	// Setup router with full routes
 	router := gin.New()
-	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, log.Logger)
+
+	// For integration tests, we don't need actual queue functionality
+	// Pass nil queue manager - the task execution service will skip queue operations
+	var mockQueueManager queue.QueueManager = nil
+	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, mockQueueManager, log.Logger)
 
 	// Create mock executor for integration tests
 	executorConfig := executor.NewDefaultConfig()
@@ -58,7 +64,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		log.Logger,
 	)
 
-	routes.Setup(router, s.DB.Config, log, s.DB.DB, s.DB.Repositories, authService, taskExecutionService, taskExecutorService)
+	// Create mock worker manager for integration tests (nil since embedded workers disabled in tests)
+	var mockWorkerManager worker.WorkerManager = nil
+
+	routes.Setup(router, s.DB.Config, log, s.DB.DB, s.DB.Repositories, authService, taskExecutionService, taskExecutorService, mockWorkerManager)
 
 	// Initialize HTTP helper
 	s.HTTP = NewHTTPHelper(router, authService)

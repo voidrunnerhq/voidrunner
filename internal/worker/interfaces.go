@@ -145,55 +145,55 @@ type ConcurrencyManager interface {
 
 // ProcessingSlot represents an acquired processing slot
 type ProcessingSlot struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	TaskID      uuid.UUID `json:"task_id"`
-	WorkerID    string    `json:"worker_id"`
-	AcquiredAt  time.Time `json:"acquired_at"`
-	LastActive  time.Time `json:"last_active"`
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"user_id"`
+	TaskID     uuid.UUID `json:"task_id"`
+	WorkerID   string    `json:"worker_id"`
+	AcquiredAt time.Time `json:"acquired_at"`
+	LastActive time.Time `json:"last_active"`
 }
 
 // WorkerStats represents statistics for a single worker
 type WorkerStats struct {
-	WorkerID           string        `json:"worker_id"`
-	IsRunning          bool          `json:"is_running"`
-	IsHealthy          bool          `json:"is_healthy"`
-	TasksProcessed     int64         `json:"tasks_processed"`
-	TasksSuccessful    int64         `json:"tasks_successful"`
-	TasksFailed        int64         `json:"tasks_failed"`
-	CurrentTask        *uuid.UUID    `json:"current_task,omitempty"`
-	LastTaskStarted    *time.Time    `json:"last_task_started,omitempty"`
-	LastTaskCompleted  *time.Time    `json:"last_task_completed,omitempty"`
-	AverageTaskTime    time.Duration `json:"average_task_time"`
+	WorkerID            string        `json:"worker_id"`
+	IsRunning           bool          `json:"is_running"`
+	IsHealthy           bool          `json:"is_healthy"`
+	TasksProcessed      int64         `json:"tasks_processed"`
+	TasksSuccessful     int64         `json:"tasks_successful"`
+	TasksFailed         int64         `json:"tasks_failed"`
+	CurrentTask         *uuid.UUID    `json:"current_task,omitempty"`
+	LastTaskStarted     *time.Time    `json:"last_task_started,omitempty"`
+	LastTaskCompleted   *time.Time    `json:"last_task_completed,omitempty"`
+	AverageTaskTime     time.Duration `json:"average_task_time"`
 	TotalProcessingTime time.Duration `json:"total_processing_time"`
-	StartedAt          time.Time     `json:"started_at"`
-	LastHeartbeat      time.Time     `json:"last_heartbeat"`
+	StartedAt           time.Time     `json:"started_at"`
+	LastHeartbeat       time.Time     `json:"last_heartbeat"`
 }
 
 // WorkerPoolStats represents statistics for a worker pool
 type WorkerPoolStats struct {
-	PoolSize           int           `json:"pool_size"`
-	ActiveWorkers      int           `json:"active_workers"`
-	IdleWorkers        int           `json:"idle_workers"`
-	UnhealthyWorkers   int           `json:"unhealthy_workers"`
-	TotalTasksProcessed int64        `json:"total_tasks_processed"`
-	TotalTasksSuccessful int64       `json:"total_tasks_successful"`
-	TotalTasksFailed   int64         `json:"total_tasks_failed"`
-	AverageTaskTime    time.Duration `json:"average_task_time"`
-	TotalUptime        time.Duration `json:"total_uptime"`
-	StartedAt          time.Time     `json:"started_at"`
-	LastUpdated        time.Time     `json:"last_updated"`
+	PoolSize             int           `json:"pool_size"`
+	ActiveWorkers        int           `json:"active_workers"`
+	IdleWorkers          int           `json:"idle_workers"`
+	UnhealthyWorkers     int           `json:"unhealthy_workers"`
+	TotalTasksProcessed  int64         `json:"total_tasks_processed"`
+	TotalTasksSuccessful int64         `json:"total_tasks_successful"`
+	TotalTasksFailed     int64         `json:"total_tasks_failed"`
+	AverageTaskTime      time.Duration `json:"average_task_time"`
+	TotalUptime          time.Duration `json:"total_uptime"`
+	StartedAt            time.Time     `json:"started_at"`
+	LastUpdated          time.Time     `json:"last_updated"`
 }
 
 // WorkerManagerStats represents comprehensive worker manager statistics
 type WorkerManagerStats struct {
-	IsRunning          bool              `json:"is_running"`
-	IsHealthy          bool              `json:"is_healthy"`
-	WorkerPoolStats    WorkerPoolStats   `json:"worker_pool_stats"`
-	ConcurrencyStats   ConcurrencyStats  `json:"concurrency_stats"`
-	ProcessingSlots    []ProcessingSlot  `json:"processing_slots"`
-	StartedAt          time.Time         `json:"started_at"`
-	LastUpdated        time.Time         `json:"last_updated"`
+	IsRunning        bool             `json:"is_running"`
+	IsHealthy        bool             `json:"is_healthy"`
+	WorkerPoolStats  WorkerPoolStats  `json:"worker_pool_stats"`
+	ConcurrencyStats ConcurrencyStats `json:"concurrency_stats"`
+	ProcessingSlots  []ProcessingSlot `json:"processing_slots"`
+	StartedAt        time.Time        `json:"started_at"`
+	LastUpdated      time.Time        `json:"last_updated"`
 }
 
 // ConcurrencyLimits defines concurrency constraints
@@ -206,15 +206,15 @@ type ConcurrencyLimits struct {
 
 // ConcurrencyStats represents concurrency statistics
 type ConcurrencyStats struct {
-	TotalActiveSlots      int                    `json:"total_active_slots"`
-	UserConcurrency       map[string]int         `json:"user_concurrency"`
-	AvailableSlots        int                    `json:"available_slots"`
-	MaxConcurrentTasks    int                    `json:"max_concurrent_tasks"`
-	MaxUserConcurrentTasks int                   `json:"max_user_concurrent_tasks"`
-	SlotsAcquiredTotal    int64                  `json:"slots_acquired_total"`
-	SlotsReleasedTotal    int64                  `json:"slots_released_total"`
-	AverageSlotDuration   time.Duration          `json:"average_slot_duration"`
-	LastUpdated           time.Time              `json:"last_updated"`
+	TotalActiveSlots       int            `json:"total_active_slots"`
+	UserConcurrency        map[string]int `json:"user_concurrency"`
+	AvailableSlots         int            `json:"available_slots"`
+	MaxConcurrentTasks     int            `json:"max_concurrent_tasks"`
+	MaxUserConcurrentTasks int            `json:"max_user_concurrent_tasks"`
+	SlotsAcquiredTotal     int64          `json:"slots_acquired_total"`
+	SlotsReleasedTotal     int64          `json:"slots_released_total"`
+	AverageSlotDuration    time.Duration  `json:"average_slot_duration"`
+	LastUpdated            time.Time      `json:"last_updated"`
 }
 
 // ProcessorType defines different types of task processors
@@ -230,35 +230,35 @@ const (
 
 // TaskExecutionRequest represents a task execution request
 type TaskExecutionRequest struct {
-	Message           *queue.TaskMessage    `json:"message"`
-	ExecutionContext  *executor.ExecutionContext `json:"execution_context"`
-	ProcessingSlot    *ProcessingSlot       `json:"processing_slot"`
-	StartedAt         time.Time             `json:"started_at"`
-	Timeout           time.Duration         `json:"timeout"`
+	Message          *queue.TaskMessage         `json:"message"`
+	ExecutionContext *executor.ExecutionContext `json:"execution_context"`
+	ProcessingSlot   *ProcessingSlot            `json:"processing_slot"`
+	StartedAt        time.Time                  `json:"started_at"`
+	Timeout          time.Duration              `json:"timeout"`
 }
 
 // TaskExecutionResult represents the result of task execution
 type TaskExecutionResult struct {
-	Success           bool                     `json:"success"`
-	ExecutionResult   *executor.ExecutionResult `json:"execution_result,omitempty"`
-	Error             error                    `json:"error,omitempty"`
-	Duration          time.Duration            `json:"duration"`
-	ProcessedBy       string                   `json:"processed_by"`
-	CompletedAt       time.Time                `json:"completed_at"`
+	Success         bool                      `json:"success"`
+	ExecutionResult *executor.ExecutionResult `json:"execution_result,omitempty"`
+	Error           error                     `json:"error,omitempty"`
+	Duration        time.Duration             `json:"duration"`
+	ProcessedBy     string                    `json:"processed_by"`
+	CompletedAt     time.Time                 `json:"completed_at"`
 }
 
 // WorkerConfig represents configuration for workers
 type WorkerConfig struct {
-	WorkerIDPrefix         string        `json:"worker_id_prefix"`
-	HeartbeatInterval      time.Duration `json:"heartbeat_interval"`
-	TaskTimeout           time.Duration `json:"task_timeout"`
-	HealthCheckInterval   time.Duration `json:"health_check_interval"`
-	ShutdownTimeout       time.Duration `json:"shutdown_timeout"`
-	MaxRetryAttempts      int           `json:"max_retry_attempts"`
-	ProcessingSlotTTL     time.Duration `json:"processing_slot_ttl"`
-	StaleTaskThreshold    time.Duration `json:"stale_task_threshold"`
-	EnableAutoScaling     bool          `json:"enable_auto_scaling"`
-	ScalingCheckInterval  time.Duration `json:"scaling_check_interval"`
+	WorkerIDPrefix       string        `json:"worker_id_prefix"`
+	HeartbeatInterval    time.Duration `json:"heartbeat_interval"`
+	TaskTimeout          time.Duration `json:"task_timeout"`
+	HealthCheckInterval  time.Duration `json:"health_check_interval"`
+	ShutdownTimeout      time.Duration `json:"shutdown_timeout"`
+	MaxRetryAttempts     int           `json:"max_retry_attempts"`
+	ProcessingSlotTTL    time.Duration `json:"processing_slot_ttl"`
+	StaleTaskThreshold   time.Duration `json:"stale_task_threshold"`
+	EnableAutoScaling    bool          `json:"enable_auto_scaling"`
+	ScalingCheckInterval time.Duration `json:"scaling_check_interval"`
 }
 
 // WorkerError represents a worker-specific error
@@ -289,13 +289,13 @@ func NewWorkerError(workerID, operation string, err error, retryable bool) *Work
 
 // Common worker errors
 var (
-	ErrWorkerNotRunning      = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker not running"), Retryable: false}
-	ErrWorkerAlreadyRunning  = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker already running"), Retryable: false}
-	ErrWorkerPoolClosed      = &WorkerError{Operation: "pool_state", Err: fmt.Errorf("worker pool is closed"), Retryable: false}
+	ErrWorkerNotRunning        = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker not running"), Retryable: false}
+	ErrWorkerAlreadyRunning    = &WorkerError{Operation: "worker_state", Err: fmt.Errorf("worker already running"), Retryable: false}
+	ErrWorkerPoolClosed        = &WorkerError{Operation: "pool_state", Err: fmt.Errorf("worker pool is closed"), Retryable: false}
 	ErrConcurrencyLimitReached = &WorkerError{Operation: "concurrency", Err: fmt.Errorf("concurrency limit reached"), Retryable: true}
-	ErrInvalidTaskMessage    = &WorkerError{Operation: "task_validation", Err: fmt.Errorf("invalid task message"), Retryable: false}
-	ErrTaskProcessingTimeout = &WorkerError{Operation: "task_execution", Err: fmt.Errorf("task processing timeout"), Retryable: true}
-	ErrWorkerUnhealthy       = &WorkerError{Operation: "health_check", Err: fmt.Errorf("worker is unhealthy"), Retryable: true}
+	ErrInvalidTaskMessage      = &WorkerError{Operation: "task_validation", Err: fmt.Errorf("invalid task message"), Retryable: false}
+	ErrTaskProcessingTimeout   = &WorkerError{Operation: "task_execution", Err: fmt.Errorf("task processing timeout"), Retryable: true}
+	ErrWorkerUnhealthy         = &WorkerError{Operation: "health_check", Err: fmt.Errorf("worker is unhealthy"), Retryable: true}
 )
 
 // IsRetryableWorkerError checks if a worker error is retryable

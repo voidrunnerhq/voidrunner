@@ -1,0 +1,106 @@
+# VoidRunner Test Configuration
+# This configuration is optimized for testing environments
+
+# Server Configuration
+server:
+  host: "localhost"
+  port: "8080"
+  env: "test"
+
+# Database Configuration (Test database)
+database:
+  host: "${TEST_DB_HOST:-localhost}"
+  port: "${TEST_DB_PORT:-5432}"
+  user: "${TEST_DB_USER:-testuser}"
+  password: "${TEST_DB_PASSWORD:-testpassword}"
+  database: "${TEST_DB_NAME:-voidrunner_test}"
+  ssl_mode: "${TEST_DB_SSLMODE:-disable}"
+
+# Logging Configuration
+logger:
+  level: "debug"
+  format: "console"
+
+# CORS Configuration
+cors:
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-Request-ID"
+
+# JWT Configuration
+jwt:
+  secret_key: "${JWT_SECRET_KEY:-test-secret-key-for-integration}"
+  access_token_duration: "15m"
+  refresh_token_duration: "7d"
+  issuer: "voidrunner-test"
+  audience: "voidrunner-api-test"
+
+# Executor Configuration (Mock for testing)
+executor:
+  docker_endpoint: "unix:///var/run/docker.sock"
+  default_memory_limit_mb: 128
+  default_cpu_quota: 25000
+  default_pids_limit: 64
+  default_timeout_seconds: 60
+  python_image: "python:3.11-alpine"
+  bash_image: "alpine:latest"
+  javascript_image: "node:18-alpine"
+  go_image: "golang:1.21-alpine"
+  enable_seccomp: false  # Disabled for testing
+  seccomp_profile_path: "/opt/voidrunner/seccomp-profile.json"
+  enable_apparmor: false
+  apparmor_profile: "voidrunner-executor"
+  execution_user: "1000:1000"
+
+# Redis Configuration (Test instance)
+redis:
+  host: "${REDIS_HOST:-localhost}"
+  port: "${REDIS_PORT:-6379}"
+  password: ""
+  database: 1  # Different database for testing
+  pool_size: 5
+  min_idle_connections: 2
+  max_retries: 3
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+  idle_timeout: "5m"
+
+# Queue Configuration (Test queues)
+queue:
+  task_queue_name: "voidrunner:tasks:test"
+  dead_letter_queue_name: "voidrunner:tasks:dead:test"
+  retry_queue_name: "voidrunner:tasks:retry:test"
+  default_priority: 5
+  max_retries: 2  # Fewer retries for faster tests
+  retry_delay: "5s"  # Shorter delays for tests
+  retry_backoff_factor: 2.0
+  max_retry_delay: "30s"
+  visibility_timeout: "5m"
+  message_ttl: "1h"
+  batch_size: 5
+
+# Worker Configuration (Minimal for testing)
+worker:
+  pool_size: 1
+  max_concurrent_tasks: 5
+  max_user_concurrent_tasks: 2
+  task_timeout: "1m"
+  heartbeat_interval: "10s"
+  shutdown_timeout: "10s"
+  cleanup_interval: "1m"
+  stale_task_threshold: "5m"
+  worker_id_prefix: "voidrunner-worker-test"
+
+# Embedded Workers Configuration
+embedded_workers: true  # ENABLED for test simplicity

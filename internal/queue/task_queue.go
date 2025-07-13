@@ -13,14 +13,14 @@ import (
 
 // RedisTaskQueue implements the TaskQueue interface using Redis sorted sets
 type RedisTaskQueue struct {
-	client       *RedisClient
-	config       *config.QueueConfig
-	logger       *slog.Logger
-	queueName    string
-	messagesKey  string
-	inFlightKey  string
-	statsKey     string
-	closed       bool
+	client      *RedisClient
+	config      *config.QueueConfig
+	logger      *slog.Logger
+	queueName   string
+	messagesKey string
+	inFlightKey string
+	statsKey    string
+	closed      bool
 }
 
 // NewRedisTaskQueue creates a new Redis-based task queue
@@ -38,14 +38,14 @@ func NewRedisTaskQueue(client *RedisClient, cfg *config.QueueConfig, logger *slo
 	}
 
 	queue := &RedisTaskQueue{
-		client:       client,
-		config:       cfg,
-		logger:       logger,
-		queueName:    cfg.TaskQueueName,
-		messagesKey:  FormatQueueKey(cfg.TaskQueueName, "queue"),
-		inFlightKey:  FormatQueueKey(cfg.TaskQueueName, "inflight"),
-		statsKey:     FormatStatsKey(cfg.TaskQueueName),
-		closed:       false,
+		client:      client,
+		config:      cfg,
+		logger:      logger,
+		queueName:   cfg.TaskQueueName,
+		messagesKey: FormatQueueKey(cfg.TaskQueueName, "queue"),
+		inFlightKey: FormatQueueKey(cfg.TaskQueueName, "inflight"),
+		statsKey:    FormatStatsKey(cfg.TaskQueueName),
+		closed:      false,
 	}
 
 	return queue, nil
@@ -91,7 +91,7 @@ func (q *RedisTaskQueue) Enqueue(ctx context.Context, message *TaskMessage) erro
 
 	// Store message data in hash
 	messageKey := FormatMessageKey(q.queueName, message.MessageID)
-	pipe.HSet(ctx, messageKey, 
+	pipe.HSet(ctx, messageKey,
 		"data", messageData,
 		"priority", message.Priority,
 		"queued_at", message.QueuedAt.Unix(),
@@ -176,10 +176,10 @@ func (q *RedisTaskQueue) Dequeue(ctx context.Context, maxMessages int) ([]*TaskM
 	`
 
 	keys := []string{
-		q.messagesKey,                                    // KEYS[1]: main queue
-		q.inFlightKey,                                    // KEYS[2]: in-flight queue
-		FormatQueueKey(q.queueName, "messages"),          // KEYS[3]: message data prefix
-		q.statsKey,                                       // KEYS[4]: stats key
+		q.messagesKey,                           // KEYS[1]: main queue
+		q.inFlightKey,                           // KEYS[2]: in-flight queue
+		FormatQueueKey(q.queueName, "messages"), // KEYS[3]: message data prefix
+		q.statsKey,                              // KEYS[4]: stats key
 	}
 
 	args := []interface{}{
@@ -365,7 +365,7 @@ func (q *RedisTaskQueue) GetQueueStats(ctx context.Context) (*QueueStats, error)
 	pipe := q.client.Pipeline()
 	mainQueueCount := pipe.ZCard(ctx, q.messagesKey)
 	inFlightCount := pipe.ZCard(ctx, q.inFlightKey)
-	
+
 	// Execute pipeline
 	if err := q.client.ExecutePipeline(ctx, pipe); err != nil {
 		return nil, NewQueueOperationError("stats", q.queueName, "", err, true)
@@ -392,11 +392,11 @@ func (q *RedisTaskQueue) GetQueueStats(ctx context.Context) (*QueueStats, error)
 	}
 
 	stats := &QueueStats{
-		Name:              q.queueName,
+		Name:                q.queueName,
 		ApproximateMessages: mainCount,
-		MessagesInFlight:   flightCount,
-		MessagesDelayed:    0, // Redis doesn't have delayed messages in this implementation
-		OldestMessageAge:   oldestAge,
+		MessagesInFlight:    flightCount,
+		MessagesDelayed:     0, // Redis doesn't have delayed messages in this implementation
+		OldestMessageAge:    oldestAge,
 	}
 
 	return stats, nil

@@ -159,9 +159,9 @@ func (rq *RedisRetryQueue) DequeueReadyForRetry(ctx context.Context, maxMessages
 	`
 
 	keys := []string{
-		rq.retryKey,  // KEYS[1]: retry queue
+		rq.retryKey,    // KEYS[1]: retry queue
 		rq.messagesKey, // KEYS[2]: message data (not used in script but kept for consistency)
-		rq.statsKey,  // KEYS[3]: stats key
+		rq.statsKey,    // KEYS[3]: stats key
 	}
 
 	args := []interface{}{
@@ -277,11 +277,11 @@ func (rq *RedisRetryQueue) GetRetryStats(ctx context.Context) (*RetryStats, erro
 
 	stats := &RetryStats{
 		QueueStats: QueueStats{
-			Name:              rq.queueName,
+			Name:                rq.queueName,
 			ApproximateMessages: totalRetries,
-			MessagesInFlight:   0, // Retry queue doesn't have in-flight messages
-			MessagesDelayed:    pendingCount,
-			OldestMessageAge:   avgRetryAge,
+			MessagesInFlight:    0, // Retry queue doesn't have in-flight messages
+			MessagesDelayed:     pendingCount,
+			OldestMessageAge:    avgRetryAge,
 		},
 		PendingRetries:  pendingCount,
 		ReadyForRetry:   readyCount,

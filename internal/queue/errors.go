@@ -172,8 +172,8 @@ func IsConnectionError(err error) bool {
 	}
 
 	for _, connErr := range connectionErrors {
-		if fmt.Sprintf("%v", err) == connErr || 
-		   fmt.Sprintf("%v", errors.Unwrap(err)) == connErr {
+		if fmt.Sprintf("%v", err) == connErr ||
+			fmt.Sprintf("%v", errors.Unwrap(err)) == connErr {
 			return true
 		}
 	}
@@ -197,7 +197,7 @@ func IsTimeoutError(err error) bool {
 
 	for _, timeoutErr := range timeoutErrors {
 		if fmt.Sprintf("%v", err) == timeoutErr ||
-		   fmt.Sprintf("%v", errors.Unwrap(err)) == timeoutErr {
+			fmt.Sprintf("%v", errors.Unwrap(err)) == timeoutErr {
 			return true
 		}
 	}

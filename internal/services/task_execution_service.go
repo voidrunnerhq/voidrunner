@@ -4,35 +4,41 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/queue"
 )
 
 // TaskExecutionService handles business logic for task execution operations
 type TaskExecutionService struct {
-	conn   *database.Connection
-	logger *slog.Logger
+	conn         *database.Connection
+	queueManager queue.QueueManager
+	logger       *slog.Logger
 }
 
 // NewTaskExecutionService creates a new task execution service
-func NewTaskExecutionService(conn *database.Connection, logger *slog.Logger) *TaskExecutionService {
+func NewTaskExecutionService(conn *database.Connection, queueManager queue.QueueManager, logger *slog.Logger) *TaskExecutionService {
 	return &TaskExecutionService{
-		conn:   conn,
-		logger: logger,
+		conn:         conn,
+		queueManager: queueManager,
+		logger:       logger,
 	}
 }
 
-// CreateExecutionAndUpdateTaskStatus atomically creates a task execution and updates the task status
+// CreateExecutionAndUpdateTaskStatus atomically creates a task execution and enqueues it for processing
 func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Context, taskID uuid.UUID, userID uuid.UUID) (*models.TaskExecution, error) {
 	var execution *models.TaskExecution
+	var task *models.Task
 
 	err := s.conn.WithTransaction(ctx, func(tx database.Transaction) error {
 		repos := tx.Repositories()
 
 		// First, verify the task exists and belongs to the user
-		task, err := repos.Tasks.GetByID(ctx, taskID)
+		var err error
+		task, err = repos.Tasks.GetByID(ctx, taskID)
 		if err != nil {
 			if err == database.ErrTaskNotFound {
 				return fmt.Errorf("task not found")
@@ -68,8 +74,8 @@ func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Co
 			return fmt.Errorf("failed to create task execution: %w", err)
 		}
 
-		// Update task status to running
-		if err := repos.Tasks.UpdateStatus(ctx, taskID, models.TaskStatusRunning); err != nil {
+		// Update task status to pending (will be set to running by worker)
+		if err := repos.Tasks.UpdateStatus(ctx, taskID, models.TaskStatusPending); err != nil {
 			return fmt.Errorf("failed to update task status: %w", err)
 		}
 
@@ -91,7 +97,108 @@ func (s *TaskExecutionService) CreateExecutionAndUpdateTaskStatus(ctx context.Co
 		return nil, err
 	}
 
+	// After successful database transaction, enqueue the task for processing
+	if err := s.enqueueTask(ctx, task, execution); err != nil {
+		// If enqueue fails, we should rollback the task status or retry
+		s.logger.Error("failed to enqueue task after creating execution",
+			"error", err,
+			"task_id", taskID,
+			"execution_id", execution.ID,
+		)
+
+		// Attempt to rollback task status to previous state
+		if rollbackErr := s.rollbackTaskStatus(ctx, taskID); rollbackErr != nil {
+			s.logger.Error("failed to rollback task status after enqueue failure",
+				"rollback_error", rollbackErr,
+				"task_id", taskID,
+			)
+		}
+
+		return nil, fmt.Errorf("failed to enqueue task for execution: %w", err)
+	}
+
+	s.logger.Info("task successfully enqueued for execution",
+		"task_id", taskID,
+		"execution_id", execution.ID,
+		"user_id", userID,
+	)
+
 	return execution, nil
+}
+
+// enqueueTask enqueues a task for processing by workers
+func (s *TaskExecutionService) enqueueTask(ctx context.Context, task *models.Task, execution *models.TaskExecution) error {
+	// Check queue manager health before enqueuing
+	if err := s.queueManager.IsHealthy(ctx); err != nil {
+		return fmt.Errorf("queue manager is not healthy: %w", err)
+	}
+
+	// Create task message for queue
+	message := &queue.TaskMessage{
+		TaskID:    task.ID,
+		UserID:    task.UserID,
+		Priority:  determinePriority(task),
+		QueuedAt:  time.Now(),
+		Attempts:  0,
+		MessageID: fmt.Sprintf("task-%s-exec-%s", task.ID, execution.ID),
+		Attributes: map[string]string{
+			"execution_id": execution.ID.String(),
+			"script_type":  string(task.ScriptType),
+			"priority":     fmt.Sprintf("%d", task.Priority),
+		},
+	}
+
+	// Enqueue to task queue
+	if err := s.queueManager.TaskQueue().Enqueue(ctx, message); err != nil {
+		return fmt.Errorf("failed to enqueue task message: %w", err)
+	}
+
+	return nil
+}
+
+// determinePriority determines queue priority from task priority
+func determinePriority(task *models.Task) int {
+	// Map task priority (1-10) to queue priority constants
+	switch task.Priority {
+	case 1, 2:
+		return queue.PriorityLowest
+	case 3, 4:
+		return queue.PriorityLow
+	case 5, 6:
+		return queue.PriorityNormal
+	case 7, 8:
+		return queue.PriorityHigh
+	case 9, 10:
+		return queue.PriorityHighest
+	default:
+		return queue.PriorityNormal
+	}
+}
+
+// rollbackTaskStatus attempts to rollback task status after enqueue failure
+func (s *TaskExecutionService) rollbackTaskStatus(ctx context.Context, taskID uuid.UUID) error {
+	return s.conn.WithTransaction(ctx, func(tx database.Transaction) error {
+		repos := tx.Repositories()
+
+		// Get current task to determine previous status
+		task, err := repos.Tasks.GetByID(ctx, taskID)
+		if err != nil {
+			return fmt.Errorf("failed to get task for rollback: %w", err)
+		}
+
+		// Set back to a reasonable previous state
+		previousStatus := models.TaskStatusPending
+		if task.Status == models.TaskStatusPending {
+			// If it's already pending, we don't need to change it
+			return nil
+		}
+
+		if err := repos.Tasks.UpdateStatus(ctx, taskID, previousStatus); err != nil {
+			return fmt.Errorf("failed to rollback task status: %w", err)
+		}
+
+		return nil
+	})
 }
 
 // UpdateExecutionAndTaskStatus atomically updates both execution and task status
