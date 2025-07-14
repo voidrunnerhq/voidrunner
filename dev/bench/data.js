@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752487002322,
+  "lastUpdate": 1752506160033,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -1008,6 +1008,150 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2909083 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "starbops@hey.com",
+            "name": "Zespre Chang",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "2cad839af8bb62a2e8c92a4173f79a133b691ebd",
+          "message": "docker(deps): Bump alpine from 3.19 to 3.22\n\nBumps alpine from 3.19 to 3.22.\n\n---\nupdated-dependencies:\n- dependency-name: alpine\n  dependency-version: '3.22'\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2025-07-14T23:15:08+08:00",
+          "tree_id": "383f0d43e503dce726167279d2fda4283df51516",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/2cad839af8bb62a2e8c92a4173f79a133b691ebd"
+        },
+        "date": 1752506159380,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3347,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "354315 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3347,
+            "unit": "ns/op",
+            "extra": "354315 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "354315 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "354315 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 2990,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "360127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 2990,
+            "unit": "ns/op",
+            "extra": "360127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "360127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "360127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 182044,
+            "unit": "ns/op\t  106209 B/op\t    1458 allocs/op",
+            "extra": "6529 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 182044,
+            "unit": "ns/op",
+            "extra": "6529 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106209,
+            "unit": "B/op",
+            "extra": "6529 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1458,
+            "unit": "allocs/op",
+            "extra": "6529 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 136.1,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "8755515 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 136.1,
+            "unit": "ns/op",
+            "extra": "8755515 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "8755515 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "8755515 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 402.8,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "3003411 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 402.8,
+            "unit": "ns/op",
+            "extra": "3003411 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "3003411 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "3003411 times\n4 procs"
           }
         ]
       }
