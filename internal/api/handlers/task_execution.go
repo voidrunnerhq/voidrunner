@@ -111,6 +111,15 @@ func (h *TaskExecutionHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Defensive nil check to prevent panic
+	if execution == nil {
+		h.logger.Error("execution service returned nil execution despite success", "task_id", taskID, "user_id", user.ID)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create task execution",
+		})
+		return
+	}
+
 	h.logger.Info("task execution created successfully", "execution_id", execution.ID, "task_id", taskID, "user_id", user.ID)
 	c.JSON(http.StatusCreated, execution.ToResponse())
 }
