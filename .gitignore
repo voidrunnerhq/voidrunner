@@ -30,6 +30,7 @@ go.work.sum
 
 # env file
 .env
+.env.dev
 
 # Security scan reports
 *.sarif
@@ -43,3 +44,6 @@ benchmark.txt
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Development tools
+.air.toml
