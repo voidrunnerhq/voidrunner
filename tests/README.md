@@ -362,7 +362,7 @@ The test infrastructure adapts to CI environments:
    - Start database: `make db-start`
    - Restart database: `make db-reset`
    - Verify Docker is running: `docker info`
-   - Check database status: `docker-compose -f docker-compose.test.yml ps`
+   - Check database status: `make db-status` or `docker-compose -f docker-compose.test.yml ps`
 
 2. **Test timeouts**
    - Increase timeout values
@@ -376,7 +376,7 @@ The test infrastructure adapts to CI environments:
 
 4. **Database setup issues**
    - Clean and restart: `make db-reset`
-   - Check Docker Compose: `docker-compose -f docker-compose.test.yml ps`
+   - Check Docker Compose: `make db-status` or `docker-compose -f docker-compose.test.yml ps`
    - Verify migrations: `make migrate-up`
 
 5. **Integration test failures**

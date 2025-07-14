@@ -1,7 +1,7 @@
 # VoidRunner Makefile
 # Provides standardized commands for building, testing, and running the application
 
-.PHONY: help test test-fast test-integration test-all build run dev clean coverage coverage-check docs docs-serve lint fmt vet security deps deps-update migrate-up migrate-down migrate-reset migration docker-build docker-run clean-docs install-tools setup all pre-commit bench db-start db-stop db-reset
+.PHONY: help test test-fast test-integration test-all build run dev clean coverage coverage-check docs docs-serve lint fmt vet security deps deps-update migrate-up migrate-down migrate-reset migration docker-build docker-run clean-docs install-tools setup all pre-commit bench db-start db-stop db-reset db-status dev-up dev-down dev-logs dev-restart dev-status prod-up prod-down prod-logs prod-restart prod-status docker-clean env-status
 
 # Default target
 help: ## Show this help message
@@ -139,6 +139,87 @@ db-stop: ## Stop test database (Docker)
 db-reset: ## Reset test database (clean slate)
 	@echo "Resetting test database..."
 	@./scripts/reset-test-db.sh
+
+db-status: ## Show test database status
+	@echo "Test database status:"
+	@if command -v docker-compose &> /dev/null; then \
+		docker-compose -f docker-compose.test.yml ps; \
+	else \
+		echo "docker-compose not found"; \
+	fi
+
+# Environment Management
+dev-up: ## Start development environment (DB + Redis + API with embedded workers)
+	@echo "Starting development environment..."
+	@./scripts/dev-env.sh up
+
+dev-down: ## Stop development environment
+	@echo "Stopping development environment..."
+	@./scripts/dev-env.sh down
+
+dev-logs: ## Show development environment logs
+	@echo "Showing development logs..."
+	@./scripts/dev-env.sh logs
+
+dev-restart: ## Restart development environment
+	@echo "Restarting development environment..."
+	@./scripts/dev-env.sh restart
+
+dev-status: ## Show development environment status
+	@echo "Development environment status:"
+	@./scripts/dev-env.sh status
+
+prod-up: ## Start production environment
+	@echo "Starting production environment..."
+	@./scripts/prod-env.sh up
+
+prod-down: ## Stop production environment
+	@echo "Stopping production environment..."
+	@./scripts/prod-env.sh down
+
+prod-logs: ## Show production environment logs
+	@echo "Showing production logs..."
+	@./scripts/prod-env.sh logs
+
+prod-restart: ## Restart production environment
+	@echo "Restarting production environment..."
+	@./scripts/prod-env.sh restart
+
+prod-status: ## Show production environment status
+	@echo "Production environment status:"
+	@./scripts/prod-env.sh status
+
+env-status: ## Show all environment status
+	@echo "=== Development Environment ==="
+	@./scripts/dev-env.sh status || echo "Development environment not running"
+	@echo ""
+	@echo "=== Production Environment ==="
+	@./scripts/prod-env.sh status || echo "Production environment not running"
+	@echo ""
+	@echo "=== Test Database ==="
+	@if command -v docker-compose &> /dev/null; then \
+		if docker-compose -f docker-compose.test.yml ps | grep -q "Up"; then \
+			echo "Test database: Running"; \
+		else \
+			echo "Test database: Stopped"; \
+		fi; \
+	else \
+		echo "docker-compose not found"; \
+	fi
+
+docker-clean: ## Clean Docker resources (containers, images, volumes)
+	@echo "Cleaning Docker resources..."
+	@echo "WARNING: This will remove all VoidRunner containers, images, and volumes"
+	@read -p "Are you sure? [y/N] " -n 1 -r && echo && \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		docker-compose -f docker-compose.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker-compose -f docker-compose.dev.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker-compose -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true; \
+		docker system prune -f --volumes; \
+		echo "Docker cleanup complete"; \
+	else \
+		echo "Docker cleanup cancelled"; \
+	fi
 
 
 # Dependency management
