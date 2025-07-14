@@ -1,5 +1,16 @@
 basePath: /api/v1
 definitions:
+  handlers.ConcurrencyStatus:
+    properties:
+      available_slots:
+        type: integer
+      slots_acquired_total:
+        type: integer
+      slots_released_total:
+        type: integer
+      total_active_slots:
+        type: integer
+    type: object
   handlers.HealthResponse:
     properties:
       service:
@@ -23,6 +34,46 @@ definitions:
         type: string
       timestamp:
         type: string
+    type: object
+  handlers.WorkerManagerStatus:
+    properties:
+      is_healthy:
+        type: boolean
+      is_running:
+        type: boolean
+    type: object
+  handlers.WorkerPoolStatus:
+    properties:
+      active_workers:
+        type: integer
+      average_task_time:
+        example: 1m30s
+        type: string
+      idle_workers:
+        type: integer
+      pool_size:
+        type: integer
+      total_tasks_failed:
+        type: integer
+      total_tasks_processed:
+        type: integer
+      total_tasks_successful:
+        type: integer
+      unhealthy_workers:
+        type: integer
+    type: object
+  handlers.WorkerStatusResponse:
+    properties:
+      concurrency:
+        $ref: '#/definitions/handlers.ConcurrencyStatus'
+      status:
+        type: string
+      timestamp:
+        type: string
+      worker_manager:
+        $ref: '#/definitions/handlers.WorkerManagerStatus'
+      worker_pool:
+        $ref: '#/definitions/handlers.WorkerPoolStatus'
     type: object
   models.AuthResponse:
     properties:
@@ -469,6 +520,25 @@ paths:
           schema:
             $ref: '#/definitions/handlers.HealthResponse'
       summary: Health check
+      tags:
+      - Health
+  /health/workers:
+    get:
+      description: Returns detailed status information about the embedded worker system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WorkerStatusResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Worker status
       tags:
       - Health
   /ready:
