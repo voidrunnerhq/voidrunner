@@ -98,8 +98,12 @@ voidrunner/
 ### Epic 2: Container Execution Engine ✅ **Complete**
 - **Issue #9**: Docker Client Integration and Security Configuration ✅ **Closed**
 - **Issue #10**: Task Execution Workflow and State Management ✅ **Closed**
-- **Issue #11**: Log Collection and Real-time Streaming 📋 **Open** (Priority 1)
+
+**Epic 2 Enhancements** (Non-blocking improvements)
+- **Issue #11**: Log Collection and Real-time Streaming 📋 **Open** (Priority 1) 
 - **Issue #12**: Error Handling and Cleanup Mechanisms 📋 **Open** (Priority 2)
+
+> **Note**: Issues #11-12 are enhancements to the completed Epic 2 functionality, not blockers. The core container execution engine with embedded workers is fully operational.
 
 ### Epic 3: Frontend Interface 📋 **Ready to Start**
 - **Issue #22**: Frontend Interface 📋 **Open**

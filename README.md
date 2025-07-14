@@ -24,6 +24,8 @@ VoidRunner is designed to safely execute user-submitted code in isolated contain
 ## System Architecture
 
 ### Current Implementation (Embedded Workers)
+Single-process architecture with embedded worker pool for development and production
+
 ```
 ┌─────────────────┐    ┌─────────────────────────────────┐    ┌─────────────────┐
 │   Web Clients   │    │        API Server               │    │   PostgreSQL    │
@@ -37,11 +39,12 @@ VoidRunner is designed to safely execute user-submitted code in isolated contain
                        │  │   - Task Processing     │    │    │                 │
                        │  │   - Docker Execution    │    │    └─────────────────┘
                        │  │   - Health Monitoring   │    │
-                       │  │   - Concurrency Control │    │    ┌─────────────────┐
-                       │  └─────────────────────────┘    │◄──►│     Docker      │
-                       └─────────────────────────────────┘    │   (Containers)  │
-                                                               │                 │
-                                                               └─────────────────┘
+                       │  │   - Concurrency Control │    │
+                       │  └─────────────────────────┘    │    ┌─────────────────┐
+                       └─────────────────────────────────┘◄──►│     Docker      │
+                                                              │   (Containers)  │
+                                                              │                 │
+                                                              └─────────────────┘
 ```
 
 ### Future Roadmap
@@ -89,6 +92,8 @@ SERVER_ENV=production ./bin/api
 ### Configuration Modes
 
 VoidRunner currently supports embedded worker architecture:
+
+> **Note**: Distributed services (Issue #46) planned for future horizontal scaling needs
 
 | Mode | Use Case | Workers | Configuration |
 |------|----------|---------|---------------|
