@@ -47,8 +47,11 @@ WORKDIR /app
 # Copy source code for development
 COPY --chown=voidrunner:voidrunner . .
 
-# Create logs directory
-RUN mkdir -p logs && chown voidrunner:voidrunner logs
+# Create logs and tmp directories, and set up Go module cache permissions
+RUN mkdir -p logs tmp && \
+    chown voidrunner:voidrunner logs tmp && \
+    mkdir -p /go/pkg/mod/cache && \
+    chown -R voidrunner:voidrunner /go/pkg/mod
 
 # Switch to non-root user
 USER voidrunner
@@ -60,8 +63,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Development entry point (supports air for live reload)
-CMD ["sh", "-c", "if command -v air >/dev/null 2>&1; then air; else go run cmd/api/main.go; fi"]
+# Development entry point (use Go directly for now)
+CMD ["go", "run", "cmd/api/main.go"]
 
 # =============================================================================
 # Production base stage

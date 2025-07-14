@@ -42,7 +42,7 @@ type WorkerPoolStatus struct {
 	TotalTasksProcessed  int64         `json:"total_tasks_processed"`
 	TotalTasksSuccessful int64         `json:"total_tasks_successful"`
 	TotalTasksFailed     int64         `json:"total_tasks_failed"`
-	AverageTaskTime      time.Duration `json:"average_task_time"`
+	AverageTaskTime      time.Duration `json:"average_task_time" swaggertype:"string" example:"1m30s"`
 }
 
 type ConcurrencyStatus struct {
@@ -59,7 +59,7 @@ type ConcurrencyStatus struct {
 //	@Tags			Health
 //	@Produce		json
 //	@Success		200	{object}	WorkerStatusResponse
-//	@Failure		503	{object}	gin.H
+//	@Failure		503	{object}	map[string]string
 //	@Router			/health/workers [get]
 func (w *WorkerHandler) GetWorkerStatus(c *gin.Context) {
 	if w.manager == nil {

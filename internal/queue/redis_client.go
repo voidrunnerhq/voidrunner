@@ -30,7 +30,6 @@ func NewRedisClient(cfg *config.RedisConfig, logger *slog.Logger) (*RedisClient,
 	// Create Redis client options
 	options := &redis.Options{
 		Addr:         fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		Password:     cfg.Password,
 		DB:           cfg.Database,
 		PoolSize:     cfg.PoolSize,
 		MinIdleConns: cfg.MinIdleConnections,
@@ -39,6 +38,11 @@ func NewRedisClient(cfg *config.RedisConfig, logger *slog.Logger) (*RedisClient,
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 		IdleTimeout:  cfg.IdleTimeout,
+	}
+
+	// Only set password if it's not empty
+	if cfg.Password != "" {
+		options.Password = cfg.Password
 	}
 
 	client := redis.NewClient(options)

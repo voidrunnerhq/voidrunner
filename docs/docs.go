@@ -344,6 +344,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/health/workers": {
+            "get": {
+                "description": "Returns detailed status information about the embedded worker system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Worker status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WorkerStatusResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/ready": {
             "get": {
                 "description": "Returns the readiness status of the API service and its dependencies",
@@ -632,6 +661,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.ConcurrencyStatus": {
+            "type": "object",
+            "properties": {
+                "available_slots": {
+                    "type": "integer"
+                },
+                "slots_acquired_total": {
+                    "type": "integer"
+                },
+                "slots_released_total": {
+                    "type": "integer"
+                },
+                "total_active_slots": {
+                    "type": "integer"
+                }
+            }
+        },
         "handlers.HealthResponse": {
             "type": "object",
             "properties": {
@@ -666,6 +712,67 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.WorkerManagerStatus": {
+            "type": "object",
+            "properties": {
+                "is_healthy": {
+                    "type": "boolean"
+                },
+                "is_running": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WorkerPoolStatus": {
+            "type": "object",
+            "properties": {
+                "active_workers": {
+                    "type": "integer"
+                },
+                "average_task_time": {
+                    "type": "string",
+                    "example": "1m30s"
+                },
+                "idle_workers": {
+                    "type": "integer"
+                },
+                "pool_size": {
+                    "type": "integer"
+                },
+                "total_tasks_failed": {
+                    "type": "integer"
+                },
+                "total_tasks_processed": {
+                    "type": "integer"
+                },
+                "total_tasks_successful": {
+                    "type": "integer"
+                },
+                "unhealthy_workers": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.WorkerStatusResponse": {
+            "type": "object",
+            "properties": {
+                "concurrency": {
+                    "$ref": "#/definitions/handlers.ConcurrencyStatus"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "worker_manager": {
+                    "$ref": "#/definitions/handlers.WorkerManagerStatus"
+                },
+                "worker_pool": {
+                    "$ref": "#/definitions/handlers.WorkerPoolStatus"
                 }
             }
         },
