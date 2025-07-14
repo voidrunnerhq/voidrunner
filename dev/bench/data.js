@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752506215959,
+  "lastUpdate": 1752508376912,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -1296,6 +1296,150 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2948431 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "starbops@zespre.com",
+            "name": "Zespre Schmidt",
+            "username": "starbops"
+          },
+          "committer": {
+            "email": "starbops@hey.com",
+            "name": "Zespre Chang",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "1f0d035ab4d16e4fddb5d50a8dca1266ffe7edad",
+          "message": "fix(dev): resolve Redis connection issue in development environment\n\n- Add missing REDIS_HOST environment variable to API container\n- Fix network configuration mismatch between compose files\n- Ensure consistent use of voidrunner-backend network\n- API now successfully connects to Redis service\n\nThe issue was caused by the API container trying to connect to Redis\nat localhost instead of the Docker service name 'redis'. This fix\nensures proper service discovery within the Docker network.\n\nFixes Redis connection errors in 'make dev-up' command.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+          "timestamp": "2025-07-14T23:51:45+08:00",
+          "tree_id": "795f79e492e5ffac101cf773b1ff7002aafdf26a",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/1f0d035ab4d16e4fddb5d50a8dca1266ffe7edad"
+        },
+        "date": 1752508376443,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3392,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "331400 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3392,
+            "unit": "ns/op",
+            "extra": "331400 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "331400 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "331400 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 2995,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "376120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 2995,
+            "unit": "ns/op",
+            "extra": "376120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "376120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "376120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 187216,
+            "unit": "ns/op\t  106256 B/op\t    1458 allocs/op",
+            "extra": "6367 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 187216,
+            "unit": "ns/op",
+            "extra": "6367 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106256,
+            "unit": "B/op",
+            "extra": "6367 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1458,
+            "unit": "allocs/op",
+            "extra": "6367 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 135.5,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "8741970 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 135.5,
+            "unit": "ns/op",
+            "extra": "8741970 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "8741970 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "8741970 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 403.9,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "2964346 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 403.9,
+            "unit": "ns/op",
+            "extra": "2964346 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "2964346 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2964346 times\n4 procs"
           }
         ]
       }
