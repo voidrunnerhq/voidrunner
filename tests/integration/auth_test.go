@@ -28,9 +28,9 @@ import (
 // Mock implementations for testing
 type mockQueueManager struct{}
 
-func (m *mockQueueManager) TaskQueue() queue.TaskQueue             { return nil }
-func (m *mockQueueManager) RetryQueue() queue.RetryQueue           { return nil }
-func (m *mockQueueManager) DeadLetterQueue() queue.DeadLetterQueue { return nil }
+func (m *mockQueueManager) TaskQueue() queue.TaskQueue             { return &mockTaskQueue{} }
+func (m *mockQueueManager) RetryQueue() queue.RetryQueue           { return &mockRetryQueue{} }
+func (m *mockQueueManager) DeadLetterQueue() queue.DeadLetterQueue { return &mockDeadLetterQueue{} }
 func (m *mockQueueManager) Start(ctx context.Context) error        { return nil }
 func (m *mockQueueManager) Stop(ctx context.Context) error         { return nil }
 func (m *mockQueueManager) IsHealthy(ctx context.Context) error    { return nil }
@@ -61,6 +61,58 @@ func (m *mockWorkerManager) GetConcurrencyLimits() worker.ConcurrencyLimits {
 }
 func (m *mockWorkerManager) UpdateConcurrencyLimits(limits worker.ConcurrencyLimits) error {
 	return nil
+}
+
+// Mock queue implementations
+type mockTaskQueue struct{}
+
+func (m *mockTaskQueue) Enqueue(ctx context.Context, message *queue.TaskMessage) error {
+	return nil
+}
+func (m *mockTaskQueue) Dequeue(ctx context.Context, maxMessages int) ([]*queue.TaskMessage, error) {
+	return []*queue.TaskMessage{}, nil
+}
+func (m *mockTaskQueue) DeleteMessage(ctx context.Context, receiptHandle string) error {
+	return nil
+}
+func (m *mockTaskQueue) ExtendVisibility(ctx context.Context, receiptHandle string, timeout time.Duration) error {
+	return nil
+}
+func (m *mockTaskQueue) GetQueueStats(ctx context.Context) (*queue.QueueStats, error) {
+	return &queue.QueueStats{}, nil
+}
+func (m *mockTaskQueue) IsHealthy(ctx context.Context) error {
+	return nil
+}
+func (m *mockTaskQueue) Close() error {
+	return nil
+}
+
+type mockRetryQueue struct{}
+
+func (m *mockRetryQueue) EnqueueForRetry(ctx context.Context, message *queue.TaskMessage, retryAt time.Time) error {
+	return nil
+}
+func (m *mockRetryQueue) DequeueReadyForRetry(ctx context.Context, maxMessages int) ([]*queue.TaskMessage, error) {
+	return []*queue.TaskMessage{}, nil
+}
+func (m *mockRetryQueue) GetRetryStats(ctx context.Context) (*queue.RetryStats, error) {
+	return &queue.RetryStats{}, nil
+}
+
+type mockDeadLetterQueue struct{}
+
+func (m *mockDeadLetterQueue) EnqueueFailedTask(ctx context.Context, message *queue.TaskMessage) error {
+	return nil
+}
+func (m *mockDeadLetterQueue) GetFailedTasks(ctx context.Context, limit int, offset int) ([]*queue.TaskMessage, error) {
+	return []*queue.TaskMessage{}, nil
+}
+func (m *mockDeadLetterQueue) RequeueTask(ctx context.Context, messageID string) error {
+	return nil
+}
+func (m *mockDeadLetterQueue) GetDeadLetterStats(ctx context.Context) (*queue.DeadLetterStats, error) {
+	return &queue.DeadLetterStats{}, nil
 }
 
 // AuthIntegrationSuite provides comprehensive authentication integration testing with real JWT validation

@@ -49,8 +49,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	router := gin.New()
 
 	// For integration tests, we don't need actual queue functionality
-	// Pass nil queue manager - the task execution service will skip queue operations
-	var mockQueueManager queue.QueueManager = nil
+	// Use mock queue manager for testing
+	mockQueueManager := &MockQueueManager{}
 	taskExecutionService := services.NewTaskExecutionService(s.DB.DB, mockQueueManager, log.Logger)
 
 	// Create mock executor for integration tests
@@ -157,6 +157,21 @@ func NewUnitTestHelper() *UnitTestHelper {
 		Fixtures: NewAllFixtures(),
 	}
 }
+
+// MockQueueManager provides a mock implementation of queue.QueueManager for testing
+type MockQueueManager struct{}
+
+func (m *MockQueueManager) TaskQueue() queue.TaskQueue             { return nil }
+func (m *MockQueueManager) RetryQueue() queue.RetryQueue           { return nil }
+func (m *MockQueueManager) DeadLetterQueue() queue.DeadLetterQueue { return nil }
+func (m *MockQueueManager) Start(ctx context.Context) error        { return nil }
+func (m *MockQueueManager) Stop(ctx context.Context) error         { return nil }
+func (m *MockQueueManager) IsHealthy(ctx context.Context) error    { return nil }
+func (m *MockQueueManager) GetStats(ctx context.Context) (*queue.QueueManagerStats, error) {
+	return &queue.QueueManagerStats{}, nil
+}
+func (m *MockQueueManager) StartRetryProcessor(ctx context.Context) error { return nil }
+func (m *MockQueueManager) StopRetryProcessor() error                     { return nil }
 
 // RunIntegrationTests runs integration tests with proper setup
 func RunIntegrationTests(t *testing.T, suiteFn func(*IntegrationTestSuite)) {
