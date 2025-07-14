@@ -6,9 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-
 	// Import docs to register swagger
-	_ "github.com/voidrunnerhq/voidrunner/docs"
+	// TODO: Fix docs import - temporarily commented out
+	// _ "github.com/voidrunnerhq/voidrunner/docs"
 )
 
 // DocsHandler handles API documentation endpoints

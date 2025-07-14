@@ -1,6 +1,5 @@
 # VoidRunner Development Overrides
 # Extends base docker-compose.yml with development-specific settings
-version: '3.8'
 
 services:
   postgres:

@@ -1,11 +1,10 @@
 # VoidRunner Base Docker Compose Configuration
 # Production-ready setup with embedded workers
-version: '3.8'
 
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-voidrunner}
       POSTGRES_USER: ${POSTGRES_USER:-voidrunner}
@@ -15,7 +14,6 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-voidrunner} -d ${POSTGRES_DB:-voidrunner}"]
       interval: 10s
