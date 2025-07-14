@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: voidrunner
       POSTGRES_PASSWORD: voidrunner_dev_password
     networks:
-      - voidrunner-dev
+      - voidrunner-backend
     deploy:
       resources:
         limits:
@@ -23,7 +23,7 @@ services:
     container_name: voidrunner-redis-dev
     command: redis-server --appendonly yes  # Remove memory limits for dev
     networks:
-      - voidrunner-dev
+      - voidrunner-backend
     deploy:
       resources:
         limits:
@@ -47,6 +47,12 @@ services:
       DB_PASSWORD: voidrunner_dev_password
       DB_NAME: voidrunner_dev
       DB_SSL_MODE: disable
+      
+      # Redis Configuration (Development)
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "0"
       
       # Queue Configuration (Development)
       QUEUE_TASK_QUEUE_NAME: "voidrunner:tasks:dev"
@@ -82,7 +88,7 @@ services:
       - .:/app/src:ro
     
     networks:
-      - voidrunner-dev
+      - voidrunner-backend
     
     restart: unless-stopped
     
@@ -96,5 +102,5 @@ services:
           cpus: '0.25'
 
 networks:
-  voidrunner-dev:
+  voidrunner-backend:
     driver: bridge
