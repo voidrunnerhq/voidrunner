@@ -69,7 +69,7 @@ CMD ["go", "run", "cmd/api/main.go"]
 # =============================================================================
 # Production base stage
 # =============================================================================
-FROM alpine:3.19 AS base
+FROM alpine:3.22 AS base
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates curl tzdata
