@@ -34,7 +34,7 @@ show_usage() {
     echo "MODES:"
     echo "  default             Simple setup with embedded workers (docker-compose.yml)"
     echo "  dev                 Development setup with embedded workers (docker-compose.dev.yml)"
-    echo "  prod                Production setup with separate services (docker-compose.prod.yml)"
+    echo "  prod                Production setup with embedded workers (docker-compose.yml)"
     echo ""
     echo "EXAMPLES:"
     echo "  $0 up                    # Start with default configuration"
@@ -80,16 +80,19 @@ if [[ -z "$COMMAND" ]]; then
     exit 1
 fi
 
-# Determine compose file
+# Determine compose file(s) and environment
 case $MODE in
     default)
-        COMPOSE_FILE="docker-compose.yml"
+        COMPOSE_FILES="-f docker-compose.yml"
+        ENV_FILE=""
         ;;
     dev)
-        COMPOSE_FILE="docker-compose.dev.yml"
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+        ENV_FILE="--env-file .env.dev"
         ;;
     prod)
-        COMPOSE_FILE="docker-compose.prod.yml"
+        COMPOSE_FILES="-f docker-compose.yml"
+        ENV_FILE="--env-file .env.prod"
         ;;
     *)
         echo -e "${RED}Error: Invalid mode '$MODE'. Use 'default', 'dev', or 'prod'${NC}"
@@ -97,14 +100,14 @@ case $MODE in
         ;;
 esac
 
-COMPOSE_PATH="$PROJECT_ROOT/$COMPOSE_FILE"
-
-if [[ ! -f "$COMPOSE_PATH" ]]; then
-    echo -e "${RED}Error: Compose file not found: $COMPOSE_PATH${NC}"
+# Check if base compose file exists
+BASE_COMPOSE="$PROJECT_ROOT/docker-compose.yml"
+if [[ ! -f "$BASE_COMPOSE" ]]; then
+    echo -e "${RED}Error: Base compose file not found: $BASE_COMPOSE${NC}"
     exit 1
 fi
 
-echo -e "${BLUE}Using configuration: ${COMPOSE_FILE} (mode: ${MODE})${NC}"
+echo -e "${BLUE}Using configuration: $COMPOSE_FILES (mode: ${MODE})${NC}"
 
 cd "$PROJECT_ROOT"
 
@@ -116,13 +119,13 @@ case $COMMAND in
             echo -e "${YELLOW}Production mode: Make sure to set required environment variables${NC}"
             echo -e "${YELLOW}Required: POSTGRES_PASSWORD, JWT_SECRET_KEY${NC}"
         fi
-        docker-compose -f "$COMPOSE_FILE" up -d $SERVICE
+        docker-compose $COMPOSE_FILES $ENV_FILE up -d $SERVICE
         echo -e "${GREEN}Services started successfully!${NC}"
         
         if [[ -z "$SERVICE" ]]; then
             echo ""
             echo -e "${BLUE}Service Status:${NC}"
-            docker-compose -f "$COMPOSE_FILE" ps
+            docker-compose $COMPOSE_FILES $ENV_FILE ps
             echo ""
             echo -e "${BLUE}Available Endpoints:${NC}"
             echo "  API:           http://localhost:8080"
@@ -135,21 +138,21 @@ case $COMMAND in
         ;;
     down)
         echo -e "${YELLOW}Stopping VoidRunner services...${NC}"
-        docker-compose -f "$COMPOSE_FILE" down $SERVICE
+        docker-compose $COMPOSE_FILES $ENV_FILE down $SERVICE
         echo -e "${GREEN}Services stopped successfully!${NC}"
         ;;
     restart)
         echo -e "${YELLOW}Restarting VoidRunner services...${NC}"
-        docker-compose -f "$COMPOSE_FILE" restart $SERVICE
+        docker-compose $COMPOSE_FILES $ENV_FILE restart $SERVICE
         echo -e "${GREEN}Services restarted successfully!${NC}"
         ;;
     logs)
         echo -e "${BLUE}Showing logs for VoidRunner services...${NC}"
-        docker-compose -f "$COMPOSE_FILE" logs -f $SERVICE
+        docker-compose $COMPOSE_FILES $ENV_FILE logs -f $SERVICE
         ;;
     status)
         echo -e "${BLUE}VoidRunner Service Status:${NC}"
-        docker-compose -f "$COMPOSE_FILE" ps
+        docker-compose $COMPOSE_FILES $ENV_FILE ps
         echo ""
         echo -e "${BLUE}Health Checks:${NC}"
         # Try to check health endpoints
@@ -161,12 +164,12 @@ case $COMMAND in
         ;;
     build)
         echo -e "${YELLOW}Building VoidRunner images...${NC}"
-        docker-compose -f "$COMPOSE_FILE" build $SERVICE
+        docker-compose $COMPOSE_FILES $ENV_FILE build $SERVICE
         echo -e "${GREEN}Images built successfully!${NC}"
         ;;
     clean)
         echo -e "${YELLOW}Cleaning up VoidRunner deployment...${NC}"
-        docker-compose -f "$COMPOSE_FILE" down -v --remove-orphans
+        docker-compose $COMPOSE_FILES $ENV_FILE down -v --remove-orphans
         echo -e "${YELLOW}Removing unused images...${NC}"
         docker image prune -f
         echo -e "${GREEN}Cleanup completed!${NC}"

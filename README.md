@@ -56,37 +56,65 @@ Single-process architecture with embedded worker pool for development and produc
 
 ## Quick Start
 
+### Prerequisites
+
+- Docker and Docker Compose
+- Go 1.21+ (for local development)
+- Make (for standardized commands)
+
 ### Development Mode
 
-The fastest way to get started with VoidRunner:
+The fastest way to get started with VoidRunner using the standardized Make workflow:
 
 ```bash
-# 1. Start dependencies
-docker run -d --name redis -p 6379:6379 redis:7-alpine
-./scripts/start-test-db.sh
+# 1. Setup development environment
+make setup
 
-# 2. Start VoidRunner with embedded workers
-./scripts/start-dev.sh
+# 2. Start development environment (includes DB, Redis, API with embedded workers)
+make dev-up
+
+# 3. Check status
+make dev-status
 ```
 
-This starts VoidRunner with embedded workers on http://localhost:8080
+This starts the complete development environment on http://localhost:8080
 
 **Health Check Endpoints:**
 - API Health: http://localhost:8080/health
 - Worker Status: http://localhost:8080/health/workers
 - API Documentation: http://localhost:8080/docs
 
+**Development Commands:**
+```bash
+make dev-up       # Start development environment
+make dev-down     # Stop development environment  
+make dev-logs     # View logs
+make dev-restart  # Restart environment
+make dev-status   # Check status
+```
+
 ### Production Mode
 
-For production deployments:
+For production deployments using the standardized workflow:
 
 ```bash
-# Using Docker Compose
-docker-compose -f docker-compose.yml up -d
+# 1. Start production environment (requires .env.prod configuration)
+make prod-up
 
-# Or build and run manually
-make build
-SERVER_ENV=production ./bin/api
+# 2. Check health
+make prod-status
+
+# 3. View logs
+make prod-logs
+```
+
+**Production Commands:**
+```bash
+make prod-up      # Start production environment
+make prod-down    # Stop production environment
+make prod-logs    # View logs
+make prod-restart # Restart environment
+make prod-status  # Check status and health
 ```
 
 ### Configuration Modes

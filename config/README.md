@@ -13,12 +13,12 @@ This directory contains configuration files for different environments.
 - **Usage**: `SERVER_ENV=development ./bin/api`
 
 ### `production.yaml`
-- **Purpose**: Production deployment with separate services
-- **Embedded Workers**: ❌ Disabled (use separate scheduler service)
+- **Purpose**: Production deployment with embedded workers
+- **Embedded Workers**: ✅ Enabled (current implementation)
 - **Security**: Hardened with seccomp, SSL required
 - **Logging**: JSON format with info level
 - **Database**: Environment variable configuration
-- **Usage**: Set environment variables and deploy with Docker
+- **Usage**: `make prod-up` or set environment variables and deploy with Docker
 
 ### `test.yaml`
 - **Purpose**: Testing environments and CI/CD
@@ -40,7 +40,7 @@ All configuration values can be overridden using environment variables. The conf
 
 | Setting | Development | Production | Test |
 |---------|-------------|------------|------|
-| Embedded Workers | ✅ Yes | ❌ No | ✅ Yes |
+| Embedded Workers | ✅ Yes | ✅ Yes | ✅ Yes |
 | Log Format | Console | JSON | Console |
 | Log Level | Debug | Info | Debug |
 | Database SSL | Disabled | Required | Disabled |
@@ -90,30 +90,42 @@ export JWT_SECRET_KEY="test-secret-key-for-integration"
 
 ### 1. Local Development (Embedded Workers)
 ```bash
-# Use development config with embedded workers
+# Using Make (recommended)
+make dev-up
+
+# Or use development config directly
 SERVER_ENV=development ./bin/api
 ```
 
-### 2. Production (Separate Services)
+### 2. Production (Embedded Workers)
 ```bash
-# API Server (no workers)
-SERVER_ENV=production EMBEDDED_WORKERS=false ./bin/api
+# Using Make (recommended)
+make prod-up
 
-# Scheduler Service (workers only)
-SERVER_ENV=production ./bin/scheduler
+# Or use production config directly
+SERVER_ENV=production ./bin/api
 ```
 
-### 3. Docker Development
+### 3. Testing Environment
 ```bash
-# Uses docker-compose.dev.yml with embedded workers
-docker-compose -f docker-compose.dev.yml up
+# Start test database and run integration tests
+make db-start
+make test-integration
+
+# Or run all tests
+make test-all
 ```
 
-### 4. Docker Production
+### 4. Manual Docker Commands
 ```bash
-# Uses docker-compose.prod.yml with separate services
-docker-compose -f docker-compose.prod.yml up
+# Development environment
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# Production environment  
+docker-compose up
 ```
+
+> **Note**: The Make commands are the recommended approach as they handle environment files and dependency management automatically.
 
 ## Configuration Validation
 

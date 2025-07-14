@@ -718,7 +718,23 @@ make docs-serve        # Serve docs locally
 make install-tools     # Install development tools
 make clean             # Clean build artifacts
 
-# Database management
+# Environment Management (Docker Compose)
+make dev-up            # Start development environment (DB + Redis + API)
+make dev-down          # Stop development environment  
+make dev-logs          # Show development logs
+make dev-restart       # Restart development environment
+make dev-status        # Show development environment status
+
+make prod-up           # Start production environment
+make prod-down         # Stop production environment
+make prod-logs         # Show production logs
+make prod-restart      # Restart production environment
+make prod-status       # Show production environment status
+
+make env-status        # Show all environment status
+make docker-clean      # Clean Docker resources
+
+# Database management (Test DB only)
 make db-start          # Start test database (Docker)
 make db-stop           # Stop test database
 make db-reset          # Reset test database (clean slate)
