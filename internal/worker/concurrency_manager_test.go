@@ -419,7 +419,9 @@ func TestConcurrencyManager_MemoryCleanup(t *testing.T) {
 		50*time.Millisecond,  // Fast cleanup for testing
 		slog.Default(),
 	).(*RedisConcurrencyManager)
-	defer cm.cleanupTicker.Stop()
+
+	// Stop cleanup ticker immediately to prevent race conditions in test
+	cm.cleanupTicker.Stop()
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -431,8 +433,8 @@ func TestConcurrencyManager_MemoryCleanup(t *testing.T) {
 	// Verify it's tracked
 	assert.Equal(t, 1, cm.totalActive)
 
-	// Wait for cleanup to run (slot should expire)
-	time.Sleep(200 * time.Millisecond)
+	// Manually trigger cleanup once to test the mechanism
+	cm.cleanupStaleSlots()
 
 	// Note: In a real implementation, expired slots would be cleaned up.
 	// This test validates the cleanup mechanism exists.

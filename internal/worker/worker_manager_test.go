@@ -259,9 +259,12 @@ func TestWorkerManager_StartAndStop(t *testing.T) {
 
 	// Mock queue manager start
 	queueManager.On("Start", mock.Anything).Return(nil)
+	queueManager.On("Stop", mock.Anything).Return(nil)
 	queueManager.On("IsHealthy", mock.Anything).Return(nil)
 	taskExecutor.On("IsHealthy", mock.Anything).Return(nil)
 	queueManager.taskQueue.On("IsHealthy", mock.Anything).Return(nil)
+	// Mock dequeue operations for worker processing loops
+	queueManager.taskQueue.On("Dequeue", mock.Anything, mock.AnythingOfType("int")).Return([]*queue.TaskMessage{}, nil).Maybe()
 
 	// Start the worker manager
 	err := wm.Start(ctx)
@@ -293,9 +296,12 @@ func TestWorkerManager_StartAlreadyRunning(t *testing.T) {
 
 	// Mock dependencies
 	queueManager.On("Start", mock.Anything).Return(nil)
+	queueManager.On("Stop", mock.Anything).Return(nil)
 	queueManager.On("IsHealthy", mock.Anything).Return(nil)
 	taskExecutor.On("IsHealthy", mock.Anything).Return(nil)
 	queueManager.taskQueue.On("IsHealthy", mock.Anything).Return(nil)
+	// Mock dequeue operations for worker processing loops
+	queueManager.taskQueue.On("Dequeue", mock.Anything, mock.AnythingOfType("int")).Return([]*queue.TaskMessage{}, nil).Maybe()
 
 	// Start the worker manager
 	err := wm.Start(ctx)
@@ -332,9 +338,12 @@ func TestWorkerManager_GetStats(t *testing.T) {
 
 	// Mock dependencies
 	queueManager.On("Start", mock.Anything).Return(nil)
+	queueManager.On("Stop", mock.Anything).Return(nil)
 	queueManager.On("IsHealthy", mock.Anything).Return(nil)
 	taskExecutor.On("IsHealthy", mock.Anything).Return(nil)
 	queueManager.taskQueue.On("IsHealthy", mock.Anything).Return(nil)
+	// Mock dequeue operations for worker processing loops
+	queueManager.taskQueue.On("Dequeue", mock.Anything, mock.AnythingOfType("int")).Return([]*queue.TaskMessage{}, nil).Maybe()
 
 	// Start the worker manager
 	err := wm.Start(ctx)
@@ -360,9 +369,12 @@ func TestWorkerManager_ConcurrentStartStop(t *testing.T) {
 
 	// Mock dependencies
 	queueManager.On("Start", mock.Anything).Return(nil)
+	queueManager.On("Stop", mock.Anything).Return(nil)
 	queueManager.On("IsHealthy", mock.Anything).Return(nil)
 	taskExecutor.On("IsHealthy", mock.Anything).Return(nil)
 	queueManager.taskQueue.On("IsHealthy", mock.Anything).Return(nil)
+	// Mock dequeue operations for worker processing loops
+	queueManager.taskQueue.On("Dequeue", mock.Anything, mock.AnythingOfType("int")).Return([]*queue.TaskMessage{}, nil).Maybe()
 
 	var wg sync.WaitGroup
 	var startErr, stopErr error
@@ -403,9 +415,12 @@ func TestWorkerManager_HealthCheck(t *testing.T) {
 
 	// Mock healthy dependencies
 	queueManager.On("Start", mock.Anything).Return(nil)
+	queueManager.On("Stop", mock.Anything).Return(nil)
 	queueManager.On("IsHealthy", mock.Anything).Return(nil)
 	taskExecutor.On("IsHealthy", mock.Anything).Return(nil)
 	queueManager.taskQueue.On("IsHealthy", mock.Anything).Return(nil)
+	// Mock dequeue operations for worker processing loops
+	queueManager.taskQueue.On("Dequeue", mock.Anything, mock.AnythingOfType("int")).Return([]*queue.TaskMessage{}, nil).Maybe()
 
 	// Start the worker manager
 	err := wm.Start(ctx)

@@ -108,7 +108,7 @@ func (wm *BaseWorkerManager) Start(ctx context.Context) error {
 	defer wm.mu.Unlock()
 
 	if wm.isRunning {
-		return fmt.Errorf("worker manager is already running")
+		return ErrWorkerManagerAlreadyRunning
 	}
 
 	wm.logger.Info("starting worker manager")
@@ -161,7 +161,7 @@ func (wm *BaseWorkerManager) Stop(ctx context.Context) error {
 	defer wm.mu.Unlock()
 
 	if !wm.isRunning {
-		return fmt.Errorf("worker manager is not running")
+		return ErrWorkerManagerNotRunning
 	}
 
 	wm.logger.Info("stopping worker manager")

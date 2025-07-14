@@ -131,7 +131,7 @@ func (cm *RedisConcurrencyManager) ReleaseSlot(slot *ProcessingSlot) error {
 	existing, exists := cm.activeSlots[slot.ID]
 	if !exists {
 		cm.logger.Warn("attempting to release non-existent slot", "slot_id", slot.ID)
-		return fmt.Errorf("slot %s not found", slot.ID)
+		return ErrSlotNotFound
 	}
 
 	// Remove from tracking
@@ -340,7 +340,7 @@ func (cm *RedisConcurrencyManager) UpdateSlotActivity(slotID uuid.UUID) error {
 
 	slot, exists := cm.activeSlots[slotID]
 	if !exists {
-		return fmt.Errorf("slot %s not found", slotID)
+		return ErrSlotNotFound
 	}
 
 	slot.LastActive = time.Now()
