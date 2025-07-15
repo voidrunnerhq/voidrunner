@@ -63,7 +63,9 @@ export JWT_SECRET_KEY="your-secure-jwt-secret"
 
 # Redis
 export REDIS_HOST="your-redis-host"
+export REDIS_PORT="6379"  # Optional (default: 6379)
 export REDIS_PASSWORD="your-redis-password"  # Optional
+export REDIS_DATABASE="0"  # Optional (default: 0)
 
 # CORS
 export CORS_ALLOWED_ORIGINS="https://yourdomain.com"

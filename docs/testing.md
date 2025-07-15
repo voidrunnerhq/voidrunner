@@ -29,8 +29,8 @@ Before running tests, ensure you have the following installed:
 # Install Go dependencies
 go mod download
 
-# Install development tools (optional)
-make install-tools
+# Install development tools and setup environment
+make setup
 ```
 
 ## Running Unit Tests
@@ -59,8 +59,8 @@ go test -short -v ./...
 # Generate coverage report
 make coverage
 
-# Run coverage without HTML report
-make coverage-unit
+# Run coverage with detailed output
+make coverage
 
 # Check coverage meets threshold (80%)
 make coverage-check
@@ -130,8 +130,8 @@ If you prefer to use a local PostgreSQL installation:
 # Run both unit and integration tests
 make test-all
 
-# With coverage
-make coverage-all
+# With coverage (both unit and integration)
+make coverage
 ```
 
 ## Database Setup for Testing
