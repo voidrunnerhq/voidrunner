@@ -44,8 +44,8 @@ RUN addgroup -g 1001 -S voidrunner && \
 # Set working directory
 WORKDIR /app
 
-# Copy source code for development
-COPY --chown=voidrunner:voidrunner . .
+# Copy go mod files first for better caching
+COPY --chown=voidrunner:voidrunner go.mod go.sum ./
 
 # Create logs and tmp directories, and set up Go module cache permissions
 RUN mkdir -p logs tmp && \
@@ -56,11 +56,17 @@ RUN mkdir -p logs tmp && \
 # Switch to non-root user
 USER voidrunner
 
+# Download dependencies as non-root user
+RUN go mod download
+
+# Copy source code for development
+COPY --chown=voidrunner:voidrunner . .
+
 # Expose port
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Development entry point (use Go directly for now)
