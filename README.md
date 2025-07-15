@@ -6,20 +6,27 @@ A distributed task execution platform that provides secure, scalable code execut
 
 VoidRunner is designed to safely execute user-submitted code in isolated containers while providing a robust API for task management, real-time monitoring, and execution tracking. The platform prioritizes security, scalability, and developer experience.
 
-## Current Features
+## Features
 
-- **REST API**: Comprehensive HTTP API with 16+ endpoints for complete task lifecycle management
-- **JWT Authentication**: Secure user authentication with access and refresh tokens
-- **Task Management**: Full CRUD operations for code tasks with metadata support
-- **Task Execution**: Asynchronous task execution with embedded worker architecture
-- **Container Security**: Docker-based execution with seccomp, resource limits, and isolation
-- **Queue System**: Redis-based task queuing with priority support and retry logic
-- **Worker Management**: Embedded worker pool with concurrency controls and health monitoring
-- **Real-time Monitoring**: Health checks, worker status endpoints, and execution metrics
-- **Database Integration**: PostgreSQL with optimized schema and cursor pagination
-- **Security**: Input validation, rate limiting, and secure request handling
-- **Testing**: 80%+ code coverage with unit and integration tests
-- **Documentation**: OpenAPI/Swagger specifications with comprehensive examples
+**Authentication & Security**
+- JWT-based user authentication with access and refresh tokens
+- Input validation, rate limiting, and secure request handling
+- Docker container isolation with seccomp profiles and resource limits
+
+**Task Management**  
+- Full CRUD operations for code tasks with metadata support
+- Asynchronous task execution with real-time status tracking
+- Task prioritization and retry logic with dead letter handling
+
+**Execution Engine**
+- Secure Docker-based code execution in isolated containers
+- Embedded worker pool with concurrency controls and health monitoring
+- Redis-based task queuing with automatic cleanup
+
+**Monitoring & API**
+- RESTful API with 16+ endpoints for complete task lifecycle management
+- Real-time health checks and worker status monitoring
+- PostgreSQL integration with optimized schema and cursor pagination
 
 ## System Architecture
 
@@ -28,106 +35,62 @@ Single-process architecture with embedded worker pool for development and produc
 
 ```
 ┌─────────────────┐    ┌─────────────────────────────────┐    ┌─────────────────┐
-│   Web Clients   │    │        API Server               │    │   PostgreSQL    │
-│  (Postman/curl) │◄──►│  ┌─────────────────────────┐    │◄──►│    Database     │
-│                 │    │  │     HTTP API            │    │    │                 │
+│   Web Clients   │    │        API Server               │    │     Database    │
+│  (Postman/curl) │◄──►│  ┌─────────────────────────┐    │◄──►│  (PostgreSQL)   │
+│                 │    │  │   HTTP API              │    │    │                 │
 └─────────────────┘    │  │   - Authentication      │    │    └─────────────────┘
                        │  │   - Task Management     │    │
                        │  └─────────────────────────┘    │    ┌─────────────────┐
-                       │  ┌─────────────────────────┐    │◄──►│     Redis       │
-                       │  │   Embedded Workers      │    │    │   (Queues)      │
+                       │  ┌─────────────────────────┐    │◄──►│  Message Queues │
+                       │  │   Embedded Workers      │    │    │     (Redis)     │
                        │  │   - Task Processing     │    │    │                 │
                        │  │   - Docker Execution    │    │    └─────────────────┘
                        │  │   - Health Monitoring   │    │
-                       │  │   - Concurrency Control │    │
-                       │  └─────────────────────────┘    │    ┌─────────────────┐
-                       └─────────────────────────────────┘◄──►│     Docker      │
-                                                              │   (Containers)  │
-                                                              │                 │
-                                                              └─────────────────┘
+                       │  │   - Concurrency Control │    │    ┌───────────────────┐
+                       │  └─────────────────────────┘    │◄──►│ Container Runtime │
+                       └─────────────────────────────────┘    │     (Docker)      │
+                                                              │                   │
+                                                              └───────────────────┘
 ```
 
-### Future Roadmap
-- **Distributed Services**: Separate API and worker services for horizontal scaling
-- **Svelte Web UI**: Modern frontend interface
-- **Kubernetes Deployment**: Container orchestration
-- **Multi-language Support**: Additional runtime environments
-- **Real-time Collaboration**: Shared workspaces and live editing
 
-## Quick Start
+## Prerequisites
 
-### Prerequisites
+- **Docker & Docker Compose** - For containerized execution and development environment
+- **Go 1.24.4+** - For local development and building from source
+- **Make** - For standardized build and development commands
+- **PostgreSQL 15+** - For database operations (auto-configured in development)
+- **Redis 7+** - For task queuing (auto-configured in development)
 
-- Docker and Docker Compose
-- Go 1.24.4+ (for local development)
-- Make (for standardized commands)
+## Getting Started
 
-### Development Mode
+### Quick Start with Docker Compose
 
-The fastest way to get started with VoidRunner using the standardized Make workflow:
+The fastest way to get started with VoidRunner:
 
 ```bash
-# 1. Setup development environment
+# 1. Clone and setup
+git clone https://github.com/voidrunnerhq/voidrunner.git
+cd voidrunner
 make setup
 
 # 2. Start development environment (includes DB, Redis, API with embedded workers)
 make dev-up
 
-# 3. Check status
+# 3. Verify it's running
 make dev-status
 ```
 
-This starts the complete development environment on http://localhost:8080
+This starts the complete environment on http://localhost:8080
+
+### Verification
+
+Once running, verify your setup:
 
 **Health Check Endpoints:**
 - API Health: http://localhost:8080/health
-- Worker Status: http://localhost:8080/health/workers
+- Worker Status: http://localhost:8080/health/workers  
 - API Documentation: http://localhost:8080/docs
-
-**Development Commands:**
-```bash
-make dev-up       # Start development environment
-make dev-down     # Stop development environment  
-make dev-logs     # View logs
-make dev-restart  # Restart environment
-make dev-status   # Check status
-```
-
-### Production Mode
-
-For production deployments using the standardized workflow:
-
-```bash
-# 1. Start production environment (requires .env.prod configuration)
-make prod-up
-
-# 2. Check health
-make prod-status
-
-# 3. View logs
-make prod-logs
-```
-
-**Production Commands:**
-```bash
-make prod-up      # Start production environment
-make prod-down    # Stop production environment
-make prod-logs    # View logs
-make prod-restart # Restart environment
-make prod-status  # Check status and health
-```
-
-### Configuration Modes
-
-VoidRunner currently supports embedded worker architecture:
-
-> **Note**: Distributed services (Issue #46) planned for future horizontal scaling needs
-
-| Mode | Use Case | Workers | Configuration |
-|------|----------|---------|---------------|
-| **Development** | Local development | Embedded | Relaxed security, debug logging |
-| **Production** | Production deployment | Embedded | Enhanced security, structured logging |
-| **Test** | CI/CD and testing | Embedded | Mock executors, test database |
 
 ## API Endpoints
 
@@ -157,119 +120,49 @@ VoidRunner currently supports embedded worker architecture:
 - `GET /health/workers` - Embedded worker status and metrics
 - `GET /ready` - Readiness check endpoint
 
-## Setup Instructions
-
-### Prerequisites
-
-- Go 1.24.4+ installed
-- PostgreSQL 15+ (for database operations)
-- Redis 7+ (for task queuing)
-- Docker (for containerization and task execution)
-
-### Manual Setup (Alternative to Quick Start)
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/voidrunnerhq/voidrunner.git
-   cd voidrunner
-   ```
-
-2. **Setup development environment**
-   ```bash
-   make setup
-   ```
-
-3. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration including Redis settings
-   ```
-
-4. **Start the database (for testing)**
-   ```bash
-   make db-start
-   ```
-
-5. **Run database migrations**
-   ```bash
-   make migrate-up
-   ```
-
-6. **Start the development server**
-   ```bash
-   make dev
-   ```
-
-The server will start on `http://localhost:8080` by default.
 
 ## Development
 
-### Available Commands
+### Manual Setup from Source
+
+To build from source or customize the setup:
 
 ```bash
-# Development
-make dev                # Start with auto-reload
-make run               # Build and run
-make build             # Build binary
+# 1. Clone the repository
+git clone https://github.com/voidrunnerhq/voidrunner.git
+cd voidrunner
 
-# Testing
-make test              # Unit tests
-make test-integration  # Integration tests (requires database)
-make test-all          # All tests
-make coverage          # Generate coverage report
+# 2. Setup development environment
+make setup
 
-# Database
-make db-start          # Start test database
-make db-stop           # Stop test database
-make migrate-up        # Apply migrations
-make migrate-down      # Rollback migration
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
 
-# Code Quality
-make lint              # Run linter
-make fmt               # Format code
-make vet               # Run go vet
-make security          # Security scan
+# 4. Start dependencies and run migrations
+make db-start
+make migrate-up
 
-# Documentation
-make docs              # Generate API docs
-make docs-serve        # Serve docs locally
+# 5. Start the server
+make dev
 ```
 
 ### Testing
 
-Run unit tests:
 ```bash
-make test
+make test              # Unit tests
+make test-integration  # Integration tests (requires PostgreSQL)
 ```
 
-Run integration tests (requires PostgreSQL):
-```bash
-make test-integration
-```
-
-For detailed testing instructions, database setup, troubleshooting, and performance testing, see [Testing Guide](docs/testing.md).
+For detailed testing instructions, see [Testing Guide](docs/testing.md).
 
 ### API Documentation
 
-Interactive API documentation is available via Swagger:
+Interactive API documentation:
 ```bash
-make docs-serve
-# Visit http://localhost:8081
+make docs-serve        # Serve docs locally at http://localhost:8081
 ```
 
-## Roadmap
-
-### Phase 1: Core Infrastructure ✅ Complete
-Task management API with authentication, database integration, and comprehensive testing.
-
-### Phase 2: Container Execution Engine ✅ Complete
-Secure Docker-based code execution with embedded workers, resource limiting, and safety controls.
-
-### Phase 3: Web Interface 📋 Planned
-Modern Svelte-based frontend with real-time task monitoring, code editor, and user dashboard.
-
-### Phase 4: Advanced Features 📋 Planned
-Distributed services, collaborative features, advanced search and filtering, and real-time log streaming.
 
 ## Configuration
 
