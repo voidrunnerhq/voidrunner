@@ -82,6 +82,46 @@ func NewConnection(cfg *config.DatabaseConfig, logger *slog.Logger) (*Connection
 	}, nil
 }
 
+// NewConnectionWithRetry creates a new database connection pool with retry logic
+func NewConnectionWithRetry(cfg *config.DatabaseConfig, logger *slog.Logger) (*Connection, error) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	maxRetries := 5
+	retryDelay := time.Second * 2
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		logger.Info("attempting database connection",
+			"attempt", attempt,
+			"max_retries", maxRetries,
+			"host", cfg.Host,
+			"port", cfg.Port,
+			"database", cfg.Database,
+		)
+
+		conn, err := NewConnection(cfg, logger)
+		if err == nil {
+			logger.Info("database connection established successfully", "attempt", attempt)
+			return conn, nil
+		}
+
+		logger.Warn("database connection failed, retrying...",
+			"attempt", attempt,
+			"error", err,
+			"retry_delay", retryDelay,
+		)
+
+		if attempt < maxRetries {
+			time.Sleep(retryDelay)
+			// Exponential backoff
+			retryDelay = time.Duration(float64(retryDelay) * 1.5)
+		}
+	}
+
+	return nil, fmt.Errorf("failed to establish database connection after %d attempts", maxRetries)
+}
+
 // Close closes the database connection pool
 func (c *Connection) Close() {
 	if c.Pool != nil {

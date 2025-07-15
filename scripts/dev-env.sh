@@ -59,6 +59,18 @@ API_PORT=8080
 SERVER_ENV=development
 BUILD_TARGET=development
 
+# Additional Database Configuration
+DB_HOST=postgres
+DB_USER=voidrunner
+DB_PASSWORD=voidrunner_dev_password
+DB_NAME=voidrunner_dev
+DB_SSL_MODE=disable
+
+# Additional Redis Configuration
+REDIS_HOST=redis
+REDIS_PASSWORD=
+REDIS_DATABASE=0
+
 # Worker Configuration
 WORKER_POOL_SIZE=2
 WORKER_MAX_CONCURRENT_TASKS=10
