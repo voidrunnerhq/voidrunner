@@ -70,7 +70,7 @@ make migrate-up        # Run database migrations
 make migrate-down      # Roll back one migration
 
 # Development workflow
-make dev-setup         # Complete development setup
+make setup              # Complete development setup
 ```
 
 ### Running Tests

@@ -59,7 +59,7 @@ Single-process architecture with embedded worker pool for development and produc
 ### Prerequisites
 
 - Docker and Docker Compose
-- Go 1.21+ (for local development)
+- Go 1.24.4+ (for local development)
 - Make (for standardized commands)
 
 ### Development Mode
@@ -157,7 +157,7 @@ VoidRunner currently supports embedded worker architecture:
 - `GET /health/workers` - Embedded worker status and metrics
 - `GET /ready` - Readiness check endpoint
 
-## Quick Start
+## Setup Instructions
 
 ### Prerequisites
 
@@ -166,7 +166,7 @@ VoidRunner currently supports embedded worker architecture:
 - Redis 7+ (for task queuing)
 - Docker (for containerization and task execution)
 
-### Setup
+### Manual Setup (Alternative to Quick Start)
 
 1. **Clone the repository**
    ```bash
@@ -182,7 +182,7 @@ VoidRunner currently supports embedded worker architecture:
 3. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env with your configuration including Redis settings
    ```
 
 4. **Start the database (for testing)**
@@ -277,9 +277,12 @@ The application uses environment variables for configuration. Copy `.env.example
 
 - **Server**: HOST, PORT, ENV settings
 - **Database**: Connection details for PostgreSQL
+- **Redis**: Queue system connection details (required for task processing)
 - **JWT**: Token configuration and secrets
 - **CORS**: Frontend domain configuration
 - **Logging**: Level and format settings
+
+**Note**: Redis configuration is required for task queuing and execution. The `.env.example` file includes database and JWT settings, but Redis configuration must be added manually.
 
 ## Contributing
 
