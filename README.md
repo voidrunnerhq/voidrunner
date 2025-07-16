@@ -140,7 +140,7 @@ cp .env.example .env
 # Edit .env with your configuration
 
 # 4. Start dependencies and run migrations
-make db-start
+make services-start
 make migrate-up
 
 # 5. Start the server
@@ -175,7 +175,7 @@ The application uses environment variables for configuration. Copy `.env.example
 - **CORS**: Frontend domain configuration
 - **Logging**: Level and format settings
 
-**Note**: Redis configuration is required for task queuing and execution. The `.env.example` file includes database and JWT settings, but Redis configuration must be added manually.
+**Note**: Redis configuration is required for task queuing and execution. The `.env.example` file includes complete database, Redis, and JWT settings. For manual setup, use `make services-start` to start both PostgreSQL and Redis test services.
 
 ## Contributing
 

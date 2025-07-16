@@ -1,7 +1,7 @@
 # VoidRunner Makefile
 # Provides standardized commands for building, testing, and running the application
 
-.PHONY: help test test-fast test-integration test-all build run dev clean coverage coverage-check docs docs-serve lint fmt vet security deps deps-update migrate-up migrate-down migrate-reset migration docker-build docker-run clean-docs install-tools setup all pre-commit bench db-start db-stop db-reset db-status dev-up dev-down dev-logs dev-restart dev-status prod-up prod-down prod-logs prod-restart prod-status docker-clean env-status
+.PHONY: help test test-fast test-integration test-all build run dev clean coverage coverage-check docs docs-serve lint fmt vet security deps deps-update migrate-up migrate-down migrate-reset migration docker-build docker-run clean-docs install-tools setup all pre-commit bench services-start services-stop services-reset services-status dev-up dev-down dev-logs dev-restart dev-status prod-up prod-down prod-logs prod-restart prod-status docker-clean env-status
 
 # Default target
 help: ## Show this help message
@@ -32,10 +32,10 @@ test-fast: ## Run unit tests in short mode (fast, excluding integration)
 	@go test -short ./cmd/... ./internal/... ./pkg/...
 
 
-test-integration: ## Run integration tests (requires database to be running)
+test-integration: ## Run integration tests (requires services to be running)
 	@echo "Running integration tests..."
-	@echo "Note: Database must be running before running integration tests"
-	@echo "Use 'make db-start' to start the test database"
+	@echo "Note: PostgreSQL and Redis must be running before running integration tests"
+	@echo "Use 'make services-start' to start the test services"
 	@INTEGRATION_TESTS=true \
 	 TEST_DB_HOST=$${TEST_DB_HOST:-localhost} \
 	 TEST_DB_PORT=$${TEST_DB_PORT:-5432} \
@@ -127,21 +127,21 @@ migration: ## Create a new migration file (usage: make migration name=migration_
 	@touch migrations/$(shell date +%Y%m%d%H%M%S)_$(name).down.sql
 	@echo "Migration files created in migrations/"
 
-# Database management targets
-db-start: ## Start test database (Docker)
-	@echo "Starting test database..."
-	@./scripts/start-test-db.sh
+# Test services management targets
+services-start: ## Start test services (PostgreSQL + Redis)
+	@echo "Starting test services..."
+	@./scripts/start-test-services.sh
 
-db-stop: ## Stop test database (Docker)
-	@echo "Stopping test database..."
-	@./scripts/stop-test-db.sh
+services-stop: ## Stop test services (PostgreSQL + Redis)
+	@echo "Stopping test services..."
+	@./scripts/stop-test-services.sh
 
-db-reset: ## Reset test database (clean slate)
-	@echo "Resetting test database..."
-	@./scripts/reset-test-db.sh
+services-reset: ## Reset test services (clean slate)
+	@echo "Resetting test services..."
+	@./scripts/reset-test-services.sh
 
-db-status: ## Show test database status
-	@echo "Test database status:"
+services-status: ## Show test services status
+	@echo "Test services status:"
 	@if command -v docker-compose &> /dev/null; then \
 		docker-compose -f docker-compose.test.yml ps; \
 	else \
@@ -196,12 +196,12 @@ env-status: ## Show all environment status
 	@echo "=== Production Environment ==="
 	@./scripts/prod-env.sh status || echo "Production environment not running"
 	@echo ""
-	@echo "=== Test Database ==="
+	@echo "=== Test Services ==="
 	@if command -v docker-compose &> /dev/null; then \
 		if docker-compose -f docker-compose.test.yml ps | grep -q "Up"; then \
-			echo "Test database: Running"; \
+			echo "Test services: Running"; \
 		else \
-			echo "Test database: Stopped"; \
+			echo "Test services: Stopped"; \
 		fi; \
 	else \
 		echo "docker-compose not found"; \
@@ -283,9 +283,9 @@ setup: deps install-tools ## Setup development environment
 	@echo "  - .env file: created (edit with your configuration)"
 	@echo ""
 	@echo "To run integration tests:"
-	@echo "  make db-start         # Start test database"
+	@echo "  make services-start   # Start test services (PostgreSQL + Redis)"
 	@echo "  make test-integration # Run integration tests"
-	@echo "  make db-stop          # Stop test database (optional)"
+	@echo "  make services-stop    # Stop test services (optional)"
 
 # Performance testing
 bench: ## Run benchmark tests

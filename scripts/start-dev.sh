@@ -37,42 +37,51 @@ if ! redis-cli ping > /dev/null 2>&1; then
     fi
 fi
 
-# Check if PostgreSQL is running
-echo -e "${YELLOW}Checking PostgreSQL connection...${NC}"
-if ! ./scripts/start-test-db.sh > /dev/null 2>&1; then
-    echo -e "${YELLOW}Starting test database...${NC}"
-    ./scripts/start-test-db.sh
+# Check if PostgreSQL and Redis are running
+echo -e "${YELLOW}Checking PostgreSQL and Redis connection...${NC}"
+if ! ./scripts/start-test-services.sh > /dev/null 2>&1; then
+    echo -e "${YELLOW}Starting test services...${NC}"
+    ./scripts/start-test-services.sh
 fi
 
-# Set development environment variables
-export SERVER_ENV=development
-export EMBEDDED_WORKERS=true
-export LOG_LEVEL=debug
-export LOG_FORMAT=console
+# Load environment variables from .env.dev if exists
+if [ -f ".env.dev" ]; then
+    echo -e "${YELLOW}Loading environment variables from .env.dev...${NC}"
+    set -a  # automatically export all variables
+    source .env.dev
+    set +a
+else
+    echo -e "${YELLOW}No .env.dev file found, using default development configuration...${NC}"
+    # Set development environment variables
+    export SERVER_ENV=development
+    export EMBEDDED_WORKERS=true
+    export LOG_LEVEL=debug
+    export LOG_FORMAT=console
 
-# Redis configuration
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
-export REDIS_PASSWORD=""
-export REDIS_DATABASE=0
+    # Redis configuration
+    export REDIS_HOST=localhost
+    export REDIS_PORT=6379
+    export REDIS_PASSWORD=""
+    export REDIS_DATABASE=0
 
-# Queue configuration  
-export QUEUE_TASK_QUEUE_NAME="voidrunner:tasks:dev"
-export QUEUE_RETRY_QUEUE_NAME="voidrunner:tasks:retry:dev"
-export QUEUE_DEAD_LETTER_QUEUE_NAME="voidrunner:tasks:dead:dev"
+    # Queue configuration  
+    export QUEUE_TASK_QUEUE_NAME="voidrunner:tasks:dev"
+    export QUEUE_RETRY_QUEUE_NAME="voidrunner:tasks:retry:dev"
+    export QUEUE_DEAD_LETTER_QUEUE_NAME="voidrunner:tasks:dead:dev"
 
-# Worker configuration
-export WORKER_POOL_SIZE=3
-export WORKER_MAX_CONCURRENT_TASKS=10
-export WORKER_MAX_USER_CONCURRENT_TASKS=3
-export WORKER_TASK_TIMEOUT=5m
-export WORKER_HEARTBEAT_INTERVAL=30s
+    # Worker configuration
+    export WORKER_POOL_SIZE=3
+    export WORKER_MAX_CONCURRENT_TASKS=10
+    export WORKER_MAX_USER_CONCURRENT_TASKS=3
+    export WORKER_TASK_TIMEOUT=5m
+    export WORKER_HEARTBEAT_INTERVAL=30s
 
-# Executor configuration for development
-export EXECUTOR_DEFAULT_MEMORY_LIMIT_MB=256
-export EXECUTOR_DEFAULT_CPU_QUOTA=50000
-export EXECUTOR_DEFAULT_TIMEOUT_SECONDS=300
-export EXECUTOR_ENABLE_SECCOMP=false  # Disable for easier development
+    # Executor configuration for development
+    export EXECUTOR_DEFAULT_MEMORY_LIMIT_MB=256
+    export EXECUTOR_DEFAULT_CPU_QUOTA=50000
+    export EXECUTOR_DEFAULT_TIMEOUT_SECONDS=300
+    export EXECUTOR_ENABLE_SECCOMP=false  # Disable for easier development
+fi
 
 echo -e "${GREEN}Environment configured for development:${NC}"
 echo "  - Embedded workers: ${EMBEDDED_WORKERS}"

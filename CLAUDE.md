@@ -734,10 +734,10 @@ make prod-status       # Show production environment status
 make env-status        # Show all environment status
 make docker-clean      # Clean Docker resources
 
-# Database management (Test DB only)
-make db-start          # Start test database (Docker)
-make db-stop           # Stop test database
-make db-reset          # Reset test database (clean slate)
+# Test services management (PostgreSQL + Redis)
+make services-start    # Start test services (Docker)
+make services-stop     # Stop test services
+make services-reset    # Reset test services (clean slate)
 
 # Database migrations
 make migrate-up        # Run database migrations up
@@ -754,10 +754,10 @@ make setup             # Setup complete development environment
 ### Database Operations
 
 ```bash
-# Database management (implemented)
-make db-start          # Start test database container
-make db-stop           # Stop test database container
-make db-reset          # Reset test database to clean state
+# Test services management (implemented)
+make services-start    # Start test services containers (PostgreSQL + Redis)
+make services-stop     # Stop test services containers
+make services-reset    # Reset test services to clean state
 
 # Migration management (implemented)
 make migrate-up        # Apply all pending migrations

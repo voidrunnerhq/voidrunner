@@ -44,49 +44,98 @@ create_dev_env() {
 # VoidRunner Development Environment
 # This file contains environment variables for development
 
-# Database Configuration
-POSTGRES_DB=voidrunner_dev
-POSTGRES_USER=voidrunner
-POSTGRES_PASSWORD=voidrunner_dev_password
-DB_PORT=5432
-
-# Redis Configuration
-REDIS_PORT=6379
-REDIS_MAX_MEMORY=256mb
-
-# API Configuration
-API_PORT=8080
+# Server Configuration
+SERVER_HOST=localhost
+SERVER_PORT=8080
 SERVER_ENV=development
+API_PORT=8080
 BUILD_TARGET=development
 
-# Additional Database Configuration
-DB_HOST=postgres
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
 DB_USER=voidrunner
 DB_PASSWORD=voidrunner_dev_password
 DB_NAME=voidrunner_dev
 DB_SSL_MODE=disable
 
-# Additional Redis Configuration
-REDIS_HOST=redis
+# Docker Compose Database Configuration (for containers)
+POSTGRES_DB=voidrunner_dev
+POSTGRES_USER=voidrunner
+POSTGRES_PASSWORD=voidrunner_dev_password
+
+# Redis Configuration
+REDIS_HOST=localhost
+REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DATABASE=0
+REDIS_MAX_MEMORY=256mb
+REDIS_POOL_SIZE=10
+REDIS_MIN_IDLE_CONNECTIONS=5
+REDIS_MAX_RETRIES=3
+REDIS_DIAL_TIMEOUT=5s
+REDIS_READ_TIMEOUT=3s
+REDIS_WRITE_TIMEOUT=3s
+REDIS_IDLE_TIMEOUT=5m
+
+# Queue Configuration (Development)
+QUEUE_TASK_QUEUE_NAME=voidrunner:tasks:dev
+QUEUE_DEAD_LETTER_QUEUE_NAME=voidrunner:tasks:dead:dev
+QUEUE_RETRY_QUEUE_NAME=voidrunner:tasks:retry:dev
+QUEUE_DEFAULT_PRIORITY=5
+QUEUE_MAX_RETRIES=3
+QUEUE_RETRY_DELAY=30s
+QUEUE_RETRY_BACKOFF_FACTOR=2.0
+QUEUE_MAX_RETRY_DELAY=15m
+QUEUE_VISIBILITY_TIMEOUT=30m
+QUEUE_MESSAGE_TTL=24h
+QUEUE_BATCH_SIZE=10
 
 # Worker Configuration
 WORKER_POOL_SIZE=2
 WORKER_MAX_CONCURRENT_TASKS=10
 WORKER_MAX_USER_CONCURRENT_TASKS=3
+WORKER_TASK_TIMEOUT=5m
+WORKER_HEARTBEAT_INTERVAL=30s
+WORKER_SHUTDOWN_TIMEOUT=30s
+WORKER_CLEANUP_INTERVAL=5m
+WORKER_STALE_TASK_THRESHOLD=2h
+WORKER_ID_PREFIX=voidrunner-worker
 
 # Executor Configuration (Development - Relaxed Security)
-EXECUTOR_MEMORY_LIMIT=256
-EXECUTOR_CPU_QUOTA=50000
-EXECUTOR_TIMEOUT=300
+DOCKER_ENDPOINT=unix:///var/run/docker.sock
+EXECUTOR_DEFAULT_MEMORY_LIMIT_MB=256
+EXECUTOR_DEFAULT_CPU_QUOTA=50000
+EXECUTOR_DEFAULT_PIDS_LIMIT=128
+EXECUTOR_DEFAULT_TIMEOUT_SECONDS=300
+EXECUTOR_PYTHON_IMAGE=python:3.11-alpine
+EXECUTOR_BASH_IMAGE=alpine:latest
+EXECUTOR_JAVASCRIPT_IMAGE=node:18-alpine
+EXECUTOR_GO_IMAGE=golang:1.21-alpine
 EXECUTOR_ENABLE_SECCOMP=false
+EXECUTOR_SECCOMP_PROFILE_PATH=/opt/voidrunner/seccomp-profile.json
+EXECUTOR_ENABLE_APPARMOR=false
+EXECUTOR_APPARMOR_PROFILE=voidrunner-executor
+EXECUTOR_EXECUTION_USER=1000:1000
 
-# Security (Development Only - Change in Production)
+# JWT Configuration (Development Only - Change in Production)
 JWT_SECRET_KEY=development-secret-key-change-in-production
+JWT_ACCESS_TOKEN_DURATION=15m
+JWT_REFRESH_TOKEN_DURATION=168h
+JWT_ISSUER=voidrunner
+JWT_AUDIENCE=voidrunner-api
+
+# CORS Configuration (Development - Permissive)
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS
+CORS_ALLOWED_HEADERS=Content-Type,Authorization,X-Request-ID
 
 # Logging
 LOG_LEVEL=debug
+LOG_FORMAT=console
+
+# Embedded Workers (disabled for development debugging)
+EMBEDDED_WORKERS=false
 EOF
         echo -e "${GREEN}Created $ENV_FILE${NC}"
         echo -e "${YELLOW}Please review and customize the environment variables if needed${NC}"

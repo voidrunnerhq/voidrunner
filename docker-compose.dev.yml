@@ -53,23 +53,53 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ""
       REDIS_DATABASE: "0"
+      REDIS_POOL_SIZE: "10"
+      REDIS_MIN_IDLE_CONNECTIONS: "5"
+      REDIS_MAX_RETRIES: "3"
+      REDIS_DIAL_TIMEOUT: "5s"
+      REDIS_READ_TIMEOUT: "3s"
+      REDIS_WRITE_TIMEOUT: "3s"
+      REDIS_IDLE_TIMEOUT: "5m"
       
       # Queue Configuration (Development)
       QUEUE_TASK_QUEUE_NAME: "voidrunner:tasks:dev"
-      QUEUE_RETRY_QUEUE_NAME: "voidrunner:tasks:retry:dev"
       QUEUE_DEAD_LETTER_QUEUE_NAME: "voidrunner:tasks:dead:dev"
+      QUEUE_RETRY_QUEUE_NAME: "voidrunner:tasks:retry:dev"
+      QUEUE_DEFAULT_PRIORITY: "5"
+      QUEUE_MAX_RETRIES: "3"
+      QUEUE_RETRY_DELAY: "30s"
+      QUEUE_RETRY_BACKOFF_FACTOR: "2.0"
+      QUEUE_MAX_RETRY_DELAY: "15m"
+      QUEUE_VISIBILITY_TIMEOUT: "30m"
+      QUEUE_MESSAGE_TTL: "24h"
+      QUEUE_BATCH_SIZE: "10"
       
       # Development Worker Settings
       WORKER_POOL_SIZE: "2"
       WORKER_MAX_CONCURRENT_TASKS: "10"
       WORKER_MAX_USER_CONCURRENT_TASKS: "3"
       WORKER_TASK_TIMEOUT: "5m"
+      WORKER_HEARTBEAT_INTERVAL: "30s"
+      WORKER_SHUTDOWN_TIMEOUT: "30s"
+      WORKER_CLEANUP_INTERVAL: "5m"
+      WORKER_STALE_TASK_THRESHOLD: "2h"
+      WORKER_ID_PREFIX: "voidrunner-worker"
       
       # Development Executor Settings (Relaxed Security)
+      DOCKER_ENDPOINT: "unix:///var/run/docker.sock"
       EXECUTOR_DEFAULT_MEMORY_LIMIT_MB: "256"
       EXECUTOR_DEFAULT_CPU_QUOTA: "50000"
+      EXECUTOR_DEFAULT_PIDS_LIMIT: "128"
       EXECUTOR_DEFAULT_TIMEOUT_SECONDS: "300"
+      EXECUTOR_PYTHON_IMAGE: "python:3.11-alpine"
+      EXECUTOR_BASH_IMAGE: "alpine:latest"
+      EXECUTOR_JAVASCRIPT_IMAGE: "node:18-alpine"
+      EXECUTOR_GO_IMAGE: "golang:1.21-alpine"
       EXECUTOR_ENABLE_SECCOMP: "false"  # Disabled for easier development
+      EXECUTOR_SECCOMP_PROFILE_PATH: "/opt/voidrunner/seccomp-profile.json"
+      EXECUTOR_ENABLE_APPARMOR: "false"
+      EXECUTOR_APPARMOR_PROFILE: "voidrunner-executor"
+      EXECUTOR_EXECUTION_USER: "1000:1000"
       
       # Development Logging
       LOG_LEVEL: debug
@@ -77,9 +107,15 @@ services:
       
       # Development JWT (Insecure)
       JWT_SECRET_KEY: "development-secret-key-change-in-production"
+      JWT_ACCESS_TOKEN_DURATION: "15m"
+      JWT_REFRESH_TOKEN_DURATION: "168h"
+      JWT_ISSUER: "voidrunner"
+      JWT_AUDIENCE: "voidrunner-api"
       
       # Development CORS (Permissive)
       CORS_ALLOWED_ORIGINS: "*"
+      CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+      CORS_ALLOWED_HEADERS: "Content-Type,Authorization,X-Request-ID"
     
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
