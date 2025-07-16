@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752635468410,
+  "lastUpdate": 1752641384313,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -1584,6 +1584,150 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2996791 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "starbops@zespre.com",
+            "name": "Zespre Schmidt",
+            "username": "starbops"
+          },
+          "committer": {
+            "email": "starbops@zespre.com",
+            "name": "Zespre Schmidt",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "a11aaba5632ffb3683dc0cc050b5d87d8ddd088f",
+          "message": "fix(queue): resolve deadlock in queue manager Start function\n\n- Add isHealthyUnsafe internal method to prevent lock recursion\n- Improve background goroutine lifecycle management with proper cleanup\n- Add comprehensive tests for deadlock prevention and concurrent operations\n- Fix race condition in health check concurrency test\n\nFixes potential deadlock where Start() held write lock while calling\nIsHealthy() which tried to acquire read lock. Now uses lock-free\ninternal method when already holding appropriate lock.\n\n🤖 Generated with Claude Code\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+          "timestamp": "2025-07-16T12:48:22+08:00",
+          "tree_id": "2fcf44f246ad2b4029f49df2736a733c737e3f43",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/a11aaba5632ffb3683dc0cc050b5d87d8ddd088f"
+        },
+        "date": 1752641383318,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3688,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "301089 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3688,
+            "unit": "ns/op",
+            "extra": "301089 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "301089 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "301089 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 2968,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "368673 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 2968,
+            "unit": "ns/op",
+            "extra": "368673 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "368673 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "368673 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 196375,
+            "unit": "ns/op\t  106215 B/op\t    1458 allocs/op",
+            "extra": "6506 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 196375,
+            "unit": "ns/op",
+            "extra": "6506 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106215,
+            "unit": "B/op",
+            "extra": "6506 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1458,
+            "unit": "allocs/op",
+            "extra": "6506 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 135,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "8935736 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 135,
+            "unit": "ns/op",
+            "extra": "8935736 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "8935736 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "8935736 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 402.4,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "2978773 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 402.4,
+            "unit": "ns/op",
+            "extra": "2978773 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "2978773 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2978773 times\n4 procs"
           }
         ]
       }
