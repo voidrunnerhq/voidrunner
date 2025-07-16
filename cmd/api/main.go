@@ -96,16 +96,13 @@ func main() {
 	log.Info("database initialized successfully")
 
 	// Initialize queue manager
-	log.Info("initializing queue manager")
 	queueManager, err := queue.NewRedisQueueManager(&cfg.Redis, &cfg.Queue, log.Logger)
 	if err != nil {
 		log.Error("failed to initialize queue manager", "error", err)
 		os.Exit(1)
 	}
-	log.Info("queue manager created successfully")
 
 	// Start queue manager
-	log.Info("starting queue manager")
 	queueCtx, queueCancel := context.WithCancel(context.Background())
 	defer queueCancel()
 
@@ -114,13 +111,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		log.Info("stopping queue manager")
 		if err := queueManager.Stop(context.Background()); err != nil {
 			log.Error("failed to stop queue manager", "error", err)
 		}
 	}()
-
-	log.Info("queue manager started successfully")
 
 	// Initialize JWT service
 	jwtService := auth.NewJWTService(&cfg.JWT)

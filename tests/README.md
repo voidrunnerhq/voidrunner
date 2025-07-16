@@ -42,30 +42,30 @@ tests/
 
 ## Using the Test Infrastructure
 
-### Database Setup for Integration Tests
+### Service Setup for Integration Tests
 
-Integration tests require a running PostgreSQL database. You need to explicitly set up the database before running integration tests.
+Integration tests require running PostgreSQL and Redis services. You need to explicitly set up these services before running integration tests.
 
 #### Quick Start (Recommended)
 ```bash
-# Step 1: Start the test database
-make db-start
+# Step 1: Start the test services (PostgreSQL + Redis)
+make services-start
 
 # Step 2: Run integration tests
 make test-integration
 
-# Step 3: Stop the database when done (optional)
-make db-stop
+# Step 3: Stop the services when done (optional)
+make services-stop
 ```
 
-#### Manual Database Management
-Additional database management commands:
+#### Manual Service Management
+Additional service management commands:
 
 ```bash
-# Database lifecycle commands
-make db-start          # Start test database
-make db-stop           # Stop test database  
-make db-reset          # Reset database (clean slate)
+# Service lifecycle commands
+make services-start    # Start test services (PostgreSQL + Redis)
+make services-stop     # Stop test services
+make services-reset    # Reset services (clean slate)
 make migrate-up        # Run database migrations
 make migrate-down      # Roll back one migration
 
@@ -79,10 +79,10 @@ make setup              # Complete development setup
 # Run only unit tests (fast)
 make test
 
-# Run only integration tests (database must be running)
+# Run only integration tests (services must be running)
 make test-integration
 
-# Run all tests (unit + integration, database must be running)
+# Run all tests (unit + integration, services must be running)
 make test-all
 
 # Run unit tests with coverage
@@ -92,13 +92,13 @@ make coverage
 make test-fast
 ```
 
-**Explicit Database Workflow:**
-- `make db-start`: Start test database
-- `make test-integration`: Run integration tests (requires database)
-- `make db-stop`: Stop test database (optional)
-- **Clear separation**: Database management is separate from testing
-- **User control**: You decide when to start/stop the database
-- **Predictable**: No automatic database lifecycle management
+**Explicit Service Workflow:**
+- `make services-start`: Start test services (PostgreSQL + Redis)
+- `make test-integration`: Run integration tests (requires services)
+- `make services-stop`: Stop test services (optional)
+- **Clear separation**: Service management is separate from testing
+- **User control**: You decide when to start/stop the services
+- **Predictable**: No automatic service lifecycle management
 
 ### Environment Setup
 
@@ -293,11 +293,11 @@ db.CleanupDatabase(t)
 db.SeedDatabase(t, fixtures)
 ```
 
-### Test Database Management
+### Test Service Management
 
 The test infrastructure automatically:
-- Skips tests when database is unavailable
-- Manages database connections
+- Skips tests when services are unavailable
+- Manages database and Redis connections
 - Runs migrations before tests
 - Cleans up data between tests
 
@@ -358,31 +358,31 @@ The test infrastructure adapts to CI environments:
 
 ### Common Issues
 
-1. **Database connection errors**
-   - Start database: `make db-start`
-   - Restart database: `make db-reset`
+1. **Service connection errors**
+   - Start services: `make services-start`
+   - Restart services: `make services-reset`
    - Verify Docker is running: `docker info`
-   - Check database status: `make db-status` or `docker-compose -f docker-compose.test.yml ps`
+   - Check service status: `make services-status` or `docker-compose -f docker-compose.test.yml ps`
 
 2. **Test timeouts**
    - Increase timeout values
    - Verify network connectivity
-   - Reset database if needed: `make db-reset`
+   - Reset services if needed: `make services-reset`
 
 3. **Import errors**
    - Ensure Go modules are up to date: `go mod tidy`
    - Check import paths
    - Verify build tags
 
-4. **Database setup issues**
-   - Clean and restart: `make db-reset`
-   - Check Docker Compose: `make db-status` or `docker-compose -f docker-compose.test.yml ps`
+4. **Service setup issues**
+   - Clean and restart: `make services-reset`
+   - Check Docker Compose: `make services-status` or `docker-compose -f docker-compose.test.yml ps`
    - Verify migrations: `make migrate-up`
 
 5. **Integration test failures**
-   - Ensure database is running: `make db-start`
+   - Ensure services are running: `make services-start`
    - Run migrations: `make migrate-up`
-   - Check test database configuration in `.env`
+   - Check test service configuration in `.env`
 
 ### Debug Tips
 

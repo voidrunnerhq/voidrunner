@@ -110,8 +110,8 @@ SERVER_ENV=production ./bin/api
 
 ### 3. Testing Environment
 ```bash
-# Start test database and run integration tests
-make db-start
+# Start test services and run integration tests
+make services-start
 make test-integration
 
 # Or run all tests
