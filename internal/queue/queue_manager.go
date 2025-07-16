@@ -25,10 +25,12 @@ type RedisQueueManager struct {
 	retryProcessor *RetryProcessor
 
 	// State management
-	mu        sync.RWMutex
-	started   bool
-	closed    bool
-	startTime time.Time
+	mu            sync.RWMutex
+	started       bool
+	closed        bool
+	startTime     time.Time
+	cleanupCancel context.CancelFunc
+	cleanupDone   chan struct{}
 }
 
 // NewRedisQueueManager creates a new Redis-based queue manager
@@ -102,6 +104,7 @@ func NewRedisQueueManager(redisConfig *config.RedisConfig, queueConfig *config.Q
 		retryProcessor:  retryProcessor,
 		started:         false,
 		closed:          false,
+		cleanupDone:     make(chan struct{}),
 	}
 
 	return manager, nil
@@ -127,6 +130,12 @@ func (qm *RedisQueueManager) IsHealthy(ctx context.Context) error {
 	qm.mu.RLock()
 	defer qm.mu.RUnlock()
 
+	return qm.isHealthyUnsafe(ctx)
+}
+
+// isHealthyUnsafe checks if all queues are healthy without acquiring locks
+// This method should only be called when the caller already holds the appropriate lock
+func (qm *RedisQueueManager) isHealthyUnsafe(ctx context.Context) error {
 	if qm.closed {
 		return ErrQueueClosed
 	}
@@ -221,13 +230,15 @@ func (qm *RedisQueueManager) Start(ctx context.Context) error {
 
 	qm.logger.Info("starting queue manager")
 
-	// Test all queue health before starting
-	if err := qm.IsHealthy(ctx); err != nil {
+	// Test all queue health before starting (use unsafe version since we already hold the lock)
+	if err := qm.isHealthyUnsafe(ctx); err != nil {
 		return fmt.Errorf("queue health check failed during startup: %w", err)
 	}
 
-	// Start background cleanup for expired messages
-	go qm.backgroundCleanup(ctx)
+	// Start background cleanup for expired messages with dedicated context
+	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	qm.cleanupCancel = cleanupCancel
+	go qm.backgroundCleanup(cleanupCtx)
 
 	qm.started = true
 	qm.startTime = time.Now()
@@ -246,6 +257,18 @@ func (qm *RedisQueueManager) Stop(ctx context.Context) error {
 	}
 
 	qm.logger.Info("stopping queue manager")
+
+	// Stop background cleanup process
+	if qm.cleanupCancel != nil {
+		qm.cleanupCancel()
+		// Wait for cleanup goroutine to finish with timeout
+		select {
+		case <-qm.cleanupDone:
+			qm.logger.Debug("background cleanup stopped gracefully")
+		case <-time.After(5 * time.Second):
+			qm.logger.Warn("background cleanup stop timed out")
+		}
+	}
 
 	// Stop retry processor if running
 	if qm.retryProcessor != nil {
@@ -315,6 +338,8 @@ func (qm *RedisQueueManager) StopRetryProcessor() error {
 
 // backgroundCleanup runs periodic cleanup of expired messages
 func (qm *RedisQueueManager) backgroundCleanup(ctx context.Context) {
+	defer close(qm.cleanupDone) // Signal completion when goroutine exits
+
 	ticker := time.NewTicker(5 * time.Minute) // Cleanup every 5 minutes
 	defer ticker.Stop()
 
@@ -326,17 +351,17 @@ func (qm *RedisQueueManager) backgroundCleanup(ctx context.Context) {
 			qm.logger.Debug("background cleanup stopped due to context cancellation")
 			return
 		case <-ticker.C:
+			// Check if manager was closed before performing cleanup
+			qm.mu.RLock()
+			closed := qm.closed
+			qm.mu.RUnlock()
+
+			if closed {
+				qm.logger.Debug("background cleanup stopped due to manager closure")
+				return
+			}
+
 			qm.performCleanup(ctx)
-		}
-
-		// Check if manager was closed
-		qm.mu.RLock()
-		closed := qm.closed
-		qm.mu.RUnlock()
-
-		if closed {
-			qm.logger.Debug("background cleanup stopped due to manager closure")
-			return
 		}
 	}
 }

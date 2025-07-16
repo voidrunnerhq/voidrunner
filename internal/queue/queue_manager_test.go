@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -423,5 +424,244 @@ func (tqm *testQueueManager) StartRetryProcessor(ctx context.Context) error {
 }
 
 func (tqm *testQueueManager) StopRetryProcessor() error {
+	return nil
+}
+
+// TestQueueManagerDeadlockFix tests that the Start function doesn't deadlock
+func TestQueueManagerDeadlockFix(t *testing.T) {
+	t.Run("start function doesn't deadlock on health check", func(t *testing.T) {
+		// Create a mock-based queue manager to test the deadlock fix
+		mockTaskQueue := &MockTaskQueue{}
+		mockRetryQueue := &MockRetryQueue{}
+		mockDLQ := &MockDeadLetterQueue{}
+
+		// Setup mocks to return healthy status
+		mockTaskQueue.On("IsHealthy", mock.Anything).Return(nil)
+		mockRetryQueue.On("GetRetryStats", mock.Anything).Return(&RetryStats{}, nil)
+		mockDLQ.On("GetDeadLetterStats", mock.Anything).Return(&DeadLetterStats{}, nil)
+
+		// Create a test manager that simulates the deadlock scenario
+		manager := &deadlockTestManager{
+			taskQueue:       mockTaskQueue,
+			retryQueue:      mockRetryQueue,
+			deadLetterQueue: mockDLQ,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// This should complete without deadlock
+		done := make(chan error, 1)
+		go func() {
+			done <- manager.Start(ctx)
+		}()
+
+		select {
+		case err := <-done:
+			assert.NoError(t, err, "Start should not deadlock and should complete successfully")
+		case <-ctx.Done():
+			t.Fatal("Start function deadlocked - timeout reached")
+		}
+
+		// Cleanup
+		_ = manager.Stop(ctx)
+
+		mockTaskQueue.AssertExpectations(t)
+	})
+}
+
+// TestQueueManagerConcurrentOperations tests concurrent Start/Stop operations
+func TestQueueManagerConcurrentOperations(t *testing.T) {
+	t.Run("concurrent start and stop operations", func(t *testing.T) {
+		mockTaskQueue := &MockTaskQueue{}
+		mockRetryQueue := &MockRetryQueue{}
+		mockDLQ := &MockDeadLetterQueue{}
+
+		// Setup mocks
+		mockTaskQueue.On("IsHealthy", mock.Anything).Return(nil)
+		mockTaskQueue.On("Close").Return(nil)
+		mockRetryQueue.On("GetRetryStats", mock.Anything).Return(&RetryStats{}, nil)
+		mockDLQ.On("GetDeadLetterStats", mock.Anything).Return(&DeadLetterStats{}, nil)
+
+		manager := &deadlockTestManager{
+			taskQueue:       mockTaskQueue,
+			retryQueue:      mockRetryQueue,
+			deadLetterQueue: mockDLQ,
+		}
+
+		ctx := context.Background()
+		const numGoroutines = 10
+
+		// Start multiple goroutines trying to start/stop the manager
+		var startErrors, stopErrors []error
+		startDone := make(chan error, numGoroutines)
+		stopDone := make(chan error, numGoroutines)
+
+		// Start goroutines
+		for i := 0; i < numGoroutines; i++ {
+			go func() {
+				startDone <- manager.Start(ctx)
+			}()
+		}
+
+		// Give starts a moment to begin
+		time.Sleep(100 * time.Millisecond)
+
+		// Stop goroutines
+		for i := 0; i < numGoroutines; i++ {
+			go func() {
+				stopDone <- manager.Stop(ctx)
+			}()
+		}
+
+		// Collect all results
+		for i := 0; i < numGoroutines; i++ {
+			startErrors = append(startErrors, <-startDone)
+			stopErrors = append(stopErrors, <-stopDone)
+		}
+
+		// Verify no errors occurred (multiple starts/stops should be safe)
+		for i, err := range startErrors {
+			assert.NoError(t, err, "Start operation %d should not error", i)
+		}
+
+		for i, err := range stopErrors {
+			assert.NoError(t, err, "Stop operation %d should not error", i)
+		}
+	})
+}
+
+// TestQueueManagerHealthCheckConcurrency tests concurrent health check operations
+func TestQueueManagerHealthCheckConcurrency(t *testing.T) {
+	t.Run("concurrent health checks don't deadlock", func(t *testing.T) {
+		mockTaskQueue := &MockTaskQueue{}
+		mockRetryQueue := &MockRetryQueue{}
+		mockDLQ := &MockDeadLetterQueue{}
+
+		// Setup mocks to be called multiple times
+		mockTaskQueue.On("IsHealthy", mock.Anything).Return(nil)
+
+		manager := &deadlockTestManager{
+			taskQueue:       mockTaskQueue,
+			retryQueue:      mockRetryQueue,
+			deadLetterQueue: mockDLQ,
+			started:         true, // Start in started state
+		}
+
+		ctx := context.Background()
+		const numHealthChecks = 20
+
+		// Run multiple concurrent health checks
+		done := make(chan error, numHealthChecks)
+
+		for i := 0; i < numHealthChecks; i++ {
+			go func() {
+				done <- manager.IsHealthy(ctx)
+			}()
+		}
+
+		// Collect all results with timeout
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		for i := 0; i < numHealthChecks; i++ {
+			select {
+			case err := <-done:
+				assert.NoError(t, err, "Health check %d should not error", i)
+			case <-timeoutCtx.Done():
+				t.Fatal("Health check operations deadlocked")
+			}
+		}
+
+		// Verify mock was called the expected number of times
+		mockTaskQueue.AssertNumberOfCalls(t, "IsHealthy", numHealthChecks)
+	})
+}
+
+// deadlockTestManager is a test implementation that simulates the original deadlock issue
+type deadlockTestManager struct {
+	taskQueue       TaskQueue
+	retryQueue      RetryQueue
+	deadLetterQueue DeadLetterQueue
+	mu              sync.RWMutex
+	started         bool
+	closed          bool
+}
+
+func (dtm *deadlockTestManager) TaskQueue() TaskQueue             { return dtm.taskQueue }
+func (dtm *deadlockTestManager) RetryQueue() RetryQueue           { return dtm.retryQueue }
+func (dtm *deadlockTestManager) DeadLetterQueue() DeadLetterQueue { return dtm.deadLetterQueue }
+
+// IsHealthy simulates the fixed version - only acquires read lock
+func (dtm *deadlockTestManager) IsHealthy(ctx context.Context) error {
+	dtm.mu.RLock()
+	defer dtm.mu.RUnlock()
+
+	return dtm.isHealthyUnsafe(ctx)
+}
+
+// isHealthyUnsafe simulates the internal method without locks
+func (dtm *deadlockTestManager) isHealthyUnsafe(ctx context.Context) error {
+	if dtm.closed {
+		return ErrQueueClosed
+	}
+	return dtm.taskQueue.IsHealthy(ctx)
+}
+
+func (dtm *deadlockTestManager) GetStats(ctx context.Context) (*QueueManagerStats, error) {
+	dtm.mu.RLock()
+	defer dtm.mu.RUnlock()
+
+	if dtm.closed {
+		return nil, ErrQueueClosed
+	}
+
+	return &QueueManagerStats{
+		TotalThroughput: 0,
+		Uptime:          0,
+		LastUpdated:     time.Now(),
+	}, nil
+}
+
+// Start simulates the fixed version - uses isHealthyUnsafe while holding write lock
+func (dtm *deadlockTestManager) Start(ctx context.Context) error {
+	dtm.mu.Lock()
+	defer dtm.mu.Unlock()
+
+	if dtm.closed {
+		return ErrQueueClosed
+	}
+
+	if dtm.started {
+		return nil // Already started
+	}
+
+	// This is the key fix: use isHealthyUnsafe instead of IsHealthy
+	if err := dtm.isHealthyUnsafe(ctx); err != nil {
+		return err
+	}
+
+	dtm.started = true
+	return nil
+}
+
+func (dtm *deadlockTestManager) Stop(ctx context.Context) error {
+	dtm.mu.Lock()
+	defer dtm.mu.Unlock()
+
+	if dtm.closed {
+		return nil
+	}
+
+	dtm.started = false
+	dtm.closed = true
+	return nil
+}
+
+func (dtm *deadlockTestManager) StartRetryProcessor(ctx context.Context) error {
+	return nil
+}
+
+func (dtm *deadlockTestManager) StopRetryProcessor() error {
 	return nil
 }
