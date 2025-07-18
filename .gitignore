@@ -29,9 +29,11 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# env files
 .env
 .env.dev
+.env.test
+.env.production
 
 # Security scan reports
 *.sarif
