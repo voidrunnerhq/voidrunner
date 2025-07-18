@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752641384313,
+  "lastUpdate": 1752832304681,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -1728,6 +1728,150 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2978773 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "starbops@zespre.com",
+            "name": "Zespre Schmidt",
+            "username": "starbops"
+          },
+          "committer": {
+            "email": "starbops@hey.com",
+            "name": "Zespre Chang",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "a7da78b179c5ca500ba863d592e6c4fbe2fc6794",
+          "message": "fix(docker): standardize Docker Compose and environment configurations\n\n- Resolve inconsistencies between docker-compose.yml, docker-compose.dev.yml, and docker-compose.test.yml\n- Fix PostgreSQL image consistency (use postgres:17-alpine across all environments)\n- Add network configuration to test environment with voidrunner-test network\n- Resolve port conflicts by using different ports for test services (5433, 6380)\n- Convert hardcoded values in development file to environment variables with defaults\n- Add resource limits to test services for consistency\n- Fix health check credentials to match environment configurations\n- Standardize Redis configuration with environment variables across environments\n- Add missing environment variables (EMBEDDED_WORKERS, SERVER_HOST, SERVER_PORT) to development\n- Add POSTGRES_INITDB_ARGS to development and test environments for consistency\n- Add explicit volume drivers to test environment\n\nEnvironment Template Updates:\n- Completely rewrite .env.example with comprehensive variable documentation\n- Create .env.test.example for test environment with test-specific ports and settings\n- Create .env.production.example with production security guidelines\n- Update .gitignore to include new environment files (.env.test, .env.production)\n- Add detailed comments explaining environment-specific configurations\n- Include security checklists and deployment guidelines\n\nThis ensures consistent configuration across all environments and provides\nclear templates for developers to set up their local environments properly.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+          "timestamp": "2025-07-18T17:50:29+08:00",
+          "tree_id": "5273eadc05686d0ede16de6bcdb7c59f7445e67a",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/a7da78b179c5ca500ba863d592e6c4fbe2fc6794"
+        },
+        "date": 1752832304173,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3595,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "301874 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3595,
+            "unit": "ns/op",
+            "extra": "301874 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "301874 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "301874 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 3122,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "335280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 3122,
+            "unit": "ns/op",
+            "extra": "335280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "335280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "335280 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 197742,
+            "unit": "ns/op\t  106296 B/op\t    1458 allocs/op",
+            "extra": "5551 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 197742,
+            "unit": "ns/op",
+            "extra": "5551 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106296,
+            "unit": "B/op",
+            "extra": "5551 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1458,
+            "unit": "allocs/op",
+            "extra": "5551 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 147.7,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "7937719 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 147.7,
+            "unit": "ns/op",
+            "extra": "7937719 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "7937719 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "7937719 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 423.3,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "2838343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 423.3,
+            "unit": "ns/op",
+            "extra": "2838343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "2838343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2838343 times\n4 procs"
           }
         ]
       }
