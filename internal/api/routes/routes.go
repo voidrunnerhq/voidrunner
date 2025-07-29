@@ -11,14 +11,19 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
+	"github.com/voidrunnerhq/voidrunner/internal/logging"
 	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/internal/worker"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 )
 
 func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
+	setupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil, nil)
+}
+
+func setupWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
 	setupMiddleware(router, cfg, log)
-	setupRoutes(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager)
+	setupRoutesWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, streamingService, logStorage)
 }
 
 func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger) {
@@ -31,6 +36,10 @@ func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger)
 }
 
 func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
+	setupRoutesWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil, nil)
+}
+
+func setupRoutesWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
 	healthHandler := handlers.NewHealthHandler()
 
 	// Add health checks for different components
@@ -112,6 +121,12 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, taskExecutionService, log.Logger)
 		taskValidation := middleware.TaskValidation(log.Logger)
 
+		// Log management endpoints (only create if logging services are available)
+		var logHandler *handlers.LogHandler
+		if streamingService != nil && logStorage != nil {
+			logHandler = handlers.NewLogHandler(repos.Tasks, repos.TaskExecutions, streamingService, logStorage, log.Logger)
+		}
+
 		// Use different rate limits for test vs production
 		var taskRateLimit, taskCreationRateLimit, taskExecutionRateLimit, executionCreationRateLimit gin.HandlerFunc
 		if cfg.IsTest() {
@@ -175,6 +190,21 @@ func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbC
 			taskExecutionRateLimit,
 			executionHandler.Cancel,
 		)
+
+		// Log endpoints (only available if logging services are configured)
+		if logHandler != nil {
+			// Real-time log streaming via Server-Sent Events
+			protected.GET("/tasks/:id/logs/stream",
+				taskRateLimit,
+				logHandler.StreamTaskLogs,
+			)
+
+			// Historical log retrieval with filtering and search
+			protected.GET("/tasks/:id/logs",
+				taskRateLimit,
+				logHandler.GetTaskLogs,
+			)
+		}
 	}
 }
 

@@ -1,18 +1,22 @@
 package executor
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/google/uuid"
+	"github.com/voidrunnerhq/voidrunner/internal/logging"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
 )
 
@@ -21,6 +25,31 @@ type DockerClient struct {
 	client *client.Client
 	config *Config
 	logger *slog.Logger
+
+	// Log streaming support
+	streamingService logging.StreamingService
+	logStorage       logging.LogStorage
+	activeStreams    map[string]*LogStream // containerID -> LogStream
+	streamsMutex     sync.RWMutex
+}
+
+// LogStream represents an active container log stream
+type LogStream struct {
+	ContainerID string
+	TaskID      uuid.UUID
+	ExecutionID uuid.UUID
+	StartTime   time.Time
+	Cancel      context.CancelFunc
+	Done        chan struct{}
+}
+
+// LogStreamingOptions configures log streaming behavior
+type LogStreamingOptions struct {
+	Follow     bool
+	Timestamps bool
+	Since      string
+	Until      string
+	Tail       string
 }
 
 // Container ID validation patterns
@@ -31,6 +60,11 @@ var (
 
 // NewDockerClient creates a new Docker client with the given configuration
 func NewDockerClient(config *Config, logger *slog.Logger) (*DockerClient, error) {
+	return NewDockerClientWithLogging(config, logger, nil, nil)
+}
+
+// NewDockerClientWithLogging creates a new Docker client with optional logging services
+func NewDockerClientWithLogging(config *Config, logger *slog.Logger, streamingService logging.StreamingService, logStorage logging.LogStorage) (*DockerClient, error) {
 	if config == nil {
 		config = NewDefaultConfig()
 	}
@@ -53,9 +87,12 @@ func NewDockerClient(config *Config, logger *slog.Logger) (*DockerClient, error)
 	}
 
 	dockerClient := &DockerClient{
-		client: cli,
-		config: config,
-		logger: logger,
+		client:           cli,
+		config:           config,
+		logger:           logger,
+		streamingService: streamingService,
+		logStorage:       logStorage,
+		activeStreams:    make(map[string]*LogStream),
 	}
 
 	// Test connection
@@ -228,6 +265,237 @@ func (dc *DockerClient) GetContainerLogs(ctx context.Context, containerID string
 	return stdout, stderr, nil
 }
 
+// StartContainerLogStreaming starts streaming logs from a container in real-time
+func (dc *DockerClient) StartContainerLogStreaming(ctx context.Context, containerID string, taskID uuid.UUID, executionID uuid.UUID, options LogStreamingOptions) error {
+	if err := dc.validateContainerID(containerID); err != nil {
+		return fmt.Errorf("start_log_streaming validation failed: %w", err)
+	}
+
+	if dc.streamingService == nil || dc.logStorage == nil {
+		dc.logger.Debug("log streaming services not available, skipping", "container_id", containerID)
+		return nil // Not an error - just means streaming is disabled
+	}
+
+	dc.streamsMutex.Lock()
+	defer dc.streamsMutex.Unlock()
+
+	// Check if already streaming for this container
+	if _, exists := dc.activeStreams[containerID]; exists {
+		return fmt.Errorf("log streaming already active for container %s", containerID)
+	}
+
+	// Create cancellable context for this stream
+	streamCtx, cancel := context.WithCancel(ctx)
+
+	// Start the streaming goroutine
+	stream := &LogStream{
+		ContainerID: containerID,
+		TaskID:      taskID,
+		ExecutionID: executionID,
+		StartTime:   time.Now(),
+		Cancel:      cancel,
+		Done:        make(chan struct{}),
+	}
+
+	dc.activeStreams[containerID] = stream
+
+	// Start streaming in background
+	go dc.streamContainerLogs(streamCtx, stream, options)
+
+	dc.logger.Info("started container log streaming",
+		"container_id", containerID[:12],
+		"task_id", taskID,
+		"execution_id", executionID)
+
+	return nil
+}
+
+// StopContainerLogStreaming stops streaming logs for a container
+func (dc *DockerClient) StopContainerLogStreaming(containerID string) error {
+	if err := dc.validateContainerID(containerID); err != nil {
+		return fmt.Errorf("stop_log_streaming validation failed: %w", err)
+	}
+
+	dc.streamsMutex.Lock()
+	defer dc.streamsMutex.Unlock()
+
+	stream, exists := dc.activeStreams[containerID]
+	if !exists {
+		return nil // Already stopped or never started
+	}
+
+	// Cancel the streaming context
+	stream.Cancel()
+
+	// Wait for the streaming goroutine to finish
+	select {
+	case <-stream.Done:
+		// Stream finished
+	case <-time.After(5 * time.Second):
+		dc.logger.Warn("timeout waiting for log stream to stop", "container_id", containerID[:12])
+	}
+
+	// Remove from active streams
+	delete(dc.activeStreams, containerID)
+
+	dc.logger.Info("stopped container log streaming", "container_id", containerID[:12])
+	return nil
+}
+
+// IsStreamingLogs returns true if logs are being streamed for the container
+func (dc *DockerClient) IsStreamingLogs(containerID string) bool {
+	dc.streamsMutex.RLock()
+	defer dc.streamsMutex.RUnlock()
+
+	_, exists := dc.activeStreams[containerID]
+	return exists
+}
+
+// GetActiveLogStreams returns the number of active log streams
+func (dc *DockerClient) GetActiveLogStreams() int {
+	dc.streamsMutex.RLock()
+	defer dc.streamsMutex.RUnlock()
+
+	return len(dc.activeStreams)
+}
+
+// streamContainerLogs handles the actual streaming of container logs
+func (dc *DockerClient) streamContainerLogs(ctx context.Context, stream *LogStream, options LogStreamingOptions) {
+	defer close(stream.Done)
+
+	logger := dc.logger.With(
+		"container_id", stream.ContainerID[:12],
+		"task_id", stream.TaskID,
+		"execution_id", stream.ExecutionID,
+	)
+
+	logger.Debug("starting container log stream processing")
+
+	// Set up Docker log options
+	dockerOptions := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     options.Follow,
+		Timestamps: options.Timestamps,
+		Since:      options.Since,
+		Until:      options.Until,
+		Tail:       options.Tail,
+	}
+
+	// Get log stream from Docker
+	logs, err := dc.client.ContainerLogs(ctx, stream.ContainerID, dockerOptions)
+	if err != nil {
+		logger.Error("failed to get container log stream", "error", err)
+		return
+	}
+	defer logs.Close()
+
+	// Process log stream
+	sequenceNumber := int64(1)
+	scanner := bufio.NewScanner(logs)
+	
+	// Set a reasonable buffer size for log lines
+	const maxLogLineSize = 64 * 1024 // 64KB per line
+	buf := make([]byte, maxLogLineSize)
+	scanner.Buffer(buf, maxLogLineSize)
+
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			logger.Debug("log streaming context cancelled")
+			return
+		default:
+		}
+
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		// Parse Docker log format and create log entries
+		entries := dc.parseDockerLogLine(line, stream.TaskID, stream.ExecutionID, sequenceNumber)
+		
+		for _, entry := range entries {
+			// Send to streaming service
+			if err := dc.streamingService.PublishLog(ctx, entry); err != nil {
+				logger.Error("failed to publish log entry", "error", err)
+			}
+
+			// Store in database
+			if err := dc.logStorage.StoreLogs(ctx, []logging.LogEntry{entry}); err != nil {
+				logger.Error("failed to store log entry", "error", err)
+			}
+
+			sequenceNumber++
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		logger.Error("error reading container log stream", "error", err)
+	}
+
+	logger.Debug("container log stream processing completed")
+}
+
+// parseDockerLogLine parses a Docker log line and creates LogEntry objects
+func (dc *DockerClient) parseDockerLogLine(line []byte, taskID, executionID uuid.UUID, sequenceNumber int64) []logging.LogEntry {
+	if len(line) < 8 {
+		// Not enough data for Docker log format
+		return nil
+	}
+
+	// Docker log format: [STREAM_TYPE][RESERVED][SIZE][DATA]
+	// STREAM_TYPE: 1 byte (0=stdin, 1=stdout, 2=stderr)
+	// RESERVED: 3 bytes
+	// SIZE: 4 bytes (big-endian)
+	// DATA: SIZE bytes
+
+	streamType := line[0]
+	size := int(line[4])<<24 | int(line[5])<<16 | int(line[6])<<8 | int(line[7])
+
+	if len(line) < 8+size {
+		// Invalid log format
+		return nil
+	}
+
+	content := string(line[8 : 8+size])
+	var stream string
+
+	switch streamType {
+	case 1:
+		stream = "stdout"
+	case 2:
+		stream = "stderr"
+	default:
+		// Unknown stream type, default to stdout
+		stream = "stdout"
+	}
+
+	// Split content by newlines to create separate log entries
+	lines := strings.Split(strings.TrimRight(content, "\n\r"), "\n")
+	entries := make([]logging.LogEntry, 0, len(lines))
+
+	for i, logLine := range lines {
+		if strings.TrimSpace(logLine) == "" {
+			continue // Skip empty lines
+		}
+
+		entry := logging.LogEntry{
+			TaskID:         taskID,
+			ExecutionID:    executionID,
+			Content:        logLine,
+			Stream:         stream,
+			SequenceNumber: sequenceNumber + int64(i),
+			Timestamp:      time.Now(),
+			CreatedAt:      time.Now(),
+		}
+
+		entries = append(entries, entry)
+	}
+
+	return entries
+}
+
 // RemoveContainer removes the specified container
 func (dc *DockerClient) RemoveContainer(ctx context.Context, containerID string, force bool) error {
 	if err := dc.validateContainerID(containerID); err != nil {
@@ -286,6 +554,23 @@ func (dc *DockerClient) IsHealthy(ctx context.Context) error {
 
 // Close closes the Docker client connection
 func (dc *DockerClient) Close() error {
+	// Stop all active log streams
+	dc.streamsMutex.Lock()
+	for containerID, stream := range dc.activeStreams {
+		dc.logger.Debug("stopping log stream during shutdown", "container_id", containerID[:12])
+		stream.Cancel()
+		
+		// Wait briefly for stream to stop
+		select {
+		case <-stream.Done:
+		case <-time.After(2 * time.Second):
+			dc.logger.Warn("timeout waiting for log stream to stop during shutdown", "container_id", containerID[:12])
+		}
+	}
+	dc.activeStreams = make(map[string]*LogStream)
+	dc.streamsMutex.Unlock()
+
+	// Close Docker client
 	if dc.client != nil {
 		return dc.client.Close()
 	}

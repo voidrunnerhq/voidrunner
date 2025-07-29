@@ -104,3 +104,27 @@ worker:
 
 # Embedded Workers Configuration
 embedded_workers: true  # ENABLED for test simplicity
+
+# Logging Configuration (Optimized for testing)
+logging:
+  # Feature toggle - enabled for testing
+  stream_enabled: true
+  
+  # Real-time streaming configuration (smaller buffers for tests)
+  buffer_size: 100                    # Smaller buffer for tests
+  max_concurrent_streams: 10          # Lower limit for tests
+  stream_timeout: "5m"                # Shorter timeout for tests
+  
+  # Storage configuration (optimized for test speed)
+  batch_insert_size: 5                # Smaller batches for faster tests
+  batch_insert_interval: "1s"         # Faster processing for tests
+  max_log_line_size: 1024             # Smaller lines for tests
+  
+  # Retention and cleanup (minimal for tests)
+  retention_days: 1                   # Clean up daily in tests
+  cleanup_interval: "1h"              # More frequent cleanup
+  partition_creation_days: 1          # Create partitions 1 day ahead
+  
+  # Performance tuning
+  redis_channel_prefix: "voidrunner:logs:test:"
+  subscriber_keepalive: "10s"

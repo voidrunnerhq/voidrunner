@@ -105,3 +105,27 @@ worker:
 
 # Embedded Workers Configuration
 embedded_workers: false  # DISABLED for production - use separate scheduler service
+
+# Logging Configuration
+logging:
+  # Feature toggle for gradual rollout
+  stream_enabled: "${LOG_STREAMING_ENABLED:-false}"  # DISABLED by default for safety
+  
+  # Real-time streaming configuration
+  buffer_size: "${LOG_BUFFER_SIZE:-1000}"                      # Channel buffer size
+  max_concurrent_streams: "${LOG_MAX_CONCURRENT_STREAMS:-1000}" # Per-user stream limit
+  stream_timeout: "${LOG_STREAM_TIMEOUT:-30m}"                 # Auto-disconnect timeout
+  
+  # Storage configuration
+  batch_insert_size: "${LOG_BATCH_INSERT_SIZE:-50}"           # Log entries per batch
+  batch_insert_interval: "${LOG_BATCH_INSERT_INTERVAL:-5s}"   # Batch processing interval
+  max_log_line_size: "${LOG_MAX_LINE_SIZE:-4096}"             # Truncate long lines
+  
+  # Retention and cleanup
+  retention_days: "${LOG_RETENTION_DAYS:-30}"                 # Auto-cleanup after 30 days
+  cleanup_interval: "${LOG_CLEANUP_INTERVAL:-24h}"            # Daily cleanup job
+  partition_creation_days: "${LOG_PARTITION_CREATION_DAYS:-7}" # Create partitions 7 days ahead
+  
+  # Performance tuning
+  redis_channel_prefix: "${LOG_REDIS_CHANNEL_PREFIX:-voidrunner:logs:}"
+  subscriber_keepalive: "${LOG_SUBSCRIBER_KEEPALIVE:-30s}"

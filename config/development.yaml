@@ -105,3 +105,27 @@ worker:
 
 # Embedded Workers Configuration
 embedded_workers: true  # ENABLED for development simplicity
+
+# Logging Configuration
+logging:
+  # Feature toggle for gradual rollout
+  stream_enabled: true  # ENABLED for development testing
+  
+  # Real-time streaming configuration
+  buffer_size: 1000                    # Channel buffer size
+  max_concurrent_streams: 100          # Per-user stream limit (reduced for development)
+  stream_timeout: "30m"                # Auto-disconnect timeout
+  
+  # Storage configuration
+  batch_insert_size: 20                # Log entries per batch (smaller for development)
+  batch_insert_interval: "3s"         # Batch processing interval (faster for development)
+  max_log_line_size: 4096             # Truncate long lines
+  
+  # Retention and cleanup
+  retention_days: 7                    # Shorter retention for development
+  cleanup_interval: "6h"               # More frequent cleanup for development
+  partition_creation_days: 3           # Create partitions 3 days ahead
+  
+  # Performance tuning
+  redis_channel_prefix: "voidrunner:logs:dev:"
+  subscriber_keepalive: "30s"

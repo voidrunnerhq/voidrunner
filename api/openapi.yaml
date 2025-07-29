@@ -578,6 +578,186 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
 
+  # Log Endpoints
+  /tasks/{taskId}/logs:
+    get:
+      summary: Get task logs
+      description: |
+        Retrieves historical logs for a task with optional filtering and search capabilities.
+        Supports filtering by execution ID, stream type (stdout/stderr), time range, and full-text search.
+      operationId: getTaskLogs
+      tags:
+        - Logs
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - name: execution_id
+          in: query
+          description: Filter logs by specific execution ID
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        - name: stream
+          in: query
+          description: Filter by log stream type
+          schema:
+            type: string
+            enum: [stdout, stderr]
+          example: "stdout"
+        - name: start_time
+          in: query
+          description: Filter logs from this timestamp (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2025-07-29T10:00:00Z"
+        - name: end_time
+          in: query
+          description: Filter logs until this timestamp (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2025-07-29T11:00:00Z"
+        - name: search
+          in: query
+          description: Full-text search query for log content
+          schema:
+            type: string
+          example: "error"
+        - name: limit
+          in: query
+          description: Maximum number of log entries to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          description: Number of log entries to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /tasks/{taskId}/logs/stream:
+    get:
+      summary: Stream task logs in real-time
+      description: |
+        Streams task execution logs in real-time using Server-Sent Events (SSE).
+        The client should be prepared to handle various event types including log entries,
+        connection status, and keepalive messages.
+        
+        ## Event Types
+        - `log`: Actual log entries from task execution
+        - `connected`: Connection established successfully
+        - `keepalive`: Periodic keepalive to maintain connection
+        - `closed`: Stream closed by server
+        - `error`: Error occurred during streaming
+        
+        ## Client Implementation
+        ```javascript
+        const eventSource = new EventSource('/api/v1/tasks/123/logs/stream', {
+          headers: { 'Authorization': 'Bearer your-jwt-token' }
+        });
+        
+        eventSource.addEventListener('log', (event) => {
+          const logEntry = JSON.parse(event.data);
+          console.log(logEntry.content);
+        });
+        
+        eventSource.addEventListener('error', (event) => {
+          console.error('Stream error:', event.data);
+        });
+        ```
+      operationId: streamTaskLogs
+      tags:
+        - Logs
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - name: execution_id
+          in: query
+          description: Filter logs by specific execution ID (optional)
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Server-Sent Events stream with the following format:
+                  ```
+                  event: log
+                  data: {"task_id":"...","content":"log message","stream":"stdout",...}
+                  
+                  event: keepalive
+                  data: {"timestamp":"2025-07-29T10:00:00Z"}
+                  ```
+              examples:
+                log_event:
+                  summary: Log entry event
+                  value: |
+                    event: log
+                    data: {"task_id":"550e8400-e29b-41d4-a716-446655440001","execution_id":"660f9500-f39c-52e5-b827-556766550002","content":"Starting execution...","stream":"stdout","sequence_number":1,"timestamp":"2025-07-29T10:00:00Z"}
+                    
+                connected_event:
+                  summary: Connection established
+                  value: |
+                    event: connected
+                    data: {"event":"connected","task_id":"550e8400-e29b-41d4-a716-446655440001","message":"Log streaming started"}
+                    
+                keepalive_event:
+                  summary: Keepalive message
+                  value: |
+                    event: keepalive
+                    data: {"timestamp":"2025-07-29T10:01:00Z"}
+        '400':
+          description: Invalid task ID or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          description: Log streaming service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1013,6 +1193,111 @@ components:
                 description: Human-readable error message
           description: Detailed validation errors (for 400 responses)
 
+    # Log-related schemas
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique log entry ID
+          example: 12345
+        task_id:
+          type: string
+          format: uuid
+          description: ID of the task this log belongs to
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        execution_id:
+          type: string
+          format: uuid
+          description: ID of the execution this log belongs to
+          example: "660f9500-f39c-52e5-b827-556766550002"
+        content:
+          type: string
+          description: The actual log message content
+          example: "Starting task execution..."
+        stream:
+          type: string
+          enum: [stdout, stderr]
+          description: The stream type (stdout or stderr)
+          example: "stdout"
+        sequence_number:
+          type: integer
+          format: int64
+          description: Sequence number for ordering logs within an execution
+          example: 1
+        timestamp:
+          type: string
+          format: date-time
+          description: When this log entry was created
+          example: "2025-07-29T10:00:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: When this log entry was stored in the database
+          example: "2025-07-29T10:00:01Z"
+      required:
+        - task_id
+        - execution_id
+        - content
+        - stream
+        - sequence_number
+        - timestamp
+
+    LogResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+          description: Array of log entries
+        total:
+          type: integer
+          format: int64
+          description: Total number of log entries for this task/execution
+          example: 156
+        limit:
+          type: integer
+          description: Maximum number of entries returned in this response
+          example: 100
+        offset:
+          type: integer
+          description: Number of entries skipped
+          example: 0
+        has_more:
+          type: boolean
+          description: Whether there are more log entries available
+          example: true
+      required:
+        - logs
+        - total
+        - limit
+        - offset
+        - has_more
+      example:
+        logs:
+          - id: 12345
+            task_id: "550e8400-e29b-41d4-a716-446655440001"
+            execution_id: "660f9500-f39c-52e5-b827-556766550002"
+            content: "Starting task execution..."
+            stream: "stdout"
+            sequence_number: 1
+            timestamp: "2025-07-29T10:00:00Z"
+            created_at: "2025-07-29T10:00:01Z"
+          - id: 12346
+            task_id: "550e8400-e29b-41d4-a716-446655440001"
+            execution_id: "660f9500-f39c-52e5-b827-556766550002"
+            content: "Processing input data..."
+            stream: "stdout"
+            sequence_number: 2
+            timestamp: "2025-07-29T10:00:02Z"
+            created_at: "2025-07-29T10:00:03Z"
+        total: 156
+        limit: 100
+        offset: 0
+        has_more: true
+
   responses:
     BadRequest:
       description: Invalid request format or validation error
@@ -1080,3 +1365,5 @@ tags:
     description: Task management operations
   - name: Executions
     description: Task execution operations
+  - name: Logs
+    description: Task execution log management and real-time streaming
