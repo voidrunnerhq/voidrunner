@@ -17,6 +17,9 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
+
+	// Import PostgreSQL driver for integration tests
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -103,7 +106,7 @@ func GetTestConfig() *config.Config {
 		},
 		Database: config.DatabaseConfig{
 			Host:     getEnvOrDefault("TEST_DB_HOST", "localhost"),
-			Port:     getEnvOrDefault("TEST_DB_PORT", "5432"),
+			Port:     getEnvOrDefault("TEST_DB_PORT", "5433"), // Use test service port
 			Database: getEnvOrDefault("TEST_DB_NAME", TestDBName),
 			User:     getEnvOrDefault("TEST_DB_USER", "testuser"),
 			Password: getEnvOrDefault("TEST_DB_PASSWORD", "testpassword"),
@@ -301,6 +304,10 @@ func isDatabaseAvailable(cfg *config.Config) bool {
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
+		log.Printf("Failed to open database connection for integration tests: %v", err)
+		log.Printf("Database config: host=%s port=%s user=%s dbname=%s sslmode=%s", 
+			cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
+			cfg.Database.Database, cfg.Database.SSLMode)
 		return false
 	}
 	defer func() { _ = db.Close() }()
@@ -309,9 +316,13 @@ func isDatabaseAvailable(cfg *config.Config) bool {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
+		log.Printf("Failed to ping test database (services may not be running): %v", err)
+		log.Printf("Ensure test services are started with: make services-start")
 		return false
 	}
 
+	log.Printf("Test database connection successful: %s@%s:%s/%s", 
+		cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Database)
 	return true
 }
 

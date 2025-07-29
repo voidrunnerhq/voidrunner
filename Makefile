@@ -38,7 +38,7 @@ test-integration: ## Run integration tests (requires services to be running)
 	@echo "Use 'make services-start' to start the test services"
 	@INTEGRATION_TESTS=true \
 	 TEST_DB_HOST=$${TEST_DB_HOST:-localhost} \
-	 TEST_DB_PORT=$${TEST_DB_PORT:-5432} \
+	 TEST_DB_PORT=$${TEST_DB_PORT:-5433} \
 	 TEST_DB_USER=$${TEST_DB_USER:-testuser} \
 	 TEST_DB_PASSWORD=$${TEST_DB_PASSWORD:-testpassword} \
 	 TEST_DB_NAME=$${TEST_DB_NAME:-voidrunner_test} \
