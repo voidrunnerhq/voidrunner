@@ -24,7 +24,7 @@ type LogEntry struct {
 type LogFilter struct {
 	TaskID      uuid.UUID  `json:"task_id"`
 	ExecutionID *uuid.UUID `json:"execution_id,omitempty"`
-	Stream      string     `json:"stream,omitempty"`     // "stdout", "stderr", or "" for both
+	Stream      string     `json:"stream,omitempty"` // "stdout", "stderr", or "" for both
 	StartTime   *time.Time `json:"start_time,omitempty"`
 	EndTime     *time.Time `json:"end_time,omitempty"`
 	SearchQuery string     `json:"search_query,omitempty"` // Full-text search
@@ -51,26 +51,26 @@ type SSEMessage struct {
 // LogSystemStats provides comprehensive statistics about the logging system
 type LogSystemStats struct {
 	// Streaming statistics
-	ActiveSubscriptions     int            `json:"active_subscriptions"`
+	ActiveSubscriptions      int            `json:"active_subscriptions"`
 	TotalSubscriptionsByTask map[string]int `json:"total_subscriptions_by_task"`
-	
+
 	// Storage statistics
-	TotalLogEntries    int64             `json:"total_log_entries"`
-	StorageSize        int64             `json:"storage_size_bytes"`
-	PartitionCount     int               `json:"partition_count"`
-	PartitionStats     []PartitionStats  `json:"partition_stats"`
-	
+	TotalLogEntries int64            `json:"total_log_entries"`
+	StorageSize     int64            `json:"storage_size_bytes"`
+	PartitionCount  int              `json:"partition_count"`
+	PartitionStats  []PartitionStats `json:"partition_stats"`
+
 	// Collection statistics
-	ActiveStreams      int               `json:"active_streams"`
-	
+	ActiveStreams int `json:"active_streams"`
+
 	// Performance metrics
-	AverageLatency     time.Duration     `json:"average_latency"`
-	MessagesPerSecond  float64          `json:"messages_per_second"`
-	ErrorCount         int64            `json:"error_count"`
-	
+	AverageLatency    time.Duration `json:"average_latency"`
+	MessagesPerSecond float64       `json:"messages_per_second"`
+	ErrorCount        int64         `json:"error_count"`
+
 	// System health
-	IsHealthy          bool             `json:"is_healthy"`
-	LastHealthCheck    time.Time        `json:"last_health_check"`
+	IsHealthy       bool      `json:"is_healthy"`
+	LastHealthCheck time.Time `json:"last_health_check"`
 }
 
 // PartitionStats provides statistics about a log partition
@@ -92,10 +92,10 @@ type StreamSubscription struct {
 
 // LogCollectorStats provides statistics about log collection
 type LogCollectorStats struct {
-	ActiveStreams      int                    `json:"active_streams"`
+	ActiveStreams       int                   `json:"active_streams"`
 	TotalLinesCollected int64                 `json:"total_lines_collected"`
-	CollectionRate     float64               `json:"lines_per_second"`
-	StreamsByContainer map[string]StreamInfo `json:"streams_by_container"`
+	CollectionRate      float64               `json:"lines_per_second"`
+	StreamsByContainer  map[string]StreamInfo `json:"streams_by_container"`
 }
 
 // StreamInfo contains information about a specific container log stream
@@ -120,31 +120,31 @@ func (le *LogEntry) Validate() error {
 	if le.TaskID == uuid.Nil {
 		return fmt.Errorf("task_id cannot be empty")
 	}
-	
+
 	if le.ExecutionID == uuid.Nil {
 		return fmt.Errorf("execution_id cannot be empty")
 	}
-	
+
 	if le.Content == "" {
 		return fmt.Errorf("content cannot be empty")
 	}
-	
+
 	if le.Stream != "stdout" && le.Stream != "stderr" {
 		return fmt.Errorf("stream must be 'stdout' or 'stderr', got: %s", le.Stream)
 	}
-	
+
 	if le.SequenceNumber < 0 {
 		return fmt.Errorf("sequence_number must be non-negative")
 	}
-	
+
 	if le.Timestamp.IsZero() {
 		le.Timestamp = time.Now()
 	}
-	
+
 	if le.CreatedAt.IsZero() {
 		le.CreatedAt = time.Now()
 	}
-	
+
 	return nil
 }
 
@@ -162,33 +162,33 @@ func (lf *LogFilter) Validate() error {
 	if lf.TaskID == uuid.Nil {
 		return fmt.Errorf("task_id cannot be empty")
 	}
-	
+
 	if lf.Stream != "" && lf.Stream != "stdout" && lf.Stream != "stderr" {
 		return fmt.Errorf("stream must be 'stdout', 'stderr', or empty, got: %s", lf.Stream)
 	}
-	
+
 	if lf.StartTime != nil && lf.EndTime != nil && lf.StartTime.After(*lf.EndTime) {
 		return fmt.Errorf("start_time cannot be after end_time")
 	}
-	
+
 	if lf.Limit < 0 {
 		return fmt.Errorf("limit must be non-negative")
 	}
-	
+
 	if lf.Offset < 0 {
 		return fmt.Errorf("offset must be non-negative")
 	}
-	
+
 	// Set default limit if not specified
 	if lf.Limit == 0 {
 		lf.Limit = 100
 	}
-	
+
 	// Enforce maximum limit for performance
 	if lf.Limit > 1000 {
 		lf.Limit = 1000
 	}
-	
+
 	return nil
 }
 
@@ -204,17 +204,17 @@ func CreateSSEMessage(event, data, id string) SSEMessage {
 // Format formats an SSE message for transmission
 func (msg *SSEMessage) Format() string {
 	var result string
-	
+
 	if msg.ID != "" {
 		result += fmt.Sprintf("id: %s\n", msg.ID)
 	}
-	
+
 	if msg.Event != "" {
 		result += fmt.Sprintf("event: %s\n", msg.Event)
 	}
-	
+
 	result += fmt.Sprintf("data: %s\n\n", msg.Data)
-	
+
 	return result
 }
 
@@ -250,25 +250,25 @@ func (st StreamType) String() string {
 type LogConfig struct {
 	// Feature toggles
 	StreamEnabled bool `yaml:"stream_enabled" json:"stream_enabled"`
-	
+
 	// Streaming configuration
-	BufferSize            int           `yaml:"buffer_size" json:"buffer_size"`
-	MaxConcurrentStreams  int           `yaml:"max_concurrent_streams" json:"max_concurrent_streams"`
-	StreamTimeout         time.Duration `yaml:"stream_timeout" json:"stream_timeout"`
-	
+	BufferSize           int           `yaml:"buffer_size" json:"buffer_size"`
+	MaxConcurrentStreams int           `yaml:"max_concurrent_streams" json:"max_concurrent_streams"`
+	StreamTimeout        time.Duration `yaml:"stream_timeout" json:"stream_timeout"`
+
 	// Storage configuration
-	BatchInsertSize       int           `yaml:"batch_insert_size" json:"batch_insert_size"`
-	BatchInsertInterval   time.Duration `yaml:"batch_insert_interval" json:"batch_insert_interval"`
-	MaxLogLineSize        int           `yaml:"max_log_line_size" json:"max_log_line_size"`
-	
+	BatchInsertSize     int           `yaml:"batch_insert_size" json:"batch_insert_size"`
+	BatchInsertInterval time.Duration `yaml:"batch_insert_interval" json:"batch_insert_interval"`
+	MaxLogLineSize      int           `yaml:"max_log_line_size" json:"max_log_line_size"`
+
 	// Retention and cleanup
 	RetentionDays         int           `yaml:"retention_days" json:"retention_days"`
 	CleanupInterval       time.Duration `yaml:"cleanup_interval" json:"cleanup_interval"`
 	PartitionCreationDays int           `yaml:"partition_creation_days" json:"partition_creation_days"`
-	
+
 	// Performance tuning
-	RedisChannelPrefix    string        `yaml:"redis_channel_prefix" json:"redis_channel_prefix"`
-	SubscriberKeepalive   time.Duration `yaml:"subscriber_keepalive" json:"subscriber_keepalive"`
+	RedisChannelPrefix  string        `yaml:"redis_channel_prefix" json:"redis_channel_prefix"`
+	SubscriberKeepalive time.Duration `yaml:"subscriber_keepalive" json:"subscriber_keepalive"`
 }
 
 // DefaultLogConfig returns a LogConfig with sensible defaults
@@ -294,46 +294,46 @@ func (lc *LogConfig) Validate() error {
 	if lc.BufferSize <= 0 {
 		return fmt.Errorf("buffer_size must be positive")
 	}
-	
+
 	if lc.MaxConcurrentStreams <= 0 {
 		return fmt.Errorf("max_concurrent_streams must be positive")
 	}
-	
+
 	if lc.StreamTimeout <= 0 {
 		return fmt.Errorf("stream_timeout must be positive")
 	}
-	
+
 	if lc.BatchInsertSize <= 0 {
 		return fmt.Errorf("batch_insert_size must be positive")
 	}
-	
+
 	if lc.BatchInsertInterval <= 0 {
 		return fmt.Errorf("batch_insert_interval must be positive")
 	}
-	
+
 	if lc.MaxLogLineSize <= 0 {
 		return fmt.Errorf("max_log_line_size must be positive")
 	}
-	
+
 	if lc.RetentionDays <= 0 {
 		return fmt.Errorf("retention_days must be positive")
 	}
-	
+
 	if lc.CleanupInterval <= 0 {
 		return fmt.Errorf("cleanup_interval must be positive")
 	}
-	
+
 	if lc.PartitionCreationDays <= 0 {
 		return fmt.Errorf("partition_creation_days must be positive")
 	}
-	
+
 	if lc.RedisChannelPrefix == "" {
 		return fmt.Errorf("redis_channel_prefix cannot be empty")
 	}
-	
+
 	if lc.SubscriberKeepalive <= 0 {
 		return fmt.Errorf("subscriber_keepalive must be positive")
 	}
-	
+
 	return nil
 }

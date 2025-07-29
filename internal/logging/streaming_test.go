@@ -34,8 +34,8 @@ func (m *MockRedisClient) GetPublishedMessages(channel string) []string {
 }
 
 func TestRedisStreamingService_Subscribe(t *testing.T) {
-	mockRedis := NewMockRedisClient()
-	config := &LogConfig{
+	_ = NewMockRedisClient() // For future use when implementing full Redis streaming tests
+	_ = &LogConfig{
 		StreamEnabled:         true,
 		BufferSize:            100,
 		MaxConcurrentStreams:  10,
@@ -52,24 +52,24 @@ func TestRedisStreamingService_Subscribe(t *testing.T) {
 
 	// Note: This test would need a real Redis streaming service implementation
 	// For now, we'll test the subscription management logic conceptually
-	
-	taskID := uuid.New()
-	userID := uuid.New()
+
+	_ = uuid.New() // taskID for future use
+	_ = uuid.New() // userID for future use
 
 	t.Run("successful subscription", func(t *testing.T) {
 		// This would test with a real implementation
 		// service, err := NewRedisStreamingService(mockRedis, config, nil)
 		// require.NoError(t, err)
 		// defer service.Close()
-		
+
 		// ctx := context.Background()
 		// logChan, err := service.Subscribe(ctx, taskID, userID)
 		// require.NoError(t, err)
 		// require.NotNil(t, logChan)
-		
+
 		// assert.Equal(t, 1, service.GetActiveSubscriptions(taskID))
 		// assert.Equal(t, 1, service.GetTotalSubscriptions())
-		
+
 		t.Skip("Requires full Redis streaming service implementation")
 	})
 

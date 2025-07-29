@@ -393,7 +393,7 @@ func (dc *DockerClient) streamContainerLogs(ctx context.Context, stream *LogStre
 	// Process log stream
 	sequenceNumber := int64(1)
 	scanner := bufio.NewScanner(logs)
-	
+
 	// Set a reasonable buffer size for log lines
 	const maxLogLineSize = 64 * 1024 // 64KB per line
 	buf := make([]byte, maxLogLineSize)
@@ -414,7 +414,7 @@ func (dc *DockerClient) streamContainerLogs(ctx context.Context, stream *LogStre
 
 		// Parse Docker log format and create log entries
 		entries := dc.parseDockerLogLine(line, stream.TaskID, stream.ExecutionID, sequenceNumber)
-		
+
 		for _, entry := range entries {
 			// Send to streaming service
 			if err := dc.streamingService.PublishLog(ctx, entry); err != nil {
@@ -559,7 +559,7 @@ func (dc *DockerClient) Close() error {
 	for containerID, stream := range dc.activeStreams {
 		dc.logger.Debug("stopping log stream during shutdown", "container_id", containerID[:12])
 		stream.Cancel()
-		
+
 		// Wait briefly for stream to stop
 		select {
 		case <-stream.Done:
