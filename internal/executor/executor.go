@@ -169,6 +169,30 @@ func (e *Executor) executeContainer(ctx context.Context, config *ContainerConfig
 	// Mark container as started
 	e.cleanupManager.MarkContainerStarted(containerID)
 
+	// Start log streaming if available (check if client supports it)
+	if dockerClient, ok := e.client.(*DockerClient); ok {
+		streamingOptions := LogStreamingOptions{
+			Follow:     true,
+			Timestamps: true,
+		}
+		
+		if err := dockerClient.StartContainerLogStreaming(ctx, containerID, execCtx.Task.ID, execCtx.Execution.ID, streamingOptions); err != nil {
+			// Log streaming failure shouldn't fail the entire execution
+			logger.Warn("failed to start log streaming", "error", err, "container_id", containerID[:12])
+		} else {
+			logger.Debug("started log streaming", "container_id", containerID[:12])
+			
+			// Ensure log streaming is stopped when container execution completes
+			defer func() {
+				if err := dockerClient.StopContainerLogStreaming(containerID); err != nil {
+					logger.Warn("failed to stop log streaming", "error", err, "container_id", containerID[:12])
+				} else {
+					logger.Debug("stopped log streaming", "container_id", containerID[:12])
+				}
+			}()
+		}
+	}
+
 	// Wait for container to finish
 	logger.Debug("waiting for container to complete")
 	exitCode, err := e.client.WaitContainer(ctx, containerID)
