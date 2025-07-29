@@ -17,8 +17,8 @@ import (
 type DefaultLogManager struct {
 	streamingService StreamingService
 	logStorage       LogStorage
-	config          *LogConfig
-	logger          *slog.Logger
+	config           *LogConfig
+	logger           *slog.Logger
 }
 
 // NewLogManager creates a new log manager with all logging services
@@ -45,15 +45,15 @@ func NewLogManager(
 	// Create log storage
 	logStorage, err := NewPostgreSQLLogStorage(dbConn, config, logger)
 	if err != nil {
-		streamingService.Close() // Clean up on error
+		_ = streamingService.Close() // Clean up on error
 		return nil, fmt.Errorf("failed to create log storage: %w", err)
 	}
 
 	manager := &DefaultLogManager{
 		streamingService: streamingService,
 		logStorage:       logStorage,
-		config:          config,
-		logger:          logger.With("component", "log_manager"),
+		config:           config,
+		logger:           logger.With("component", "log_manager"),
 	}
 
 	return manager, nil
@@ -114,7 +114,7 @@ func (m *DefaultLogManager) GetStats(ctx context.Context) (*LogSystemStats, erro
 		} else {
 			stats.PartitionStats = partitionStats
 			stats.PartitionCount = len(partitionStats)
-			
+
 			// Calculate total storage size and entries
 			for _, partition := range partitionStats {
 				stats.StorageSize += partition.SizeBytes

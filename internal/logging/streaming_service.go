@@ -28,9 +28,9 @@ type RedisStreamingService struct {
 	wg     sync.WaitGroup
 
 	// Metrics
-	totalMessages     int64
-	lastMessageTime   time.Time
-	errorCount        int64
+	totalMessages   int64
+	lastMessageTime time.Time
+	errorCount      int64
 }
 
 // NewRedisStreamingService creates a new Redis-based streaming service
@@ -38,11 +38,11 @@ func NewRedisStreamingService(redisClient *queue.RedisClient, config *LogConfig,
 	if redisClient == nil {
 		return nil, fmt.Errorf("redis client is required")
 	}
-	
+
 	if config == nil {
 		config = DefaultLogConfig()
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -83,7 +83,7 @@ func (s *RedisStreamingService) Subscribe(ctx context.Context, taskID uuid.UUID,
 	// Create subscription
 	subscriptionID := uuid.New().String()
 	channel := make(chan LogEntry, s.config.BufferSize)
-	
+
 	subscription := &StreamSubscription{
 		ID:        subscriptionID,
 		TaskID:    taskID,
@@ -136,7 +136,7 @@ func (s *RedisStreamingService) Unsubscribe(taskID uuid.UUID, ch <-chan LogEntry
 
 	// Remove subscription
 	delete(taskSubs, subscriptionID)
-	
+
 	// Clean up empty task map
 	if len(taskSubs) == 0 {
 		delete(s.subscriptions, taskID)
@@ -179,7 +179,7 @@ func (s *RedisStreamingService) PublishLog(ctx context.Context, entry LogEntry) 
 
 	// Publish to Redis channel
 	channelName := s.getChannelName(entry.TaskID)
-	if err := s.redisClient.Publish(ctx, channelName, string(data)); err != nil {
+	if err := s.redisClient.GetClient().Publish(ctx, channelName, string(data)).Err(); err != nil {
 		s.errorCount++
 		return fmt.Errorf("failed to publish log entry to Redis: %w", err)
 	}
@@ -296,7 +296,7 @@ func (s *RedisStreamingService) monitorSubscription(ctx context.Context, sub *St
 				"task_id", sub.TaskID,
 				"user_id", sub.UserID,
 				"duration", time.Since(sub.CreatedAt))
-			
+
 			// Remove the subscription
 			s.mu.Lock()
 			if taskSubs, exists := s.subscriptions[sub.TaskID]; exists {
@@ -306,7 +306,7 @@ func (s *RedisStreamingService) monitorSubscription(ctx context.Context, sub *St
 				}
 			}
 			s.mu.Unlock()
-			
+
 			close(sub.Channel)
 			return
 		case <-ticker.C:
@@ -355,14 +355,14 @@ func (s *RedisStreamingService) performCleanup() {
 				close(sub.Channel)
 				delete(taskSubs, subID)
 				staleCount++
-				
+
 				s.logger.Debug("removed stale subscription",
 					"subscription_id", subID,
 					"task_id", taskID,
 					"age", age)
 			}
 		}
-		
+
 		// Clean up empty task maps
 		if len(taskSubs) == 0 {
 			delete(s.subscriptions, taskID)

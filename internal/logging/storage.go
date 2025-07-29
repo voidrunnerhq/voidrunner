@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 )
 
@@ -29,10 +28,10 @@ type PostgreSQLLogStorage struct {
 	wg     sync.WaitGroup
 
 	// Metrics
-	totalInserts    int64
-	totalBatches    int64
-	lastInsertTime  time.Time
-	insertErrors    int64
+	totalInserts   int64
+	totalBatches   int64
+	lastInsertTime time.Time
+	insertErrors   int64
 }
 
 // NewPostgreSQLLogStorage creates a new PostgreSQL-based log storage
@@ -40,11 +39,11 @@ func NewPostgreSQLLogStorage(db *database.Connection, config *LogConfig, logger 
 	if db == nil {
 		return nil, fmt.Errorf("database connection is required")
 	}
-	
+
 	if config == nil {
 		config = DefaultLogConfig()
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -158,7 +157,7 @@ func (s *PostgreSQLLogStorage) GetLogs(ctx context.Context, filter LogFilter) ([
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
 	args = append(args, filter.Limit, filter.Offset)
 
-	rows, err := s.db.Query(ctx, query, args...)
+	rows, err := s.db.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query logs: %w", err)
 	}
@@ -213,7 +212,7 @@ func (s *PostgreSQLLogStorage) SearchLogs(ctx context.Context, taskID uuid.UUID,
 		LIMIT $3
 	`
 
-	rows, err := s.db.Query(ctx, sqlQuery, taskID, query, limit)
+	rows, err := s.db.Pool.Query(ctx, sqlQuery, taskID, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search logs: %w", err)
 	}
@@ -260,7 +259,7 @@ func (s *PostgreSQLLogStorage) GetLogCount(ctx context.Context, taskID uuid.UUID
 	}
 
 	var count int64
-	err := s.db.QueryRow(ctx, query, args...).Scan(&count)
+	err := s.db.Pool.QueryRow(ctx, query, args...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count logs: %w", err)
 	}
@@ -274,13 +273,10 @@ func (s *PostgreSQLLogStorage) CleanupOldLogs(ctx context.Context, retentionDays
 		return 0, fmt.Errorf("retention_days must be positive")
 	}
 
-	result, err := s.db.QueryRow(ctx, "SELECT cleanup_old_task_logs_partitions($1)", retentionDays)
-	if err != nil {
-		return 0, fmt.Errorf("failed to cleanup old logs: %w", err)
-	}
+	row := s.db.Pool.QueryRow(ctx, "SELECT cleanup_old_task_logs_partitions($1)", retentionDays)
 
 	var resultText string
-	if err := result.Scan(&resultText); err != nil {
+	if err := row.Scan(&resultText); err != nil {
 		return 0, fmt.Errorf("failed to read cleanup result: %w", err)
 	}
 
@@ -293,13 +289,10 @@ func (s *PostgreSQLLogStorage) CleanupOldLogs(ctx context.Context, retentionDays
 
 // CreatePartition creates a new daily partition for the specified date
 func (s *PostgreSQLLogStorage) CreatePartition(ctx context.Context, date time.Time) error {
-	result, err := s.db.QueryRow(ctx, "SELECT create_task_logs_partition($1)", date)
-	if err != nil {
-		return fmt.Errorf("failed to create partition: %w", err)
-	}
+	row := s.db.Pool.QueryRow(ctx, "SELECT create_task_logs_partition($1)", date)
 
 	var resultText string
-	if err := result.Scan(&resultText); err != nil {
+	if err := row.Scan(&resultText); err != nil {
 		return fmt.Errorf("failed to read partition creation result: %w", err)
 	}
 
@@ -315,7 +308,7 @@ func (s *PostgreSQLLogStorage) GetPartitionStats(ctx context.Context) ([]Partiti
 		ORDER BY partition_date DESC
 	`
 
-	rows, err := s.db.Query(ctx, query)
+	rows, err := s.db.Pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partition stats: %w", err)
 	}
@@ -434,13 +427,13 @@ func (s *PostgreSQLLogStorage) insertLogsBatch(ctx context.Context, entries []Lo
 
 // insertLogsBatchInsert uses regular INSERT statements
 func (s *PostgreSQLLogStorage) insertLogsBatchInsert(ctx context.Context, entries []LogEntry) error {
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.db.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 		}
 	}()
 
@@ -478,7 +471,7 @@ func (s *PostgreSQLLogStorage) insertLogsBatchInsert(ctx context.Context, entrie
 
 // insertLogsBatchCopy uses COPY for better performance
 func (s *PostgreSQLLogStorage) insertLogsBatchCopy(ctx context.Context, entries []LogEntry) error {
-	conn, err := s.db.Acquire(ctx)
+	conn, err := s.db.Pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to acquire connection: %w", err)
 	}
@@ -554,7 +547,7 @@ func (s *PostgreSQLLogStorage) partitionManager() {
 // createUpcomingPartitions creates partitions for upcoming days
 func (s *PostgreSQLLogStorage) createUpcomingPartitions() {
 	today := time.Now()
-	
+
 	for i := 0; i < s.config.PartitionCreationDays; i++ {
 		date := today.AddDate(0, 0, i)
 		if err := s.CreatePartition(s.ctx, date); err != nil {

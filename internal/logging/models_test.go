@@ -102,13 +102,13 @@ func TestLogEntry_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.entry.Validate()
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
 				require.NoError(t, err)
-				
+
 				// Check that timestamps were auto-filled
 				assert.False(t, tt.entry.Timestamp.IsZero())
 				assert.False(t, tt.entry.CreatedAt.IsZero())
@@ -121,7 +121,7 @@ func TestLogEntry_ToSSEData(t *testing.T) {
 	taskID := uuid.New()
 	executionID := uuid.New()
 	timestamp := time.Date(2025, 7, 29, 12, 0, 0, 0, time.UTC)
-	
+
 	entry := LogEntry{
 		ID:             123,
 		TaskID:         taskID,
@@ -136,7 +136,7 @@ func TestLogEntry_ToSSEData(t *testing.T) {
 	data, err := entry.ToSSEData()
 	require.NoError(t, err)
 	assert.NotEmpty(t, data)
-	
+
 	// Check that the JSON contains expected fields
 	assert.Contains(t, data, `"task_id":"`+taskID.String()+`"`)
 	assert.Contains(t, data, `"execution_id":"`+executionID.String()+`"`)
@@ -255,13 +255,13 @@ func TestLogFilter_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.filter.Validate()
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
 				require.NoError(t, err)
-				
+
 				// Check defaults were applied
 				if tt.filter.Limit == 0 {
 					assert.Equal(t, 100, tt.filter.Limit) // Default limit
@@ -324,7 +324,7 @@ func TestSSEMessage_Format(t *testing.T) {
 
 func TestCreateSSEMessage(t *testing.T) {
 	msg := CreateSSEMessage("test-event", "test-data", "test-id")
-	
+
 	assert.Equal(t, "test-event", msg.Event)
 	assert.Equal(t, "test-data", msg.Data)
 	assert.Equal(t, "test-id", msg.ID)
@@ -401,7 +401,7 @@ func TestLogConfig_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -414,7 +414,7 @@ func TestLogConfig_Validate(t *testing.T) {
 
 func TestDefaultLogConfig(t *testing.T) {
 	config := DefaultLogConfig()
-	
+
 	require.NotNil(t, config)
 	assert.False(t, config.StreamEnabled) // Should be disabled by default for safety
 	assert.Equal(t, 1000, config.BufferSize)
@@ -428,7 +428,7 @@ func TestDefaultLogConfig(t *testing.T) {
 	assert.Equal(t, 7, config.PartitionCreationDays)
 	assert.Equal(t, "voidrunner:logs:", config.RedisChannelPrefix)
 	assert.Equal(t, 30*time.Second, config.SubscriberKeepalive)
-	
+
 	// Validate that default config is valid
 	require.NoError(t, config.Validate())
 }

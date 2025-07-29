@@ -175,13 +175,13 @@ func (e *Executor) executeContainer(ctx context.Context, config *ContainerConfig
 			Follow:     true,
 			Timestamps: true,
 		}
-		
+
 		if err := dockerClient.StartContainerLogStreaming(ctx, containerID, execCtx.Task.ID, execCtx.Execution.ID, streamingOptions); err != nil {
 			// Log streaming failure shouldn't fail the entire execution
 			logger.Warn("failed to start log streaming", "error", err, "container_id", containerID[:12])
 		} else {
 			logger.Debug("started log streaming", "container_id", containerID[:12])
-			
+
 			// Ensure log streaming is stopped when container execution completes
 			defer func() {
 				if err := dockerClient.StopContainerLogStreaming(containerID); err != nil {

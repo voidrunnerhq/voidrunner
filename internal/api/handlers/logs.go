@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -340,11 +339,11 @@ func (h *LogHandler) GetTaskLogs(c *gin.Context) {
 // sendSSEMessage sends a Server-Sent Events message
 func (h *LogHandler) sendSSEMessage(c *gin.Context, event string, data interface{}, id string) {
 	if id != "" {
-		fmt.Fprintf(c.Writer, "id: %s\n", id)
+		_, _ = fmt.Fprintf(c.Writer, "id: %s\n", id)
 	}
-	
+
 	if event != "" {
-		fmt.Fprintf(c.Writer, "event: %s\n", event)
+		_, _ = fmt.Fprintf(c.Writer, "event: %s\n", event)
 	}
 
 	// Serialize data to JSON
@@ -354,7 +353,7 @@ func (h *LogHandler) sendSSEMessage(c *gin.Context, event string, data interface
 		return
 	}
 
-	fmt.Fprintf(c.Writer, "data: %s\n\n", string(jsonData))
+	_, _ = fmt.Fprintf(c.Writer, "data: %s\n\n", string(jsonData))
 }
 
 // parseLogFilter parses log filter parameters from query string
