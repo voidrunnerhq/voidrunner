@@ -45,6 +45,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/executor"
+	"github.com/voidrunnerhq/voidrunner/internal/logging"
 	"github.com/voidrunnerhq/voidrunner/internal/queue"
 	"github.com/voidrunnerhq/voidrunner/internal/services"
 	"github.com/voidrunnerhq/voidrunner/internal/worker"
@@ -175,39 +176,8 @@ func main() {
 		}
 	}
 
-	// Initialize executor (Docker or Mock based on availability)
+	// Placeholder for executor - will be initialized after logging services
 	var taskExecutor executor.TaskExecutor
-
-	// Try to initialize Docker executor first
-	dockerExecutor, err := executor.NewExecutor(executorConfig, log.Logger)
-	if err != nil {
-		log.Warn("failed to initialize Docker executor, falling back to mock executor", "error", err)
-		// Use mock executor for environments without Docker (e.g., CI)
-		taskExecutor = executor.NewMockExecutor(executorConfig, log.Logger)
-		log.Info("mock executor initialized successfully")
-	} else {
-		// Check Docker executor health
-		healthCtx, healthCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer healthCancel()
-
-		if err := dockerExecutor.IsHealthy(healthCtx); err != nil {
-			log.Warn("Docker executor health check failed, falling back to mock executor", "error", err)
-			// Cleanup failed Docker executor
-			_ = dockerExecutor.Cleanup(context.Background())
-			// Use mock executor instead
-			taskExecutor = executor.NewMockExecutor(executorConfig, log.Logger)
-			log.Info("mock executor initialized successfully")
-		} else {
-			taskExecutor = dockerExecutor
-			log.Info("Docker executor initialized successfully")
-			// Add cleanup for successful Docker executor
-			defer func() {
-				if err := dockerExecutor.Cleanup(context.Background()); err != nil {
-					log.Error("failed to cleanup Docker executor", "error", err)
-				}
-			}()
-		}
-	}
 
 	// Initialize worker manager if embedded workers are enabled
 	var workerManager worker.WorkerManager
@@ -280,12 +250,102 @@ func main() {
 		log.Logger,
 	)
 
+	// Initialize logging services if enabled  
+	var streamingService logging.StreamingService
+	var logStorage logging.LogStorage
+	if cfg.Logging.StreamEnabled {
+		log.Info("initializing log streaming services")
+
+		// Convert config.LoggingConfig to logging.LogConfig
+		loggingConfig := &logging.LogConfig{
+			StreamEnabled:         cfg.Logging.StreamEnabled,
+			BufferSize:            cfg.Logging.BufferSize,
+			MaxConcurrentStreams:  cfg.Logging.MaxConcurrentStreams,
+			StreamTimeout:         cfg.Logging.StreamTimeout,
+			BatchInsertSize:       cfg.Logging.BatchInsertSize,
+			BatchInsertInterval:   cfg.Logging.BatchInsertInterval,
+			MaxLogLineSize:        cfg.Logging.MaxLogLineSize,
+			RetentionDays:         cfg.Logging.RetentionDays,
+			CleanupInterval:       cfg.Logging.CleanupInterval,
+			PartitionCreationDays: cfg.Logging.PartitionCreationDays,
+			RedisChannelPrefix:    cfg.Logging.RedisChannelPrefix,
+			SubscriberKeepalive:   cfg.Logging.SubscriberKeepalive,
+		}
+
+		// Initialize log storage (database-backed)
+		var err error
+		logStorage, err = logging.NewPostgreSQLLogStorage(dbConn, loggingConfig, log.Logger)
+		if err != nil {
+			log.Error("failed to initialize log storage", "error", err)
+			logStorage = nil
+		}
+
+		// Initialize streaming service (Redis-backed)
+		streamingService, err = logging.NewRedisStreamingService(queueManager.GetRedisClient(), loggingConfig, log.Logger)
+		if err != nil {
+			log.Error("failed to initialize streaming service", "error", err)
+			streamingService = nil
+		}
+
+		log.Info("log streaming services initialized successfully")
+	} else {
+		log.Info("log streaming disabled by configuration")
+	}
+
+	// Initialize executor (Docker or Mock based on availability) after logging services
+	// Try to initialize Docker executor first with logging services
+	var dockerExecutor *executor.Executor
+	var executorErr error
+	if streamingService != nil && logStorage != nil {
+		dockerExecutor, executorErr = executor.NewExecutorWithLogging(executorConfig, log.Logger, streamingService, logStorage)
+		log.Info("initializing Docker executor with log streaming enabled")
+	} else {
+		dockerExecutor, executorErr = executor.NewExecutor(executorConfig, log.Logger)
+		log.Info("initializing Docker executor without log streaming")
+	}
+	
+	if executorErr != nil {
+		log.Warn("failed to initialize Docker executor, falling back to mock executor", "error", executorErr)
+		// Use mock executor for environments without Docker (e.g., CI)
+		taskExecutor = executor.NewMockExecutor(executorConfig, log.Logger)
+		log.Info("mock executor initialized successfully")
+	} else {
+		// Check Docker executor health
+		healthCtx, healthCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer healthCancel()
+
+		if err := dockerExecutor.IsHealthy(healthCtx); err != nil {
+			log.Warn("Docker executor health check failed, falling back to mock executor", "error", err)
+			// Cleanup failed Docker executor
+			_ = dockerExecutor.Cleanup(context.Background())
+			// Use mock executor instead
+			taskExecutor = executor.NewMockExecutor(executorConfig, log.Logger)
+			log.Info("mock executor initialized successfully")
+		} else {
+			taskExecutor = dockerExecutor
+			log.Info("Docker executor initialized successfully")
+			// Add cleanup for successful Docker executor
+			defer func() {
+				if err := dockerExecutor.Cleanup(context.Background()); err != nil {
+					log.Error("failed to cleanup Docker executor", "error", err)
+				}
+			}()
+		}
+	}
+
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
-	routes.Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager)
+	
+	// Setup routes with logging services if available
+	if streamingService != nil && logStorage != nil {
+		// Use the internal setupWithLogging function since Setup doesn't accept logging params
+		routes.SetupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, streamingService, logStorage)
+	} else {
+		routes.Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager)
+	}
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),

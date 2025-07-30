@@ -14,6 +14,7 @@ type Config struct {
 	Server          ServerConfig
 	Database        DatabaseConfig
 	Logger          LoggerConfig
+	Logging         LoggingConfig // Log streaming and storage configuration
 	CORS            CORSConfig
 	JWT             JWTConfig
 	Executor        ExecutorConfig
@@ -114,6 +115,30 @@ type WorkerConfig struct {
 	WorkerIDPrefix         string
 }
 
+type LoggingConfig struct {
+	// Feature toggles
+	StreamEnabled bool `yaml:"stream_enabled" json:"stream_enabled"`
+
+	// Streaming configuration
+	BufferSize           int           `yaml:"buffer_size" json:"buffer_size"`
+	MaxConcurrentStreams int           `yaml:"max_concurrent_streams" json:"max_concurrent_streams"`
+	StreamTimeout        time.Duration `yaml:"stream_timeout" json:"stream_timeout"`
+
+	// Storage configuration
+	BatchInsertSize     int           `yaml:"batch_insert_size" json:"batch_insert_size"`
+	BatchInsertInterval time.Duration `yaml:"batch_insert_interval" json:"batch_insert_interval"`
+	MaxLogLineSize      int           `yaml:"max_log_line_size" json:"max_log_line_size"`
+
+	// Retention and cleanup
+	RetentionDays         int           `yaml:"retention_days" json:"retention_days"`
+	CleanupInterval       time.Duration `yaml:"cleanup_interval" json:"cleanup_interval"`
+	PartitionCreationDays int           `yaml:"partition_creation_days" json:"partition_creation_days"`
+
+	// Performance tuning
+	RedisChannelPrefix  string        `yaml:"redis_channel_prefix" json:"redis_channel_prefix"`
+	SubscriberKeepalive time.Duration `yaml:"subscriber_keepalive" json:"subscriber_keepalive"`
+}
+
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -134,6 +159,20 @@ func Load() (*Config, error) {
 		Logger: LoggerConfig{
 			Level:  getEnv("LOG_LEVEL", "info"),
 			Format: getEnv("LOG_FORMAT", "json"),
+		},
+		Logging: LoggingConfig{
+			StreamEnabled:         getEnvBool("LOG_STREAM_ENABLED", true),
+			BufferSize:            getEnvInt("LOG_BUFFER_SIZE", 1000),
+			MaxConcurrentStreams:  getEnvInt("LOG_MAX_CONCURRENT_STREAMS", 1000),
+			StreamTimeout:         getEnvDuration("LOG_STREAM_TIMEOUT", 30*time.Minute),
+			BatchInsertSize:       getEnvInt("LOG_BATCH_INSERT_SIZE", 50),
+			BatchInsertInterval:   getEnvDuration("LOG_BATCH_INSERT_INTERVAL", 5*time.Second),
+			MaxLogLineSize:        getEnvInt("LOG_MAX_LOG_LINE_SIZE", 4096),
+			RetentionDays:         getEnvInt("LOG_RETENTION_DAYS", 30),
+			CleanupInterval:       getEnvDuration("LOG_CLEANUP_INTERVAL", 24*time.Hour),
+			PartitionCreationDays: getEnvInt("LOG_PARTITION_CREATION_DAYS", 7),
+			RedisChannelPrefix:    getEnv("LOG_REDIS_CHANNEL_PREFIX", "voidrunner:logs:"),
+			SubscriberKeepalive:   getEnvDuration("LOG_SUBSCRIBER_KEEPALIVE", 30*time.Second),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: getEnvSlice("CORS_ALLOWED_ORIGINS", []string{"http://localhost:3000", "http://localhost:5173"}),
@@ -354,6 +393,11 @@ func (c *Config) validate() error {
 		return fmt.Errorf("worker ID prefix is required")
 	}
 
+	// Logging validation
+	if err := c.Logging.Validate(); err != nil {
+		return fmt.Errorf("logging config validation failed: %w", err)
+	}
+
 	// Embedded workers validation
 	if c.EmbeddedWorkers {
 		// When embedded workers are enabled, Redis and Queue must be properly configured
@@ -451,4 +495,53 @@ func getEnvFloat64(key string, defaultValue float64) float64 {
 		}
 	}
 	return defaultValue
+}
+
+// Validate validates the LoggingConfig
+func (lc *LoggingConfig) Validate() error {
+	if lc.BufferSize <= 0 {
+		return fmt.Errorf("buffer_size must be positive")
+	}
+
+	if lc.MaxConcurrentStreams <= 0 {
+		return fmt.Errorf("max_concurrent_streams must be positive")
+	}
+
+	if lc.StreamTimeout <= 0 {
+		return fmt.Errorf("stream_timeout must be positive")
+	}
+
+	if lc.BatchInsertSize <= 0 {
+		return fmt.Errorf("batch_insert_size must be positive")
+	}
+
+	if lc.BatchInsertInterval <= 0 {
+		return fmt.Errorf("batch_insert_interval must be positive")
+	}
+
+	if lc.MaxLogLineSize <= 0 {
+		return fmt.Errorf("max_log_line_size must be positive")
+	}
+
+	if lc.RetentionDays <= 0 {
+		return fmt.Errorf("retention_days must be positive")
+	}
+
+	if lc.CleanupInterval <= 0 {
+		return fmt.Errorf("cleanup_interval must be positive")
+	}
+
+	if lc.PartitionCreationDays <= 0 {
+		return fmt.Errorf("partition_creation_days must be positive")
+	}
+
+	if lc.RedisChannelPrefix == "" {
+		return fmt.Errorf("redis_channel_prefix cannot be empty")
+	}
+
+	if lc.SubscriberKeepalive <= 0 {
+		return fmt.Errorf("subscriber_keepalive must be positive")
+	}
+
+	return nil
 }
