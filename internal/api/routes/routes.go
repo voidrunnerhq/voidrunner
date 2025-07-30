@@ -18,10 +18,10 @@ import (
 )
 
 func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
-	setupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil, nil)
+	SetupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil, nil)
 }
 
-func setupWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
+func SetupWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
 	setupMiddleware(router, cfg, log)
 	setupRoutesWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, streamingService, logStorage)
 }

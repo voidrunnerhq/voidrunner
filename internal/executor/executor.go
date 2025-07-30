@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/voidrunnerhq/voidrunner/internal/logging"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
 )
 
@@ -21,6 +22,11 @@ type Executor struct {
 
 // NewExecutor creates a new executor with the given configuration
 func NewExecutor(config *Config, logger *slog.Logger) (*Executor, error) {
+	return NewExecutorWithLogging(config, logger, nil, nil)
+}
+
+// NewExecutorWithLogging creates a new executor with the given configuration and logging services
+func NewExecutorWithLogging(config *Config, logger *slog.Logger, streamingService logging.StreamingService, logStorage logging.LogStorage) (*Executor, error) {
 	if config == nil {
 		config = NewDefaultConfig()
 	}
@@ -29,8 +35,8 @@ func NewExecutor(config *Config, logger *slog.Logger) (*Executor, error) {
 		logger = slog.Default()
 	}
 
-	// Create Docker client
-	dockerClient, err := NewDockerClient(config, logger)
+	// Create Docker client with logging services
+	dockerClient, err := NewDockerClientWithLogging(config, logger, streamingService, logStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}

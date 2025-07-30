@@ -536,3 +536,8 @@ func (qm *RedisQueueManager) FailTask(ctx context.Context, message *TaskMessage,
 
 	return nil
 }
+
+// GetRedisClient returns the underlying Redis client for advanced usage
+func (qm *RedisQueueManager) GetRedisClient() *RedisClient {
+	return qm.client
+}
