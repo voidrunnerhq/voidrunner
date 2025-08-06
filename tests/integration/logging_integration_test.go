@@ -19,22 +19,22 @@ import (
 // getTestLoggingConfig returns logging configuration for integration tests
 func getTestLoggingConfig() *logging.LogConfig {
 	testConfig := testutil.GetTestConfig()
-	
+
 	// Manual conversion from config.LoggingConfig to logging.LogConfig
 	// This avoids import cycle between config and logging packages
 	config := &logging.LogConfig{
 		StreamEnabled:         testConfig.Logging.StreamEnabled,
-		BufferSize:           testConfig.Logging.BufferSize,
-		MaxConcurrentStreams: testConfig.Logging.MaxConcurrentStreams,
-		StreamTimeout:        testConfig.Logging.StreamTimeout,
-		BatchInsertSize:      1, // Disable batching for integration tests to ensure immediate writes
-		BatchInsertInterval:  testConfig.Logging.BatchInsertInterval,
-		MaxLogLineSize:       testConfig.Logging.MaxLogLineSize,
-		RetentionDays:        testConfig.Logging.RetentionDays,
-		CleanupInterval:      testConfig.Logging.CleanupInterval,
+		BufferSize:            testConfig.Logging.BufferSize,
+		MaxConcurrentStreams:  testConfig.Logging.MaxConcurrentStreams,
+		StreamTimeout:         testConfig.Logging.StreamTimeout,
+		BatchInsertSize:       1, // Disable batching for integration tests to ensure immediate writes
+		BatchInsertInterval:   testConfig.Logging.BatchInsertInterval,
+		MaxLogLineSize:        testConfig.Logging.MaxLogLineSize,
+		RetentionDays:         testConfig.Logging.RetentionDays,
+		CleanupInterval:       testConfig.Logging.CleanupInterval,
 		PartitionCreationDays: testConfig.Logging.PartitionCreationDays,
-		RedisChannelPrefix:   testConfig.Logging.RedisChannelPrefix,
-		SubscriberKeepalive:  testConfig.Logging.SubscriberKeepalive,
+		RedisChannelPrefix:    testConfig.Logging.RedisChannelPrefix,
+		SubscriberKeepalive:   testConfig.Logging.SubscriberKeepalive,
 	}
 	return config
 }
@@ -44,7 +44,7 @@ func TestLoggingServiceDependencies(t *testing.T) {
 	t.Run("handles nil Redis client gracefully", func(t *testing.T) {
 		// Test that NewRedisStreamingService handles nil Redis client
 		service, err := logging.NewRedisStreamingService(nil, getTestLoggingConfig(), slog.Default())
-		
+
 		assert.Nil(t, service)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "redis client is required")
@@ -53,7 +53,7 @@ func TestLoggingServiceDependencies(t *testing.T) {
 	t.Run("handles nil database connection gracefully", func(t *testing.T) {
 		// Test that NewPostgreSQLLogStorage handles nil database connection
 		storage, err := logging.NewPostgreSQLLogStorage(nil, getTestLoggingConfig(), slog.Default())
-		
+
 		assert.Nil(t, storage)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database connection is required")
@@ -92,7 +92,7 @@ func TestLoggingServiceIntegration(t *testing.T) {
 				"INSERT INTO task_executions (id, task_id, status) VALUES ($1, $2, $3)",
 				executionID, taskID, "running")
 			require.NoError(t, err)
-			
+
 			logs := []logging.LogEntry{
 				{
 					TaskID:         taskID,
@@ -124,11 +124,11 @@ func TestLoggingServiceIntegration(t *testing.T) {
 				Limit:  10,
 				Offset: 0,
 			}
-			
+
 			retrievedLogs, err := storage.GetLogs(context.Background(), filter)
 			assert.NoError(t, err)
 			require.Len(t, retrievedLogs, 2, "Expected 2 logs to be retrieved, but got %d", len(retrievedLogs))
-			
+
 			// Defensive programming: verify array has expected elements before accessing
 			if len(retrievedLogs) >= 2 {
 				assert.Equal(t, "Test log line 1", retrievedLogs[0].Content)
@@ -284,7 +284,7 @@ func TestLoggingServiceResourceCleanup(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				go func(seqNum int) {
 					defer func() { done <- true }()
-					
+
 					logs := []logging.LogEntry{
 						{
 							TaskID:         taskID,
