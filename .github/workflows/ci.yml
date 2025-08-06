@@ -159,6 +159,16 @@ jobs:
         ports:
           - 2376:2376
 
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -191,6 +201,15 @@ jobs:
         JWT_SECRET_KEY: test-secret-key-for-integration
         DOCKER_HOST: tcp://localhost:2376
         DOCKER_TLS_VERIFY: 0
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        REDIS_PASSWORD: ""
+        REDIS_DATABASE: 0
+        LOG_STREAM_ENABLED: true
+        LOG_BUFFER_SIZE: 50
+        LOG_MAX_CONCURRENT_STREAMS: 5
+        LOG_BATCH_INSERT_SIZE: 5
+        LOG_BATCH_INSERT_INTERVAL: 1s
       run: make test-integration
 
   docs:

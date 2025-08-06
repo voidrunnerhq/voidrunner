@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/models"
+	"github.com/voidrunnerhq/voidrunner/internal/queue"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
 
 	// Import PostgreSQL driver for integration tests
@@ -106,7 +109,7 @@ func GetTestConfig() *config.Config {
 		},
 		Database: config.DatabaseConfig{
 			Host:     getEnvOrDefault("TEST_DB_HOST", "localhost"),
-			Port:     getEnvOrDefault("TEST_DB_PORT", "5433"), // Use test service port
+			Port:     getEnvOrDefault("TEST_DB_PORT", "5432"), // Match CI configuration
 			Database: getEnvOrDefault("TEST_DB_NAME", TestDBName),
 			User:     getEnvOrDefault("TEST_DB_USER", "testuser"),
 			Password: getEnvOrDefault("TEST_DB_PASSWORD", "testpassword"),
@@ -114,8 +117,8 @@ func GetTestConfig() *config.Config {
 		},
 		JWT: config.JWTConfig{
 			SecretKey:            getEnvOrDefault("JWT_SECRET_KEY", "test-secret-key-for-integration"),
-			AccessTokenDuration:  15 * time.Minute,
-			RefreshTokenDuration: 24 * time.Hour,
+			AccessTokenDuration:  getEnvDurationOrDefault("JWT_ACCESS_TOKEN_DURATION", 30*time.Second), // Short duration for expiry tests
+			RefreshTokenDuration: getEnvDurationOrDefault("JWT_REFRESH_TOKEN_DURATION", 24*time.Hour),
 			Issuer:               "voidrunner-test",
 			Audience:             "voidrunner-api-test",
 		},
@@ -123,6 +126,33 @@ func GetTestConfig() *config.Config {
 			AllowedOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
 			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders: []string{"Content-Type", "Authorization", "X-Request-ID"},
+		},
+		Redis: config.RedisConfig{
+			Host:               getEnvOrDefault("REDIS_HOST", "localhost"),
+			Port:               getEnvOrDefault("REDIS_PORT", "6379"), // Match CI configuration
+			Password:           getEnvOrDefault("REDIS_PASSWORD", ""),
+			Database:           getEnvIntOrDefault("REDIS_DATABASE", 0), // Use default Redis database 0
+			PoolSize:           getEnvIntOrDefault("REDIS_POOL_SIZE", 5),
+			MinIdleConnections: getEnvIntOrDefault("REDIS_MIN_IDLE_CONNECTIONS", 2),
+			MaxRetries:         getEnvIntOrDefault("REDIS_MAX_RETRIES", 3),
+			DialTimeout:        getEnvDurationOrDefault("REDIS_DIAL_TIMEOUT", 5*time.Second),
+			ReadTimeout:        getEnvDurationOrDefault("REDIS_READ_TIMEOUT", 3*time.Second),
+			WriteTimeout:       getEnvDurationOrDefault("REDIS_WRITE_TIMEOUT", 3*time.Second),
+			IdleTimeout:        getEnvDurationOrDefault("REDIS_IDLE_TIMEOUT", 5*time.Minute),
+		},
+		Logging: config.LoggingConfig{
+			StreamEnabled:         getEnvBoolOrDefault("LOG_STREAM_ENABLED", true),
+			BufferSize:            getEnvIntOrDefault("LOG_BUFFER_SIZE", 50),    // Smaller for tests
+			MaxConcurrentStreams:  getEnvIntOrDefault("LOG_MAX_CONCURRENT_STREAMS", 5), // Smaller for tests
+			StreamTimeout:         getEnvDurationOrDefault("LOG_STREAM_TIMEOUT", 1*time.Minute), // Shorter for tests
+			BatchInsertSize:       getEnvIntOrDefault("LOG_BATCH_INSERT_SIZE", 5),   // Smaller for tests
+			BatchInsertInterval:   getEnvDurationOrDefault("LOG_BATCH_INSERT_INTERVAL", 1*time.Second), // Faster for tests
+			MaxLogLineSize:        getEnvIntOrDefault("LOG_MAX_LOG_LINE_SIZE", 1024), // Smaller for tests
+			RetentionDays:         getEnvIntOrDefault("LOG_RETENTION_DAYS", 7),     // Shorter for tests
+			CleanupInterval:       getEnvDurationOrDefault("LOG_CLEANUP_INTERVAL", 1*time.Hour), // More frequent for tests
+			PartitionCreationDays: getEnvIntOrDefault("LOG_PARTITION_CREATION_DAYS", 3), // Fewer for tests
+			RedisChannelPrefix:    getEnvOrDefault("LOG_REDIS_CHANNEL_PREFIX", "voidrunner:test:logs:"),
+			SubscriberKeepalive:   getEnvDurationOrDefault("LOG_SUBSCRIBER_KEEPALIVE", 10*time.Second), // Shorter for tests
 		},
 	}
 }
@@ -332,6 +362,85 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// getEnvIntOrDefault returns environment variable as int or default
+func getEnvIntOrDefault(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+// getEnvBoolOrDefault returns environment variable as bool or default
+func getEnvBoolOrDefault(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
+	}
+	return defaultValue
+}
+
+// getEnvDurationOrDefault returns environment variable as duration or default
+func getEnvDurationOrDefault(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		if duration, err := time.ParseDuration(value); err == nil {
+			return duration
+		}
+	}
+	return defaultValue
+}
+
+// GetTestRedisClient creates a Redis client for integration tests
+func GetTestRedisClient(t *testing.T) *queue.RedisClient {
+	t.Helper()
+
+	cfg := GetTestConfig()
+	logger := slog.Default()
+
+	client, err := queue.NewRedisClient(&cfg.Redis, logger)
+	require.NoError(t, err, "failed to create test Redis client")
+
+	// Test connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = client.Ping(ctx)
+	if err != nil {
+		t.Skip("Redis not available for integration tests (make sure to run: make services-start)")
+	}
+
+	return client
+}
+
+// WithTestRedisClient runs a test function with a Redis client
+func WithTestRedisClient(t *testing.T, testFn func(*queue.RedisClient)) {
+	if testing.Short() {
+		t.Skip("Skipping Redis test in short mode")
+	}
+
+	client := GetTestRedisClient(t)
+	defer client.Close()
+
+	testFn(client)
+}
+
+// IsRedisAvailable checks if Redis is available for testing
+func IsRedisAvailable() bool {
+	cfg := GetTestConfig()
+	client, err := queue.NewRedisClient(&cfg.Redis, slog.Default())
+	if err != nil {
+		return false
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return client.Ping(ctx) == nil
 }
 
 // SetupTestDatabase creates a test database if it doesn't exist

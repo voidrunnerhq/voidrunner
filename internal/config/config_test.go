@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,5 +73,131 @@ func TestConfigValidation(t *testing.T) {
 		err := config.validate()
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database host is required")
+	})
+}
+
+func TestLoggingConfigValidation(t *testing.T) {
+	t.Run("validates logging configuration fields", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			config        LoggingConfig
+			expectedError string
+		}{
+			{
+				name: "valid configuration",
+				config: LoggingConfig{
+					StreamEnabled:         true,
+					BufferSize:           100,
+					MaxConcurrentStreams: 10,
+					StreamTimeout:        time.Minute,
+					BatchInsertSize:      5,
+					BatchInsertInterval:  time.Second,
+					MaxLogLineSize:       1024,
+					RetentionDays:        7,
+					CleanupInterval:      time.Hour,
+					PartitionCreationDays: 3,
+					RedisChannelPrefix:   "test:",
+					SubscriberKeepalive:  time.Second * 30,
+				},
+				expectedError: "",
+			},
+			{
+				name: "invalid buffer size",
+				config: LoggingConfig{
+					BufferSize:           -1, // Invalid
+					MaxConcurrentStreams: 10,
+					StreamTimeout:        time.Minute,
+					BatchInsertSize:      5,
+					BatchInsertInterval:  time.Second,
+					MaxLogLineSize:       1024,
+					RetentionDays:        7,
+					CleanupInterval:      time.Hour,
+					PartitionCreationDays: 3,
+					RedisChannelPrefix:   "test:",
+					SubscriberKeepalive:  time.Second * 30,
+				},
+				expectedError: "buffer_size must be positive",
+			},
+			{
+				name: "invalid stream timeout",
+				config: LoggingConfig{
+					BufferSize:           100,
+					MaxConcurrentStreams: 10,
+					StreamTimeout:        -1, // Invalid
+					BatchInsertSize:      5,
+					BatchInsertInterval:  time.Second,
+					MaxLogLineSize:       1024,
+					RetentionDays:        7,
+					CleanupInterval:      time.Hour,
+					PartitionCreationDays: 3,
+					RedisChannelPrefix:   "test:",
+					SubscriberKeepalive:  time.Second * 30,
+				},
+				expectedError: "stream_timeout must be positive",
+			},
+			{
+				name: "empty redis channel prefix",
+				config: LoggingConfig{
+					BufferSize:           100,
+					MaxConcurrentStreams: 10,
+					StreamTimeout:        time.Minute,
+					BatchInsertSize:      5,
+					BatchInsertInterval:  time.Second,
+					MaxLogLineSize:       1024,
+					RetentionDays:        7,
+					CleanupInterval:      time.Hour,
+					PartitionCreationDays: 3,
+					RedisChannelPrefix:   "", // Invalid
+					SubscriberKeepalive:  time.Second * 30,
+				},
+				expectedError: "redis_channel_prefix cannot be empty",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				err := tt.config.Validate()
+				if tt.expectedError == "" {
+					assert.NoError(t, err, "Expected no error for valid config")
+				} else {
+					assert.Error(t, err, "Expected error for invalid config")
+					assert.Contains(t, err.Error(), tt.expectedError)
+				}
+			})
+		}
+	})
+
+	t.Run("validates with environment variables", func(t *testing.T) {
+		// Test loading config with logging environment variables
+		require.NoError(t, os.Setenv("LOG_STREAM_ENABLED", "true"))
+		require.NoError(t, os.Setenv("LOG_BUFFER_SIZE", "200"))
+		require.NoError(t, os.Setenv("LOG_MAX_CONCURRENT_STREAMS", "20"))
+		defer func() {
+			_ = os.Unsetenv("LOG_STREAM_ENABLED")
+			_ = os.Unsetenv("LOG_BUFFER_SIZE")
+			_ = os.Unsetenv("LOG_MAX_CONCURRENT_STREAMS")
+		}()
+
+		config, err := Load()
+		require.NoError(t, err)
+
+		assert.True(t, config.Logging.StreamEnabled)
+		assert.Equal(t, 200, config.Logging.BufferSize)
+		assert.Equal(t, 20, config.Logging.MaxConcurrentStreams)
+	})
+
+	t.Run("handles logging disabled scenario", func(t *testing.T) {
+		require.NoError(t, os.Setenv("LOG_STREAM_ENABLED", "false"))
+		defer func() {
+			_ = os.Unsetenv("LOG_STREAM_ENABLED")
+		}()
+
+		config, err := Load()
+		require.NoError(t, err)
+
+		assert.False(t, config.Logging.StreamEnabled)
+		// Other logging config should still be valid for when it's re-enabled
+		assert.Greater(t, config.Logging.BufferSize, 0)
+		assert.Greater(t, config.Logging.MaxConcurrentStreams, 0)
 	})
 }

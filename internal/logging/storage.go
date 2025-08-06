@@ -27,6 +27,10 @@ type PostgreSQLLogStorage struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
+	// State management
+	closed bool
+	mu     sync.Mutex
+
 	// Metrics
 	totalInserts   int64
 	totalBatches   int64
@@ -338,6 +342,13 @@ func (s *PostgreSQLLogStorage) GetPartitionStats(ctx context.Context) ([]Partiti
 
 // Close shuts down the storage service and cleans up connections
 func (s *PostgreSQLLogStorage) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil // Already closed
+	}
+
 	s.logger.Info("shutting down log storage service")
 
 	// Cancel context to stop background goroutines
@@ -352,6 +363,7 @@ func (s *PostgreSQLLogStorage) Close() error {
 	// Wait for other background goroutines
 	s.wg.Wait()
 
+	s.closed = true
 	s.logger.Info("log storage service shutdown complete")
 	return nil
 }
@@ -383,7 +395,9 @@ func (s *PostgreSQLLogStorage) batchProcessor() {
 			if len(batch) >= s.config.BatchInsertSize {
 				if err := s.insertLogsBatch(s.ctx, batch); err != nil {
 					s.logger.Error("failed to insert batch", "error", err, "size", len(batch))
+					s.mu.Lock()
 					s.insertErrors++
+					s.mu.Unlock()
 				}
 				batch = batch[:0] // Reset batch
 			}
@@ -393,7 +407,9 @@ func (s *PostgreSQLLogStorage) batchProcessor() {
 			if len(batch) > 0 {
 				if err := s.insertLogsBatch(s.ctx, batch); err != nil {
 					s.logger.Error("failed to insert timed batch", "error", err, "size", len(batch))
+					s.mu.Lock()
 					s.insertErrors++
+					s.mu.Unlock()
 				}
 				batch = batch[:0] // Reset batch
 			}
@@ -461,9 +477,12 @@ func (s *PostgreSQLLogStorage) insertLogsBatchInsert(ctx context.Context, entrie
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	// Update metrics with mutex protection to prevent race conditions
+	s.mu.Lock()
 	s.totalInserts += int64(len(entries))
 	s.totalBatches++
 	s.lastInsertTime = time.Now()
+	s.mu.Unlock()
 
 	s.logger.Debug("inserted log batch", "size", len(entries))
 	return nil
@@ -497,9 +516,12 @@ func (s *PostgreSQLLogStorage) insertLogsBatchCopy(ctx context.Context, entries 
 		return fmt.Errorf("failed to copy log entries: %w", err)
 	}
 
+	// Update metrics with mutex protection to prevent race conditions
+	s.mu.Lock()
 	s.totalInserts += copyCount
 	s.totalBatches++
 	s.lastInsertTime = time.Now()
+	s.mu.Unlock()
 
 	s.logger.Debug("copied log batch", "size", copyCount)
 	return nil

@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: testpassword
       POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS:---encoding=UTF8 --lc-collate=C --lc-ctype=C}
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +32,7 @@ services:
     image: redis:7-alpine
     container_name: voidrunner-test-redis
     ports:
-      - "6380:6379"
+      - "6379:6379"
     command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy allkeys-lru
     volumes:
       - redis_test_data:/data
