@@ -250,7 +250,7 @@ func main() {
 		log.Logger,
 	)
 
-	// Initialize logging services if enabled  
+	// Initialize logging services if enabled
 	var streamingService logging.StreamingService
 	var logStorage logging.LogStorage
 	if cfg.Logging.StreamEnabled {
@@ -294,7 +294,7 @@ func main() {
 
 	// Initialize executor (Docker or Mock based on availability) after logging services
 	taskExecutor = initializeTaskExecutor(executorConfig, log, streamingService, logStorage)
-	
+
 	// Add cleanup for executor if it's a Docker executor
 	if dockerExec, ok := taskExecutor.(*executor.Executor); ok {
 		defer func() {
@@ -309,7 +309,7 @@ func main() {
 	}
 
 	router := gin.New()
-	
+
 	// Setup routes with logging services if available
 	if streamingService != nil && logStorage != nil {
 		// Use the internal setupWithLogging function since Setup doesn't accept logging params
@@ -369,13 +369,13 @@ func initializeTaskExecutor(config *executor.Config, log *logger.Logger, streami
 		dockerExecutor, executorErr = executor.NewExecutor(config, log.Logger)
 		log.Info("initializing Docker executor without log streaming")
 	}
-	
+
 	// Return mock executor if Docker initialization failed
 	if executorErr != nil {
 		log.Warn("failed to initialize Docker executor, falling back to mock executor", "error", executorErr)
 		return executor.NewMockExecutor(config, log.Logger)
 	}
-	
+
 	// Check Docker executor health
 	healthCtx, healthCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer healthCancel()
@@ -386,7 +386,7 @@ func initializeTaskExecutor(config *executor.Config, log *logger.Logger, streami
 		_ = dockerExecutor.Cleanup(context.Background())
 		return executor.NewMockExecutor(config, log.Logger)
 	}
-	
+
 	log.Info("Docker executor initialized successfully")
 	// Note: Cleanup for successful Docker executor should be handled by the caller
 	return dockerExecutor

@@ -142,15 +142,15 @@ func GetTestConfig() *config.Config {
 		},
 		Logging: config.LoggingConfig{
 			StreamEnabled:         getEnvBoolOrDefault("LOG_STREAM_ENABLED", true),
-			BufferSize:            getEnvIntOrDefault("LOG_BUFFER_SIZE", 50),    // Smaller for tests
-			MaxConcurrentStreams:  getEnvIntOrDefault("LOG_MAX_CONCURRENT_STREAMS", 5), // Smaller for tests
-			StreamTimeout:         getEnvDurationOrDefault("LOG_STREAM_TIMEOUT", 1*time.Minute), // Shorter for tests
-			BatchInsertSize:       getEnvIntOrDefault("LOG_BATCH_INSERT_SIZE", 5),   // Smaller for tests
+			BufferSize:            getEnvIntOrDefault("LOG_BUFFER_SIZE", 50),                           // Smaller for tests
+			MaxConcurrentStreams:  getEnvIntOrDefault("LOG_MAX_CONCURRENT_STREAMS", 5),                 // Smaller for tests
+			StreamTimeout:         getEnvDurationOrDefault("LOG_STREAM_TIMEOUT", 1*time.Minute),        // Shorter for tests
+			BatchInsertSize:       getEnvIntOrDefault("LOG_BATCH_INSERT_SIZE", 5),                      // Smaller for tests
 			BatchInsertInterval:   getEnvDurationOrDefault("LOG_BATCH_INSERT_INTERVAL", 1*time.Second), // Faster for tests
-			MaxLogLineSize:        getEnvIntOrDefault("LOG_MAX_LOG_LINE_SIZE", 1024), // Smaller for tests
-			RetentionDays:         getEnvIntOrDefault("LOG_RETENTION_DAYS", 7),     // Shorter for tests
-			CleanupInterval:       getEnvDurationOrDefault("LOG_CLEANUP_INTERVAL", 1*time.Hour), // More frequent for tests
-			PartitionCreationDays: getEnvIntOrDefault("LOG_PARTITION_CREATION_DAYS", 3), // Fewer for tests
+			MaxLogLineSize:        getEnvIntOrDefault("LOG_MAX_LOG_LINE_SIZE", 1024),                   // Smaller for tests
+			RetentionDays:         getEnvIntOrDefault("LOG_RETENTION_DAYS", 7),                         // Shorter for tests
+			CleanupInterval:       getEnvDurationOrDefault("LOG_CLEANUP_INTERVAL", 1*time.Hour),        // More frequent for tests
+			PartitionCreationDays: getEnvIntOrDefault("LOG_PARTITION_CREATION_DAYS", 3),                // Fewer for tests
 			RedisChannelPrefix:    getEnvOrDefault("LOG_REDIS_CHANNEL_PREFIX", "voidrunner:test:logs:"),
 			SubscriberKeepalive:   getEnvDurationOrDefault("LOG_SUBSCRIBER_KEEPALIVE", 10*time.Second), // Shorter for tests
 		},
@@ -335,7 +335,7 @@ func isDatabaseAvailable(cfg *config.Config) bool {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Printf("Failed to open database connection for integration tests: %v", err)
-		log.Printf("Database config: host=%s port=%s user=%s dbname=%s sslmode=%s", 
+		log.Printf("Database config: host=%s port=%s user=%s dbname=%s sslmode=%s",
 			cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
 			cfg.Database.Database, cfg.Database.SSLMode)
 		return false
@@ -351,7 +351,7 @@ func isDatabaseAvailable(cfg *config.Config) bool {
 		return false
 	}
 
-	log.Printf("Test database connection successful: %s@%s:%s/%s", 
+	log.Printf("Test database connection successful: %s@%s:%s/%s",
 		cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Database)
 	return true
 }
