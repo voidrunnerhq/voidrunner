@@ -308,23 +308,23 @@ func (c *Config) validate() error {
 
 	// Redis validation
 	if c.Redis.Host == "" {
-		return fmt.Errorf("Redis host is required")
+		return fmt.Errorf("redis host is required")
 	}
 
 	if c.Redis.Port == "" {
-		return fmt.Errorf("Redis port is required")
+		return fmt.Errorf("redis port is required")
 	}
 
 	if c.Redis.PoolSize <= 0 {
-		return fmt.Errorf("Redis pool size must be positive")
+		return fmt.Errorf("redis pool size must be positive")
 	}
 
 	if c.Redis.MinIdleConnections < 0 {
-		return fmt.Errorf("Redis min idle connections must be non-negative")
+		return fmt.Errorf("redis min idle connections must be non-negative")
 	}
 
 	if c.Redis.MaxRetries < 0 {
-		return fmt.Errorf("Redis max retries must be non-negative")
+		return fmt.Errorf("redis max retries must be non-negative")
 	}
 
 	// Queue validation

@@ -13,7 +13,11 @@ func TestCopyFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "copyfile_test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tmpDir); removeErr != nil {
+			t.Logf("warning: failed to clean up temp dir %s: %v", tmpDir, removeErr)
+		}
+	}()
 
 	// Create source file with test content
 	srcPath := filepath.Join(tmpDir, "source.txt")
@@ -53,7 +57,11 @@ func TestCopyFile_RelativePaths(t *testing.T) {
 func TestCopyFile_NonExistentSource(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "copyfile_test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tmpDir); removeErr != nil {
+			t.Logf("warning: failed to clean up temp dir %s: %v", tmpDir, removeErr)
+		}
+	}()
 
 	srcPath := filepath.Join(tmpDir, "nonexistent.txt")
 	dstPath := filepath.Join(tmpDir, "destination.txt")
@@ -66,7 +74,11 @@ func TestCopyFile_NonExistentSource(t *testing.T) {
 func TestCopyFile_DestinationDirectoryCreation(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "copyfile_test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tmpDir); removeErr != nil {
+			t.Logf("warning: failed to clean up temp dir %s: %v", tmpDir, removeErr)
+		}
+	}()
 
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")

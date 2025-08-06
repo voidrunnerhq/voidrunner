@@ -314,7 +314,7 @@ func (e *Executor) Cancel(ctx context.Context, executionID uuid.UUID) error {
 func (e *Executor) IsHealthy(ctx context.Context) error {
 	// Check Docker client health
 	if err := e.client.IsHealthy(ctx); err != nil {
-		return fmt.Errorf("Docker client health check failed: %w", err)
+		return fmt.Errorf("docker client health check failed: %w", err)
 	}
 
 	// Check if required images are available

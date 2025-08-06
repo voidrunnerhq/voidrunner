@@ -423,7 +423,11 @@ func WithTestRedisClient(t *testing.T, testFn func(*queue.RedisClient)) {
 	}
 
 	client := GetTestRedisClient(t)
-	defer client.Close()
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			t.Logf("warning: failed to close Redis client: %v", closeErr)
+		}
+	}()
 
 	testFn(client)
 }
@@ -435,7 +439,12 @@ func IsRedisAvailable() bool {
 	if err != nil {
 		return false
 	}
-	defer client.Close()
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			// Just ignore close error in availability check
+			_ = closeErr
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
