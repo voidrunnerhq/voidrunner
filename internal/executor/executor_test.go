@@ -534,3 +534,156 @@ func TestExecutor_buildContainerConfig(t *testing.T) {
 	assert.NotEmpty(t, containerConfig.Environment)
 	assert.Equal(t, "/tmp/workspace", containerConfig.WorkingDir)
 }
+
+// TestExecutorInitializationWithLogging tests that executor can be initialized
+// with and without logging services
+func TestExecutorInitializationWithLogging(t *testing.T) {
+	config := NewDefaultConfig()
+	logger := slog.Default()
+
+	t.Run("initialization without logging services", func(t *testing.T) {
+		executor, err := NewExecutor(config, logger)
+		
+		// Should succeed even without logging services
+		assert.NoError(t, err)
+		assert.NotNil(t, executor)
+		assert.NotNil(t, executor.client)
+		assert.NotNil(t, executor.config)
+		assert.NotNil(t, executor.securityManager)
+		assert.NotNil(t, executor.cleanupManager)
+		assert.NotNil(t, executor.logger)
+		
+		// Cleanup
+		_ = executor.Cleanup(context.Background())
+	})
+
+	t.Run("initialization with nil logging services", func(t *testing.T) {
+		executor, err := NewExecutorWithLogging(config, logger, nil, nil)
+		
+		// Should succeed with nil logging services (graceful degradation)
+		assert.NoError(t, err)
+		assert.NotNil(t, executor)
+		assert.NotNil(t, executor.client)
+		
+		// Cleanup
+		_ = executor.Cleanup(context.Background())
+	})
+
+	t.Run("initialization with nil config uses defaults", func(t *testing.T) {
+		executor, err := NewExecutor(nil, logger)
+		
+		// Should succeed with default config
+		assert.NoError(t, err)
+		assert.NotNil(t, executor)
+		assert.NotNil(t, executor.config)
+		
+		// Cleanup
+		_ = executor.Cleanup(context.Background())
+	})
+
+	t.Run("initialization with nil logger uses default", func(t *testing.T) {
+		executor, err := NewExecutor(config, nil)
+		
+		// Should succeed with default logger
+		assert.NoError(t, err)
+		assert.NotNil(t, executor)
+		assert.NotNil(t, executor.logger)
+		
+		// Cleanup
+		_ = executor.Cleanup(context.Background())
+	})
+
+	t.Run("both constructors create equivalent executors", func(t *testing.T) {
+		executor1, err1 := NewExecutor(config, logger)
+		executor2, err2 := NewExecutorWithLogging(config, logger, nil, nil)
+		
+		assert.NoError(t, err1)
+		assert.NoError(t, err2)
+		assert.NotNil(t, executor1)
+		assert.NotNil(t, executor2)
+		
+		// Both should have similar structure (though client internals may differ due to logging)
+		assert.Equal(t, executor1.config, executor2.config)
+		assert.Equal(t, executor1.logger, executor2.logger)
+		
+		// Cleanup
+		_ = executor1.Cleanup(context.Background())
+		_ = executor2.Cleanup(context.Background())
+	})
+}
+
+// TestExecutorGracefulDegradation tests that executor operations continue to work
+// even when logging services fail or are unavailable
+func TestExecutorGracefulDegradation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping executor degradation tests in short mode")
+	}
+
+	config := NewDefaultConfig()
+	logger := slog.Default()
+
+	t.Run("executor handles logging service failures gracefully", func(t *testing.T) {
+		// Create executor without logging services
+		executor, err := NewExecutor(config, logger)
+		require.NoError(t, err)
+		defer executor.Cleanup(context.Background())
+
+		// Test that basic executor methods work without logging
+		ctx := context.Background()
+		
+		// Test health check
+		err = executor.IsHealthy(ctx)
+		// May fail due to Docker not being available, but shouldn't panic
+		assert.NotPanics(t, func() {
+			_ = executor.IsHealthy(ctx)
+		})
+
+		// Test cleanup
+		assert.NotPanics(t, func() {
+			_ = executor.Cleanup(ctx)
+		})
+	})
+
+	t.Run("executor info works without logging services", func(t *testing.T) {
+		executor, err := NewExecutor(config, logger)
+		require.NoError(t, err)
+		defer executor.Cleanup(context.Background())
+
+		// Test getting executor info
+		assert.NotPanics(t, func() {
+			_, _ = executor.GetExecutorInfo(context.Background())
+		})
+	})
+}
+
+// TestExecutorConfigurationValidation tests that executor handles various
+// configuration scenarios correctly
+func TestExecutorConfigurationValidation(t *testing.T) {
+	logger := slog.Default()
+
+	t.Run("invalid configuration is handled gracefully", func(t *testing.T) {
+		// Test with invalid config
+		invalidConfig := &Config{
+			DockerEndpoint: "", // Invalid
+		}
+
+		_, err := NewExecutor(invalidConfig, logger)
+		// Should fail gracefully without panicking
+		assert.Error(t, err)
+	})
+
+	t.Run("config validation is performed", func(t *testing.T) {
+		config := NewDefaultConfig()
+		
+		// Validate the default config is valid
+		assert.NoError(t, config.Validate())
+
+		// Create executor with valid config
+		executor, err := NewExecutor(config, logger)
+		if err == nil {
+			assert.NotNil(t, executor)
+			_ = executor.Cleanup(context.Background())
+		}
+		// Note: May still fail due to Docker unavailability, but config should be valid
+	})
+}

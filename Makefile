@@ -38,12 +38,21 @@ test-integration: ## Run integration tests (requires services to be running)
 	@echo "Use 'make services-start' to start the test services"
 	@INTEGRATION_TESTS=true \
 	 TEST_DB_HOST=$${TEST_DB_HOST:-localhost} \
-	 TEST_DB_PORT=$${TEST_DB_PORT:-5433} \
+	 TEST_DB_PORT=$${TEST_DB_PORT:-5432} \
 	 TEST_DB_USER=$${TEST_DB_USER:-testuser} \
 	 TEST_DB_PASSWORD=$${TEST_DB_PASSWORD:-testpassword} \
 	 TEST_DB_NAME=$${TEST_DB_NAME:-voidrunner_test} \
 	 TEST_DB_SSLMODE=$${TEST_DB_SSLMODE:-disable} \
 	 JWT_SECRET_KEY=$${JWT_SECRET_KEY:-test-secret-key-for-integration} \
+	 REDIS_HOST=$${REDIS_HOST:-localhost} \
+	 REDIS_PORT=$${REDIS_PORT:-6379} \
+	 REDIS_PASSWORD=$${REDIS_PASSWORD:-} \
+	 REDIS_DATABASE=$${REDIS_DATABASE:-0} \
+	 LOG_STREAM_ENABLED=$${LOG_STREAM_ENABLED:-true} \
+	 LOG_BUFFER_SIZE=$${LOG_BUFFER_SIZE:-50} \
+	 LOG_MAX_CONCURRENT_STREAMS=$${LOG_MAX_CONCURRENT_STREAMS:-5} \
+	 LOG_BATCH_INSERT_SIZE=$${LOG_BATCH_INSERT_SIZE:-5} \
+	 LOG_BATCH_INSERT_INTERVAL=$${LOG_BATCH_INSERT_INTERVAL:-1s} \
 	 go test -tags=integration -v -race ./tests/integration/...
 
 test-all: test test-integration ## Run both unit and integration tests (database must be running)

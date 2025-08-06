@@ -382,7 +382,58 @@ func TestTaskHandler_CreateTask(t *testing.T) {
 }
 ```
 
-#### 2. Integration Tests
+#### 2. Test Classification Guidelines
+
+**Unit Tests** (Located in `internal/package/*_test.go`)
+- Test individual functions and methods in isolation
+- Mock external dependencies (databases, Redis, HTTP clients)
+- Test validation logic, business rules, and error handling
+- Should run fast (< 1 second total)
+- No external service dependencies
+
+```go
+// UNIT TEST: Tests validation logic only
+func TestLogConfigValidation(t *testing.T) {
+    invalidConfig := &LogConfig{
+        BufferSize: -1, // Invalid
+    }
+    
+    err := invalidConfig.Validate()
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "buffer_size must be positive")
+}
+```
+
+**Integration Tests** (Located in `tests/integration/*_test.go`)
+- Test interactions between multiple components
+- Test with real external dependencies (PostgreSQL, Redis, Docker)
+- Test system behavior under failure conditions
+- Use build tag `//go:build integration`
+- Package declaration: `package integration_test`
+
+```go
+//go:build integration
+
+package integration_test
+
+// INTEGRATION TEST: Tests Redis dependency interaction
+func TestLoggingServiceDependencies(t *testing.T) {
+    service, err := logging.NewRedisStreamingService(nil, config, logger)
+    
+    assert.Nil(t, service)
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "redis client is required")
+}
+```
+
+**Test Organization Rules**
+- Unit tests stay co-located with the package they test
+- Integration tests go in `tests/integration/`
+- Use descriptive test names: `TestComponentName_Functionality`
+- Group related tests in the same file
+- Use build tags to separate unit from integration tests
+
+#### 3. Integration Tests
 
 ```go
 // REQUIRED: Integration tests for critical paths
