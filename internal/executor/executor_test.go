@@ -626,13 +626,17 @@ func TestExecutorGracefulDegradation(t *testing.T) {
 		// Create executor without logging services
 		executor, err := NewExecutor(config, logger)
 		require.NoError(t, err)
-		defer executor.Cleanup(context.Background())
+		defer func() {
+			if cleanupErr := executor.Cleanup(context.Background()); cleanupErr != nil {
+				t.Logf("warning: executor cleanup failed: %v", cleanupErr)
+			}
+		}()
 
 		// Test that basic executor methods work without logging
 		ctx := context.Background()
 		
 		// Test health check
-		err = executor.IsHealthy(ctx)
+		_ = executor.IsHealthy(ctx)
 		// May fail due to Docker not being available, but shouldn't panic
 		assert.NotPanics(t, func() {
 			_ = executor.IsHealthy(ctx)
@@ -647,7 +651,11 @@ func TestExecutorGracefulDegradation(t *testing.T) {
 	t.Run("executor info works without logging services", func(t *testing.T) {
 		executor, err := NewExecutor(config, logger)
 		require.NoError(t, err)
-		defer executor.Cleanup(context.Background())
+		defer func() {
+			if cleanupErr := executor.Cleanup(context.Background()); cleanupErr != nil {
+				t.Logf("warning: executor cleanup failed: %v", cleanupErr)
+			}
+		}()
 
 		// Test getting executor info
 		assert.NotPanics(t, func() {

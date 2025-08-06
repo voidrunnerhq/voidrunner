@@ -35,10 +35,6 @@ func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger)
 	router.Use(middleware.ErrorHandler())
 }
 
-func setupRoutes(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
-	setupRoutesWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil, nil)
-}
-
 func setupRoutesWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
 	healthHandler := handlers.NewHealthHandler()
 

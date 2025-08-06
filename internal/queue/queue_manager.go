@@ -61,7 +61,7 @@ func NewRedisQueueManager(redisConfig *config.RedisConfig, queueConfig *config.Q
 		if closeErr := client.Close(); closeErr != nil {
 			logger.Error("failed to close Redis client after health check failure", "error", closeErr)
 		}
-		return nil, fmt.Errorf("Redis health check failed: %w", err)
+		return nil, fmt.Errorf("redis health check failed: %w", err)
 	}
 
 	// Create task queue
@@ -142,7 +142,7 @@ func (qm *RedisQueueManager) isHealthyUnsafe(ctx context.Context) error {
 
 	// Check Redis client health
 	if err := qm.client.IsHealthy(ctx); err != nil {
-		return fmt.Errorf("Redis client health check failed: %w", err)
+		return fmt.Errorf("redis client health check failed: %w", err)
 	}
 
 	// Check task queue health

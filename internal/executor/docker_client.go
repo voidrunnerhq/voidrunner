@@ -250,7 +250,12 @@ func (dc *DockerClient) GetContainerLogs(ctx context.Context, containerID string
 	if err != nil {
 		return "", "", NewContainerError(containerID, "get_logs", "failed to get container logs", err)
 	}
-	defer logs.Close()
+	defer func() {
+		if closeErr := logs.Close(); closeErr != nil {
+			// Log the error but don't fail the operation as we may have already read the logs
+			dc.logger.Error("failed to close container logs reader", "container_id", containerID, "error", closeErr)
+		}
+	}()
 
 	// Read all logs
 	logBytes, err := io.ReadAll(logs)
@@ -388,7 +393,11 @@ func (dc *DockerClient) streamContainerLogs(ctx context.Context, stream *LogStre
 		logger.Error("failed to get container log stream", "error", err)
 		return
 	}
-	defer logs.Close()
+	defer func() {
+		if closeErr := logs.Close(); closeErr != nil {
+			logger.Error("failed to close container log stream", "container_id", stream.ContainerID, "error", closeErr)
+		}
+	}()
 
 	// Process log stream
 	sequenceNumber := int64(1)
@@ -689,7 +698,12 @@ func (dc *DockerClient) PullImage(ctx context.Context, imageName string) error {
 	if err != nil {
 		return NewExecutorError("pull_image", "failed to pull image", err)
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			// Log the error but don't fail the operation as image may have been pulled
+			dc.logger.Error("failed to close image pull reader", "image", imageName, "error", closeErr)
+		}
+	}()
 
 	// Read the pull output to ensure completion
 	_, err = io.ReadAll(reader)

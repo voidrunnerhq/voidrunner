@@ -176,7 +176,7 @@ func main() {
 		}
 	}
 
-	// Placeholder for executor - will be initialized after logging services
+	// Declare executor - will be initialized after logging services
 	var taskExecutor executor.TaskExecutor
 
 	// Initialize worker manager if embedded workers are enabled
@@ -293,44 +293,15 @@ func main() {
 	}
 
 	// Initialize executor (Docker or Mock based on availability) after logging services
-	// Try to initialize Docker executor first with logging services
-	var dockerExecutor *executor.Executor
-	var executorErr error
-	if streamingService != nil && logStorage != nil {
-		dockerExecutor, executorErr = executor.NewExecutorWithLogging(executorConfig, log.Logger, streamingService, logStorage)
-		log.Info("initializing Docker executor with log streaming enabled")
-	} else {
-		dockerExecutor, executorErr = executor.NewExecutor(executorConfig, log.Logger)
-		log.Info("initializing Docker executor without log streaming")
-	}
+	taskExecutor = initializeTaskExecutor(executorConfig, log, streamingService, logStorage)
 	
-	if executorErr != nil {
-		log.Warn("failed to initialize Docker executor, falling back to mock executor", "error", executorErr)
-		// Use mock executor for environments without Docker (e.g., CI)
-		taskExecutor = executor.NewMockExecutor(executorConfig, log.Logger)
-		log.Info("mock executor initialized successfully")
-	} else {
-		// Check Docker executor health
-		healthCtx, healthCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer healthCancel()
-
-		if err := dockerExecutor.IsHealthy(healthCtx); err != nil {
-			log.Warn("Docker executor health check failed, falling back to mock executor", "error", err)
-			// Cleanup failed Docker executor
-			_ = dockerExecutor.Cleanup(context.Background())
-			// Use mock executor instead
-			taskExecutor = executor.NewMockExecutor(executorConfig, log.Logger)
-			log.Info("mock executor initialized successfully")
-		} else {
-			taskExecutor = dockerExecutor
-			log.Info("Docker executor initialized successfully")
-			// Add cleanup for successful Docker executor
-			defer func() {
-				if err := dockerExecutor.Cleanup(context.Background()); err != nil {
-					log.Error("failed to cleanup Docker executor", "error", err)
-				}
-			}()
-		}
+	// Add cleanup for executor if it's a Docker executor
+	if dockerExec, ok := taskExecutor.(*executor.Executor); ok {
+		defer func() {
+			if err := dockerExec.Cleanup(context.Background()); err != nil {
+				log.Error("failed to cleanup Docker executor", "error", err)
+			}
+		}()
 	}
 
 	if cfg.IsProduction() {
@@ -384,4 +355,39 @@ func main() {
 	}
 
 	log.Info("server exited")
+}
+
+// initializeTaskExecutor initializes either a Docker executor or falls back to a mock executor
+func initializeTaskExecutor(config *executor.Config, log *logger.Logger, streamingService logging.StreamingService, logStorage logging.LogStorage) executor.TaskExecutor {
+	// Try to initialize Docker executor first with logging services
+	var dockerExecutor *executor.Executor
+	var executorErr error
+	if streamingService != nil && logStorage != nil {
+		dockerExecutor, executorErr = executor.NewExecutorWithLogging(config, log.Logger, streamingService, logStorage)
+		log.Info("initializing Docker executor with log streaming enabled")
+	} else {
+		dockerExecutor, executorErr = executor.NewExecutor(config, log.Logger)
+		log.Info("initializing Docker executor without log streaming")
+	}
+	
+	// Return mock executor if Docker initialization failed
+	if executorErr != nil {
+		log.Warn("failed to initialize Docker executor, falling back to mock executor", "error", executorErr)
+		return executor.NewMockExecutor(config, log.Logger)
+	}
+	
+	// Check Docker executor health
+	healthCtx, healthCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer healthCancel()
+
+	if err := dockerExecutor.IsHealthy(healthCtx); err != nil {
+		log.Warn("Docker executor health check failed, falling back to mock executor", "error", err)
+		// Cleanup failed Docker executor
+		_ = dockerExecutor.Cleanup(context.Background())
+		return executor.NewMockExecutor(config, log.Logger)
+	}
+	
+	log.Info("Docker executor initialized successfully")
+	// Note: Cleanup for successful Docker executor should be handled by the caller
+	return dockerExecutor
 }
