@@ -76,13 +76,17 @@ func NewDatabaseHelper(t *testing.T) *DatabaseHelper {
 	// Create logger
 	log := logger.New("error", "json") // Reduce noise in tests
 
+	// Update database config with effective host for connection
+	dbConfig := cfg.Database
+	dbConfig.Host = getEffectiveHost(cfg.Database.Host)
+
 	// Connect to database
-	db, err := database.NewConnection(&cfg.Database, log.Logger)
+	db, err := database.NewConnection(&dbConfig, log.Logger)
 	require.NoError(t, err, "failed to connect to test database")
 
 	// Run migrations
 	migrateCfg := &database.MigrateConfig{
-		DatabaseConfig: &cfg.Database,
+		DatabaseConfig: &dbConfig,
 		MigrationsPath: getMigrationsPath(),
 		Logger:         log.Logger,
 	}
@@ -326,17 +330,37 @@ func (h *DatabaseHelper) Close() {
 	}
 }
 
+// getEffectiveHost returns the appropriate host address for the current environment
+// In CI (GitHub Actions), localhost works correctly with services
+// Locally with Docker Compose on macOS, we need explicit IPv4 127.0.0.1
+func getEffectiveHost(configuredHost string) string {
+	// If running in CI, use the configured host (usually localhost)
+	if os.Getenv("CI") == "true" {
+		return configuredHost
+	}
+	
+	// For local development, if host is localhost, use IPv4 explicitly
+	// to avoid macOS resolving to IPv6 ::1 which Docker containers can't bind to
+	if configuredHost == "localhost" {
+		return "127.0.0.1"
+	}
+	
+	return configuredHost
+}
+
 // isDatabaseAvailable checks if the test database is available
 func isDatabaseAvailable(cfg *config.Config) bool {
+	effectiveHost := getEffectiveHost(cfg.Database.Host)
+	
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
+		effectiveHost, cfg.Database.Port, cfg.Database.User,
 		cfg.Database.Password, cfg.Database.Database, cfg.Database.SSLMode)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Printf("Failed to open database connection for integration tests: %v", err)
-		log.Printf("Database config: host=%s port=%s user=%s dbname=%s sslmode=%s",
-			cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
+		log.Printf("Database config: host=%s (effective: %s) port=%s user=%s dbname=%s sslmode=%s",
+			cfg.Database.Host, effectiveHost, cfg.Database.Port, cfg.Database.User,
 			cfg.Database.Database, cfg.Database.SSLMode)
 		return false
 	}
@@ -352,7 +376,7 @@ func isDatabaseAvailable(cfg *config.Config) bool {
 	}
 
 	log.Printf("Test database connection successful: %s@%s:%s/%s",
-		cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Database)
+		cfg.Database.User, effectiveHost, cfg.Database.Port, cfg.Database.Database)
 	return true
 }
 
@@ -401,7 +425,11 @@ func GetTestRedisClient(t *testing.T) *queue.RedisClient {
 	cfg := GetTestConfig()
 	logger := slog.Default()
 
-	client, err := queue.NewRedisClient(&cfg.Redis, logger)
+	// Update Redis config with effective host for connection
+	redisConfig := cfg.Redis
+	redisConfig.Host = getEffectiveHost(cfg.Redis.Host)
+
+	client, err := queue.NewRedisClient(&redisConfig, logger)
 	require.NoError(t, err, "failed to create test Redis client")
 
 	// Test connection
@@ -435,7 +463,12 @@ func WithTestRedisClient(t *testing.T, testFn func(*queue.RedisClient)) {
 // IsRedisAvailable checks if Redis is available for testing
 func IsRedisAvailable() bool {
 	cfg := GetTestConfig()
-	client, err := queue.NewRedisClient(&cfg.Redis, slog.Default())
+	
+	// Update Redis config with effective host for connection
+	redisConfig := cfg.Redis
+	redisConfig.Host = getEffectiveHost(cfg.Redis.Host)
+	
+	client, err := queue.NewRedisClient(&redisConfig, slog.Default())
 	if err != nil {
 		return false
 	}
@@ -455,10 +488,11 @@ func IsRedisAvailable() bool {
 // SetupTestDatabase creates a test database if it doesn't exist
 func SetupTestDatabase() error {
 	cfg := GetTestConfig()
+	effectiveHost := getEffectiveHost(cfg.Database.Host)
 
 	// Connect to postgres database to create test database
 	adminConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
+		effectiveHost, cfg.Database.Port, cfg.Database.User,
 		cfg.Database.Password, cfg.Database.SSLMode)
 
 	db, err := sql.Open("postgres", adminConnStr)
@@ -489,10 +523,11 @@ func SetupTestDatabase() error {
 // TeardownTestDatabase drops the test database
 func TeardownTestDatabase() error {
 	cfg := GetTestConfig()
+	effectiveHost := getEffectiveHost(cfg.Database.Host)
 
 	// Connect to postgres database to drop test database
 	adminConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
+		effectiveHost, cfg.Database.Port, cfg.Database.User,
 		cfg.Database.Password, cfg.Database.SSLMode)
 
 	db, err := sql.Open("postgres", adminConnStr)
