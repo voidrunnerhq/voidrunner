@@ -338,20 +338,20 @@ func getEffectiveHost(configuredHost string) string {
 	if os.Getenv("CI") == "true" {
 		return configuredHost
 	}
-	
+
 	// For local development, if host is localhost, use IPv4 explicitly
 	// to avoid macOS resolving to IPv6 ::1 which Docker containers can't bind to
 	if configuredHost == "localhost" {
 		return "127.0.0.1"
 	}
-	
+
 	return configuredHost
 }
 
 // isDatabaseAvailable checks if the test database is available
 func isDatabaseAvailable(cfg *config.Config) bool {
 	effectiveHost := getEffectiveHost(cfg.Database.Host)
-	
+
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		effectiveHost, cfg.Database.Port, cfg.Database.User,
 		cfg.Database.Password, cfg.Database.Database, cfg.Database.SSLMode)
@@ -463,11 +463,11 @@ func WithTestRedisClient(t *testing.T, testFn func(*queue.RedisClient)) {
 // IsRedisAvailable checks if Redis is available for testing
 func IsRedisAvailable() bool {
 	cfg := GetTestConfig()
-	
+
 	// Update Redis config with effective host for connection
 	redisConfig := cfg.Redis
 	redisConfig.Host = getEffectiveHost(cfg.Redis.Host)
-	
+
 	client, err := queue.NewRedisClient(&redisConfig, slog.Default())
 	if err != nil {
 		return false
