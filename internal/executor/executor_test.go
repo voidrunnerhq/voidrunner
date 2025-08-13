@@ -558,7 +558,7 @@ func TestExecutorInitializationWithLogging(t *testing.T) {
 	})
 
 	t.Run("initialization with nil logging services", func(t *testing.T) {
-		executor, err := NewExecutorWithLogging(config, logger, nil, nil)
+		executor, err := NewExecutorWithLogging(config, logger, nil)
 
 		// Should succeed with nil logging services (graceful degradation)
 		assert.NoError(t, err)
@@ -595,7 +595,7 @@ func TestExecutorInitializationWithLogging(t *testing.T) {
 
 	t.Run("both constructors create equivalent executors", func(t *testing.T) {
 		executor1, err1 := NewExecutor(config, logger)
-		executor2, err2 := NewExecutorWithLogging(config, logger, nil, nil)
+		executor2, err2 := NewExecutorWithLogging(config, logger, nil)
 
 		assert.NoError(t, err1)
 		assert.NoError(t, err2)

@@ -22,11 +22,11 @@ type Executor struct {
 
 // NewExecutor creates a new executor with the given configuration
 func NewExecutor(config *Config, logger *slog.Logger) (*Executor, error) {
-	return NewExecutorWithLogging(config, logger, nil, nil)
+	return NewExecutorWithLogging(config, logger, nil)
 }
 
 // NewExecutorWithLogging creates a new executor with the given configuration and logging services
-func NewExecutorWithLogging(config *Config, logger *slog.Logger, streamingService logging.StreamingService, logStorage logging.LogStorage) (*Executor, error) {
+func NewExecutorWithLogging(config *Config, logger *slog.Logger, logManager logging.LogManager) (*Executor, error) {
 	if config == nil {
 		config = NewDefaultConfig()
 	}
@@ -35,8 +35,8 @@ func NewExecutorWithLogging(config *Config, logger *slog.Logger, streamingServic
 		logger = slog.Default()
 	}
 
-	// Create Docker client with logging services
-	dockerClient, err := NewDockerClientWithLogging(config, logger, streamingService, logStorage)
+	// Create Docker client with logging manager
+	dockerClient, err := NewDockerClientWithLogging(config, logger, logManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
