@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/voidrunnerhq/voidrunner/internal/config"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/pkg/logger"
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -52,32 +53,37 @@ func main() {
 	case "up":
 		// Enhanced debugging for migration up
 		fmt.Println("=== Database Migration Debug Info ===")
-		fmt.Printf("Database: %s@%s:%s/%s (ssl=%s)\n", 
-			cfg.Database.User, cfg.Database.Host, cfg.Database.Port, 
+		fmt.Printf("Database: %s@%s:%s/%s (ssl=%s)\n",
+			cfg.Database.User, cfg.Database.Host, cfg.Database.Port,
 			cfg.Database.Database, cfg.Database.SSLMode)
 		fmt.Printf("Migrations path: %s\n", migrationsPath)
-		
+
+		// Debug: List migration files that golang-migrate can see
+		if err := listAvailableMigrations(migrationsPath); err != nil {
+			log.Warn("Failed to list migration files", "error", err)
+		}
+
 		// Check current migration state before applying
 		if err := debugMigrationState(migrateConfig); err != nil {
 			log.Warn("Failed to get migration state before applying", "error", err)
 		}
-		
+
 		if err := database.MigrateUp(migrateConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Migration failed: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		// Check migration state after applying
 		if err := debugMigrationState(migrateConfig); err != nil {
 			log.Warn("Failed to get migration state after applying", "error", err)
 		}
-		
+
 		// Validate critical database objects exist
 		if err := validateDatabaseObjects(migrateConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Database object validation failed: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		fmt.Println("Migrations applied successfully")
 
 	case "down":
@@ -194,5 +200,34 @@ func validateDatabaseObjects(cfg *database.MigrateConfig) error {
 	}
 
 	fmt.Println("Database object validation passed")
+	return nil
+}
+
+// listAvailableMigrations shows what migration files are available to golang-migrate
+func listAvailableMigrations(migrationsPath string) error {
+	fmt.Println("=== Available Migration Files ===")
+
+	// Convert file:// path to regular path for directory listing
+	path := strings.TrimPrefix(migrationsPath, "file://")
+
+	files, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("failed to read migrations directory: %w", err)
+	}
+
+	upFiles := []string{}
+	downFiles := []string{}
+
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".up.sql") {
+			upFiles = append(upFiles, file.Name())
+		} else if strings.HasSuffix(file.Name(), ".down.sql") {
+			downFiles = append(downFiles, file.Name())
+		}
+	}
+
+	fmt.Printf("Found %d up migrations: %v\n", len(upFiles), upFiles)
+	fmt.Printf("Found %d down migrations: %v\n", len(downFiles), downFiles)
+
 	return nil
 }
