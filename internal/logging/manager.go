@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/google/uuid"
 	"github.com/voidrunnerhq/voidrunner/internal/database"
 	"github.com/voidrunnerhq/voidrunner/internal/queue"
@@ -17,6 +18,7 @@ import (
 type DefaultLogManager struct {
 	streamingService StreamingService
 	logStorage       LogStorage
+	logCollector     LogCollector
 	config           *LogConfig
 	logger           *slog.Logger
 }
@@ -25,6 +27,7 @@ type DefaultLogManager struct {
 func NewLogManager(
 	redisClient *queue.RedisClient,
 	dbConn *database.Connection,
+	dockerClient *client.Client,
 	config *LogConfig,
 	logger *slog.Logger,
 ) (*DefaultLogManager, error) {
@@ -49,9 +52,18 @@ func NewLogManager(
 		return nil, fmt.Errorf("failed to create log storage: %w", err)
 	}
 
+	// Create log collector
+	logCollector, err := NewDockerLogCollector(dockerClient, streamingService, logStorage, config, logger)
+	if err != nil {
+		_ = streamingService.Close() // Clean up on error
+		_ = logStorage.Close()
+		return nil, fmt.Errorf("failed to create log collector: %w", err)
+	}
+
 	manager := &DefaultLogManager{
 		streamingService: streamingService,
 		logStorage:       logStorage,
+		logCollector:     logCollector,
 		config:           config,
 		logger:           logger.With("component", "log_manager"),
 	}
@@ -71,9 +83,7 @@ func (m *DefaultLogManager) GetLogStorage() LogStorage {
 
 // GetLogCollector returns the collector service instance
 func (m *DefaultLogManager) GetLogCollector() LogCollector {
-	// For now, log collection is handled by the Docker client
-	// In the future, this could be a separate service
-	return nil
+	return m.logCollector
 }
 
 // IsHealthy performs health checks on all logging components
@@ -85,6 +95,10 @@ func (m *DefaultLogManager) IsHealthy(ctx context.Context) error {
 
 	if m.logStorage == nil {
 		return fmt.Errorf("log storage is nil")
+	}
+
+	if m.logCollector == nil {
+		return fmt.Errorf("log collector is nil")
 	}
 
 	// For now, we just check if the services exist
@@ -123,6 +137,11 @@ func (m *DefaultLogManager) GetStats(ctx context.Context) (*LogSystemStats, erro
 		}
 	}
 
+	// Get collector statistics
+	if m.logCollector != nil {
+		stats.ActiveStreams = m.logCollector.GetActiveStreams()
+	}
+
 	// Check overall health
 	if err := m.IsHealthy(ctx); err != nil {
 		stats.IsHealthy = false
@@ -148,6 +167,13 @@ func (m *DefaultLogManager) Close() error {
 	if m.logStorage != nil {
 		if err := m.logStorage.Close(); err != nil {
 			errors = append(errors, fmt.Errorf("log storage close error: %w", err))
+		}
+	}
+
+	// Close log collector
+	if m.logCollector != nil {
+		if err := m.logCollector.Close(); err != nil {
+			errors = append(errors, fmt.Errorf("log collector close error: %w", err))
 		}
 	}
 

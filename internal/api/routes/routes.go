@@ -18,12 +18,12 @@ import (
 )
 
 func Setup(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager) {
-	SetupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil, nil)
+	SetupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, nil)
 }
 
-func SetupWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
+func SetupWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, logManager logging.LogManager) {
 	setupMiddleware(router, cfg, log)
-	setupRoutesWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, streamingService, logStorage)
+	setupRoutesWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, logManager)
 }
 
 func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger) {
@@ -35,7 +35,7 @@ func setupMiddleware(router *gin.Engine, cfg *config.Config, log *logger.Logger)
 	router.Use(middleware.ErrorHandler())
 }
 
-func setupRoutesWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, streamingService logging.StreamingService, logStorage logging.LogStorage) {
+func setupRoutesWithLogging(router *gin.Engine, cfg *config.Config, log *logger.Logger, dbConn *database.Connection, repos *database.Repositories, authService *auth.Service, taskExecutionService *services.TaskExecutionService, taskExecutorService *services.TaskExecutorService, workerManager worker.WorkerManager, logManager logging.LogManager) {
 	healthHandler := handlers.NewHealthHandler()
 
 	// Add health checks for different components
@@ -117,10 +117,10 @@ func setupRoutesWithLogging(router *gin.Engine, cfg *config.Config, log *logger.
 		executionHandler := handlers.NewTaskExecutionHandler(repos.Tasks, repos.TaskExecutions, taskExecutionService, log.Logger)
 		taskValidation := middleware.TaskValidation(log.Logger)
 
-		// Log management endpoints (only create if logging services are available)
+		// Log management endpoints (only create if log manager is available)
 		var logHandler *handlers.LogHandler
-		if streamingService != nil && logStorage != nil {
-			logHandler = handlers.NewLogHandler(repos.Tasks, repos.TaskExecutions, streamingService, logStorage, log.Logger)
+		if logManager != nil {
+			logHandler = handlers.NewLogHandler(repos.Tasks, repos.TaskExecutions, logManager.GetStreamingService(), logManager.GetLogStorage(), log.Logger)
 		}
 
 		// Use different rate limits for test vs production

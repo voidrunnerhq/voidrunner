@@ -39,6 +39,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 	"github.com/voidrunnerhq/voidrunner/internal/api/routes"
 	"github.com/voidrunnerhq/voidrunner/internal/auth"
@@ -250,11 +251,10 @@ func main() {
 		log.Logger,
 	)
 
-	// Initialize logging services if enabled
-	var streamingService logging.StreamingService
-	var logStorage logging.LogStorage
+	// Initialize logging manager if enabled
+	var logManager logging.LogManager
 	if cfg.Logging.StreamEnabled {
-		log.Info("initializing log streaming services")
+		log.Info("initializing log manager")
 
 		// Convert config.LoggingConfig to logging.LogConfig
 		loggingConfig := &logging.LogConfig{
@@ -272,28 +272,36 @@ func main() {
 			SubscriberKeepalive:   cfg.Logging.SubscriberKeepalive,
 		}
 
-		// Initialize log storage (database-backed)
-		var err error
-		logStorage, err = logging.NewPostgreSQLLogStorage(dbConn, loggingConfig, log.Logger)
+		// Create Docker client for log manager
+		rawDockerClient, err := client.NewClientWithOpts(
+			client.FromEnv,
+			client.WithAPIVersionNegotiation(),
+		)
 		if err != nil {
-			log.Error("failed to initialize log storage", "error", err)
-			logStorage = nil
+			log.Error("failed to create Docker client for log manager", "error", err)
+			logManager = nil
+		} else {
+			// Initialize log manager with all services
+			logManager, err = logging.NewLogManager(
+				queueManager.GetRedisClient(),
+				dbConn,
+				rawDockerClient,
+				loggingConfig,
+				log.Logger,
+			)
 		}
-
-		// Initialize streaming service (Redis-backed)
-		streamingService, err = logging.NewRedisStreamingService(queueManager.GetRedisClient(), loggingConfig, log.Logger)
 		if err != nil {
-			log.Error("failed to initialize streaming service", "error", err)
-			streamingService = nil
+			log.Error("failed to initialize log manager", "error", err)
+			logManager = nil
+		} else {
+			log.Info("log manager initialized successfully")
 		}
-
-		log.Info("log streaming services initialized successfully")
 	} else {
 		log.Info("log streaming disabled by configuration")
 	}
 
-	// Initialize executor (Docker or Mock based on availability) after logging services
-	taskExecutor = initializeTaskExecutor(executorConfig, log, streamingService, logStorage)
+	// Initialize executor (Docker or Mock based on availability) after logging manager
+	taskExecutor = initializeTaskExecutor(executorConfig, log, logManager)
 
 	// Add cleanup for executor if it's a Docker executor
 	if dockerExec, ok := taskExecutor.(*executor.Executor); ok {
@@ -310,10 +318,9 @@ func main() {
 
 	router := gin.New()
 
-	// Setup routes with logging services if available
-	if streamingService != nil && logStorage != nil {
-		// Use the internal setupWithLogging function since Setup doesn't accept logging params
-		routes.SetupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, streamingService, logStorage)
+	// Setup routes with log manager if available
+	if logManager != nil {
+		routes.SetupWithLogging(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager, logManager)
 	} else {
 		routes.Setup(router, cfg, log, dbConn, repos, authService, taskExecutionService, taskExecutorService, workerManager)
 	}
@@ -358,12 +365,12 @@ func main() {
 }
 
 // initializeTaskExecutor initializes either a Docker executor or falls back to a mock executor
-func initializeTaskExecutor(config *executor.Config, log *logger.Logger, streamingService logging.StreamingService, logStorage logging.LogStorage) executor.TaskExecutor {
-	// Try to initialize Docker executor first with logging services
+func initializeTaskExecutor(config *executor.Config, log *logger.Logger, logManager logging.LogManager) executor.TaskExecutor {
+	// Try to initialize Docker executor first with log manager
 	var dockerExecutor *executor.Executor
 	var executorErr error
-	if streamingService != nil && logStorage != nil {
-		dockerExecutor, executorErr = executor.NewExecutorWithLogging(config, log.Logger, streamingService, logStorage)
+	if logManager != nil {
+		dockerExecutor, executorErr = executor.NewExecutorWithLogging(config, log.Logger, logManager)
 		log.Info("initializing Docker executor with log streaming enabled")
 	} else {
 		dockerExecutor, executorErr = executor.NewExecutor(config, log.Logger)
