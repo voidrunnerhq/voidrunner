@@ -75,6 +75,41 @@ definitions:
       worker_pool:
         $ref: '#/definitions/handlers.WorkerPoolStatus'
     type: object
+  logging.LogEntry:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      execution_id:
+        type: string
+      id:
+        type: integer
+      sequence_number:
+        type: integer
+      stream:
+        description: '"stdout" or "stderr"'
+        type: string
+      task_id:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  logging.LogResponse:
+    properties:
+      has_more:
+        type: boolean
+      limit:
+        type: integer
+      logs:
+        items:
+          $ref: '#/definitions/logging.LogEntry'
+        type: array
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
   models.AuthResponse:
     properties:
       access_token:
@@ -726,6 +761,116 @@ paths:
       summary: Start task execution
       tags:
       - Executions
+  /tasks/{task_id}/logs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves historical logs for a task with filtering and pagination
+      parameters:
+      - description: Task ID
+        in: path
+        name: task_id
+        required: true
+        type: string
+      - description: Execution ID filter
+        in: query
+        name: execution_id
+        type: string
+      - description: Stream filter (stdout, stderr)
+        in: query
+        name: stream
+        type: string
+      - description: Start time filter (ISO 8601)
+        in: query
+        name: start_time
+        type: string
+      - description: End time filter (ISO 8601)
+        in: query
+        name: end_time
+        type: string
+      - description: Full-text search query
+        in: query
+        name: search
+        type: string
+      - description: 'Limit (default: 100, max: 1000)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Offset (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Log entries retrieved successfully
+          schema:
+            $ref: '#/definitions/logging.LogResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get task logs
+      tags:
+      - Logs
+  /tasks/{task_id}/logs/stream:
+    get:
+      consumes:
+      - application/json
+      description: Streams task execution logs via Server-Sent Events (SSE)
+      parameters:
+      - description: Task ID
+        in: path
+        name: task_id
+        required: true
+        type: string
+      - description: Execution ID (optional, streams all executions if not provided)
+        in: query
+        name: execution_id
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+        "400":
+          description: Invalid task ID or parameters
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stream task logs in real-time
+      tags:
+      - Logs
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
