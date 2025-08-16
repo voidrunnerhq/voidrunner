@@ -366,7 +366,6 @@ func (dc *DockerClient) GetActiveLogStreams() int {
 	return len(dc.activeStreams)
 }
 
-
 // RemoveContainer removes the specified container
 func (dc *DockerClient) RemoveContainer(ctx context.Context, containerID string, force bool) error {
 	if err := dc.validateContainerID(containerID); err != nil {
