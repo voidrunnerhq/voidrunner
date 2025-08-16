@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752832304681,
+  "lastUpdate": 1755326716759,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -1872,6 +1872,222 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2838343 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "starbops@zespre.com",
+            "name": "Zespre Schmidt",
+            "username": "starbops"
+          },
+          "committer": {
+            "email": "starbops@hey.com",
+            "name": "Zespre Chang",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "47d7882c102f815d46d609571ac44a9c7b082b80",
+          "message": "fix(format): resolve gofmt violations in docker_client.go and collector.go\n\nFix code formatting issues that were causing CI lint failures:\n- Format internal/executor/docker_client.go\n- Format internal/logging/collector.go\n\nThis resolves the lint step failures in PR #61 CI checks.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+          "timestamp": "2025-08-16T14:43:38+08:00",
+          "tree_id": "34035956cf102312b5037ea75656221b25660cf5",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/47d7882c102f815d46d609571ac44a9c7b082b80"
+        },
+        "date": 1755326716042,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3392,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "340488 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3392,
+            "unit": "ns/op",
+            "extra": "340488 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "340488 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "340488 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 3008,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "386130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 3008,
+            "unit": "ns/op",
+            "extra": "386130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "386130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "386130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 179362,
+            "unit": "ns/op\t  106215 B/op\t    1457 allocs/op",
+            "extra": "6680 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 179362,
+            "unit": "ns/op",
+            "extra": "6680 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106215,
+            "unit": "B/op",
+            "extra": "6680 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1457,
+            "unit": "allocs/op",
+            "extra": "6680 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate",
+            "value": 4.979,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "239932249 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate - ns/op",
+            "value": 4.979,
+            "unit": "ns/op",
+            "extra": "239932249 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "239932249 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "239932249 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData",
+            "value": 1559,
+            "unit": "ns/op\t     832 B/op\t       6 allocs/op",
+            "extra": "776946 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData - ns/op",
+            "value": 1559,
+            "unit": "ns/op",
+            "extra": "776946 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData - B/op",
+            "value": 832,
+            "unit": "B/op",
+            "extra": "776946 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData - allocs/op",
+            "value": 6,
+            "unit": "allocs/op",
+            "extra": "776946 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format",
+            "value": 414.2,
+            "unit": "ns/op\t     240 B/op\t       8 allocs/op",
+            "extra": "2893578 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format - ns/op",
+            "value": 414.2,
+            "unit": "ns/op",
+            "extra": "2893578 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format - B/op",
+            "value": 240,
+            "unit": "B/op",
+            "extra": "2893578 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2893578 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 135.8,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "8612305 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 135.8,
+            "unit": "ns/op",
+            "extra": "8612305 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "8612305 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "8612305 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 407.2,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "2964607 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 407.2,
+            "unit": "ns/op",
+            "extra": "2964607 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "2964607 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2964607 times\n4 procs"
           }
         ]
       }
