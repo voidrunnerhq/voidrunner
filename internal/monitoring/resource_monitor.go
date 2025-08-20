@@ -328,7 +328,7 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 				rm.ctx,
 				"DOCKER_DAEMON_UNRESPONSIVE",
 				"Docker Daemon Unresponsive",
-				fmt.Sprintf("Docker daemon failed to respond within timeout"),
+				"Docker daemon failed to respond within timeout",
 				AlertLevelCritical,
 				map[string]interface{}{
 					"docker_response_time": metrics.DockerResponseTime.String(),

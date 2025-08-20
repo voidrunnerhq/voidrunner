@@ -84,7 +84,7 @@ func (rt *ResourceThresholds) Validate() error {
 	}
 	
 	if rt.DockerResponseTimeWarningMs >= rt.DockerResponseTimeCriticalMs {
-		return fmt.Errorf("Docker response time warning threshold (%d) must be less than critical threshold (%d)", 
+		return fmt.Errorf("docker response time warning threshold (%d) must be less than critical threshold (%d)", 
 			rt.DockerResponseTimeWarningMs, rt.DockerResponseTimeCriticalMs)
 	}
 	

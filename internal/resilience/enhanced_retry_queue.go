@@ -409,7 +409,7 @@ func (eq *EnhancedRetryQueue) processRetryMessage(message *EnhancedRetryMessage,
 		if eq.strategy.ShouldRetry(eq.ctx, message.Attempts, err) && 
 		   message.Attempts < message.MaxAttempts {
 			// Schedule for another retry
-			eq.EnqueueForRetry(eq.ctx, message)
+			_ = eq.EnqueueForRetry(eq.ctx, message)
 		} else {
 			// Permanent failure
 			eq.mu.Lock()

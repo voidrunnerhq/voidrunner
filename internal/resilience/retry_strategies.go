@@ -418,7 +418,7 @@ func NewRetryStrategy(config *RetryStrategyConfig, logger *slog.Logger) (*RetryS
 		config:    config,
 		logger:    logger.With("component", "retry_strategy"),
 		lastDelay: config.BaseDelay,
-		rng:       rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:       rand.New(rand.NewSource(time.Now().UnixNano())), // #nosec G404 - Not used for cryptographic purposes
 		attempts:  make([]RetryAttempt, 0),
 	}
 	

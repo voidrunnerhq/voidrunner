@@ -165,7 +165,7 @@ func (mc *MetricsCollector) CollectMetrics(ctx context.Context) (*SystemMetrics,
 		go func() {
 			defer wg.Done()
 			if err := mc.collectDockerMetrics(ctx, metrics); err != nil {
-				addError(fmt.Errorf("Docker metrics collection failed: %w", err))
+				addError(fmt.Errorf("docker metrics collection failed: %w", err))
 			}
 		}()
 	}
@@ -213,6 +213,7 @@ func (mc *MetricsCollector) collectCPUMetrics(metrics *SystemMetrics) error {
 	}
 
 	// Calculate CPU percentage if we have previous measurement
+	mc.mu.Lock()
 	if mc.lastCPUTimes.Total > 0 {
 		totalDiff := cpuTimes.Total - mc.lastCPUTimes.Total
 		idleDiff := cpuTimes.Idle - mc.lastCPUTimes.Idle
@@ -223,6 +224,7 @@ func (mc *MetricsCollector) collectCPUMetrics(metrics *SystemMetrics) error {
 	}
 
 	mc.lastCPUTimes = cpuTimes
+	mc.mu.Unlock()
 
 	// Get load averages (Unix/Linux specific)
 	if err := mc.getLoadAverages(metrics); err != nil {
@@ -372,11 +374,15 @@ func (mc *MetricsCollector) getCPUTimes() (CPUTimes, error) {
 	// or use appropriate system calls on other platforms
 	
 	// For now, return dummy data
+	now := time.Now().Unix()
+	if now < 0 {
+		now = 0
+	}
 	return CPUTimes{
-		User:   uint64(time.Now().Unix() * 1000),
-		System: uint64(time.Now().Unix() * 100),
-		Idle:   uint64(time.Now().Unix() * 10000),
-		Total:  uint64(time.Now().Unix() * 11100),
+		User:   uint64(now * 1000),
+		System: uint64(now * 100),
+		Idle:   uint64(now * 10000),
+		Total:  uint64(now * 11100),
 	}, nil
 }
 
@@ -416,12 +422,6 @@ func (mc *MetricsCollector) getDiskUsage(path string, metrics *SystemMetrics) er
 	return nil
 }
 
-// macOS-specific memory info (optional, more accurate implementation)
-func (mc *MetricsCollector) getMacOSMemoryInfo(metrics *SystemMetrics) error {
-	// This would use macOS-specific APIs like host_statistics64
-	// For simplicity, we'll use the cross-platform version above
-	return mc.getSystemMemoryInfo(metrics)
-}
 
 // Utility function to convert bytes to human-readable format
 func FormatBytes(bytes uint64) string {
