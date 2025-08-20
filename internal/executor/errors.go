@@ -15,28 +15,28 @@ type ErrorType string
 const (
 	// ErrorTypeInfrastructure indicates infrastructure-related failures
 	ErrorTypeInfrastructure ErrorType = "infrastructure"
-	
+
 	// ErrorTypeResource indicates resource exhaustion or limits
 	ErrorTypeResource ErrorType = "resource"
-	
+
 	// ErrorTypeTimeout indicates execution timeout
 	ErrorTypeTimeout ErrorType = "timeout"
-	
+
 	// ErrorTypeUserCode indicates user script execution errors
 	ErrorTypeUserCode ErrorType = "user_code"
-	
+
 	// ErrorTypeValidation indicates input validation errors
 	ErrorTypeValidation ErrorType = "validation"
-	
+
 	// ErrorTypeSecurity indicates security policy violations
 	ErrorTypeSecurity ErrorType = "security"
-	
+
 	// ErrorTypeNetwork indicates network connectivity issues
 	ErrorTypeNetwork ErrorType = "network"
-	
+
 	// ErrorTypeRateLimit indicates rate limiting enforcement
 	ErrorTypeRateLimit ErrorType = "rate_limit"
-	
+
 	// ErrorTypeQuota indicates quota enforcement
 	ErrorTypeQuota ErrorType = "quota"
 )
@@ -331,7 +331,7 @@ func ClassifyError(err error, taskID uuid.UUID, context string) *ExecutionError 
 
 	errMsg := err.Error()
 	errMsgLower := strings.ToLower(errMsg)
-	
+
 	// Default execution error
 	execErr := NewExecutionError(ErrorTypeInfrastructure, "UNKNOWN_ERROR", "Unknown execution error", taskID).
 		WithCause(err).
@@ -446,14 +446,14 @@ func ClassifyError(err error, taskID uuid.UUID, context string) *ExecutionError 
 // ClassifyDockerError specifically classifies Docker-related errors
 func ClassifyDockerError(err error, taskID uuid.UUID, containerID string) *ExecutionError {
 	execErr := ClassifyError(err, taskID, "docker_operation")
-	
+
 	if containerID != "" {
 		_ = execErr.WithContainerID(containerID)
 	}
 
 	// Add Docker-specific context
 	_ = execErr.WithContext("error_source", "docker_client")
-	
+
 	return execErr
 }
 

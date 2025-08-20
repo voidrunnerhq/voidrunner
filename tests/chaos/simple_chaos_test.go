@@ -243,7 +243,7 @@ func TestSimpleErrorHandlingChaos(t *testing.T) {
 				if stats.RetryStats.TotalAttempts < 5 {
 					return fmt.Errorf("expected at least 5 total attempts")
 				}
-				t.Logf("Retry executor stats: total_attempts=%d, total_retries=%d", 
+				t.Logf("Retry executor stats: total_attempts=%d, total_retries=%d",
 					stats.RetryStats.TotalAttempts, stats.RetryStats.TotalRetries)
 				return nil
 			},
@@ -316,7 +316,7 @@ func TestSimpleErrorHandlingChaos(t *testing.T) {
 					return fmt.Errorf("failed to generate report: %w", err)
 				}
 
-				t.Logf("Generated report: %d total errors, %d unique errors", 
+				t.Logf("Generated report: %d total errors, %d unique errors",
 					report.TotalErrors, report.UniqueErrors)
 
 				if report.TotalErrors != 30 {
@@ -403,7 +403,7 @@ func TestChaosExperimentSuite(t *testing.T) {
 			if err != nil {
 				t.Logf("Experiment %s failed: %v", exp.ID, err)
 			} else {
-				t.Logf("Experiment %s completed: success=%v, duration=%v", 
+				t.Logf("Experiment %s completed: success=%v, duration=%v",
 					exp.ID, result.Success, result.Duration)
 				if result.Success {
 					successCount++
@@ -417,7 +417,7 @@ func TestChaosExperimentSuite(t *testing.T) {
 		results := runner.GetResults()
 		assert.Len(t, results, len(experiments))
 
-		t.Logf("Chaos experiment suite completed: %d/%d experiments successful", 
+		t.Logf("Chaos experiment suite completed: %d/%d experiments successful",
 			successCount, len(experiments))
 	})
 }

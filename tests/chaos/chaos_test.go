@@ -195,9 +195,9 @@ func TestFullChaosEngineeringSuite(t *testing.T) {
 
 		for _, experimentID := range criticalExperiments {
 			t.Logf("Running experiment: %s", experimentID)
-			
+
 			result, err := runner.RunExperiment(ctx, experimentID)
-			
+
 			if err != nil {
 				t.Logf("Experiment %s failed with error: %v", experimentID, err)
 				continue

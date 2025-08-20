@@ -13,25 +13,25 @@ import (
 type LoadSheddingConfig struct {
 	// Maximum number of concurrent requests
 	MaxConcurrentRequests int `json:"max_concurrent_requests"`
-	
+
 	// CPU threshold to start shedding load (percentage 0-100)
 	CPUThreshold float64 `json:"cpu_threshold"`
-	
+
 	// Memory threshold to start shedding load (percentage 0-100)
 	MemoryThreshold float64 `json:"memory_threshold"`
-	
+
 	// Queue size threshold to start shedding load
 	QueueSizeThreshold int `json:"queue_size_threshold"`
-	
+
 	// Error rate threshold to start shedding load (percentage 0-100)
 	ErrorRateThreshold float64 `json:"error_rate_threshold"`
-	
+
 	// Check interval for resource monitoring
 	CheckInterval time.Duration `json:"check_interval"`
-	
+
 	// Shedding percentage when thresholds are exceeded (0-100)
 	SheddingPercentage float64 `json:"shedding_percentage"`
-	
+
 	// Priority levels for request handling
 	EnablePriorityQueues bool `json:"enable_priority_queues"`
 }
@@ -82,13 +82,13 @@ type RequestPriority int
 const (
 	// PriorityLow represents low-priority requests (first to be shed)
 	PriorityLow RequestPriority = iota
-	
+
 	// PriorityNormal represents normal-priority requests
 	PriorityNormal
-	
+
 	// PriorityHigh represents high-priority requests (last to be shed)
 	PriorityHigh
-	
+
 	// PriorityCritical represents critical requests (never shed)
 	PriorityCritical
 )
@@ -103,23 +103,23 @@ type LoadSheddingDecision struct {
 
 // SystemMetrics represents current system resource usage
 type SystemMetrics struct {
-	CPUPercent    float64 `json:"cpu_percent"`
-	MemoryPercent float64 `json:"memory_percent"`
-	QueueSize     int     `json:"queue_size"`
-	ErrorRate     float64 `json:"error_rate"`
+	CPUPercent    float64   `json:"cpu_percent"`
+	MemoryPercent float64   `json:"memory_percent"`
+	QueueSize     int       `json:"queue_size"`
+	ErrorRate     float64   `json:"error_rate"`
 	Timestamp     time.Time `json:"timestamp"`
 }
 
 // LoadSheddingStats holds statistics about load shedding
 type LoadSheddingStats struct {
-	TotalRequests      int64             `json:"total_requests"`
-	AcceptedRequests   int64             `json:"accepted_requests"`
-	ShedRequests       int64             `json:"shed_requests"`
-	CurrentLoad        int64             `json:"current_load"`
-	MaxLoad            int               `json:"max_load"`
-	SheddingActive     bool              `json:"shedding_active"`
-	SheddingReason     string            `json:"shedding_reason,omitempty"`
-	LastSheddingEvent  *time.Time        `json:"last_shedding_event,omitempty"`
+	TotalRequests      int64                     `json:"total_requests"`
+	AcceptedRequests   int64                     `json:"accepted_requests"`
+	ShedRequests       int64                     `json:"shed_requests"`
+	CurrentLoad        int64                     `json:"current_load"`
+	MaxLoad            int                       `json:"max_load"`
+	SheddingActive     bool                      `json:"shedding_active"`
+	SheddingReason     string                    `json:"shedding_reason,omitempty"`
+	LastSheddingEvent  *time.Time                `json:"last_shedding_event,omitempty"`
 	RequestsByPriority map[RequestPriority]int64 `json:"requests_by_priority"`
 	ShedByPriority     map[RequestPriority]int64 `json:"shed_by_priority"`
 }
@@ -131,11 +131,11 @@ type MetricsProvider interface {
 
 // LoadShedder implements load shedding based on system resources
 type LoadShedder struct {
-	mu             sync.RWMutex
-	config         *LoadSheddingConfig
-	logger         *slog.Logger
+	mu              sync.RWMutex
+	config          *LoadSheddingConfig
+	logger          *slog.Logger
 	metricsProvider MetricsProvider
-	
+
 	// Counters
 	currentLoad        int64
 	totalRequests      int64
@@ -143,12 +143,12 @@ type LoadShedder struct {
 	shedRequests       int64
 	requestsByPriority map[RequestPriority]int64
 	shedByPriority     map[RequestPriority]int64
-	
+
 	// Shedding state
 	sheddingActive    bool
 	sheddingReason    string
 	lastSheddingEvent *time.Time
-	
+
 	// Monitoring
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -160,11 +160,11 @@ func NewLoadShedder(config *LoadSheddingConfig, metricsProvider MetricsProvider,
 	if config == nil {
 		config = DefaultLoadSheddingConfig()
 	}
-	
+
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid load shedding config: %w", err)
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -213,10 +213,10 @@ func (ls *LoadShedder) ShouldAcceptRequest(priority RequestPriority) LoadSheddin
 	// Check concurrent request limit
 	currentLoad := atomic.LoadInt64(&ls.currentLoad)
 	if currentLoad >= int64(ls.config.MaxConcurrentRequests) {
-		return ls.shedRequest(priority, "max_concurrent_requests_exceeded", 
+		return ls.shedRequest(priority, "max_concurrent_requests_exceeded",
 			map[string]interface{}{
 				"current_load": currentLoad,
-				"max_load": ls.config.MaxConcurrentRequests,
+				"max_load":     ls.config.MaxConcurrentRequests,
 			})
 	}
 
@@ -225,7 +225,7 @@ func (ls *LoadShedder) ShouldAcceptRequest(priority RequestPriority) LoadSheddin
 		// Shed based on priority and shedding percentage
 		shouldShed := ls.shouldShedBasedOnPriority(priority)
 		if shouldShed {
-			return ls.shedRequest(priority, ls.sheddingReason, 
+			return ls.shedRequest(priority, ls.sheddingReason,
 				map[string]interface{}{
 					"shedding_percentage": ls.config.SheddingPercentage,
 				})
@@ -236,7 +236,7 @@ func (ls *LoadShedder) ShouldAcceptRequest(priority RequestPriority) LoadSheddin
 	ls.acceptedRequests++
 	atomic.AddInt64(&ls.currentLoad, 1)
 	decision.Context["current_load"] = atomic.LoadInt64(&ls.currentLoad)
-	
+
 	return decision
 }
 
@@ -249,9 +249,9 @@ func (ls *LoadShedder) CompleteRequest() {
 func (ls *LoadShedder) shouldShedBasedOnPriority(priority RequestPriority) bool {
 	// Use a simple percentage-based shedding strategy
 	// Higher priority requests have lower chance of being shed
-	
+
 	sheddingPercentage := ls.config.SheddingPercentage
-	
+
 	switch priority {
 	case PriorityLow:
 		// Shed more low-priority requests
@@ -278,7 +278,7 @@ func (ls *LoadShedder) shouldShedWithPercentage(percentage float64) bool {
 	if percentage <= 0.0 {
 		return false
 	}
-	
+
 	// Simple random shedding based on percentage
 	// In production, you might want a more sophisticated algorithm
 	return (ls.totalRequests % 100) < int64(percentage)
@@ -288,7 +288,7 @@ func (ls *LoadShedder) shouldShedWithPercentage(percentage float64) bool {
 func (ls *LoadShedder) shedRequest(priority RequestPriority, reason string, context map[string]interface{}) LoadSheddingDecision {
 	ls.shedRequests++
 	ls.shedByPriority[priority]++
-	
+
 	now := time.Now()
 	ls.lastSheddingEvent = &now
 
@@ -340,19 +340,19 @@ func (ls *LoadShedder) checkSystemResources() {
 	// Check each threshold
 	if metrics.CPUPercent >= ls.config.CPUThreshold {
 		ls.sheddingActive = true
-		ls.sheddingReason = fmt.Sprintf("CPU usage %.2f%% exceeds threshold %.2f%%", 
+		ls.sheddingReason = fmt.Sprintf("CPU usage %.2f%% exceeds threshold %.2f%%",
 			metrics.CPUPercent, ls.config.CPUThreshold)
 	} else if metrics.MemoryPercent >= ls.config.MemoryThreshold {
 		ls.sheddingActive = true
-		ls.sheddingReason = fmt.Sprintf("Memory usage %.2f%% exceeds threshold %.2f%%", 
+		ls.sheddingReason = fmt.Sprintf("Memory usage %.2f%% exceeds threshold %.2f%%",
 			metrics.MemoryPercent, ls.config.MemoryThreshold)
 	} else if metrics.QueueSize >= ls.config.QueueSizeThreshold {
 		ls.sheddingActive = true
-		ls.sheddingReason = fmt.Sprintf("Queue size %d exceeds threshold %d", 
+		ls.sheddingReason = fmt.Sprintf("Queue size %d exceeds threshold %d",
 			metrics.QueueSize, ls.config.QueueSizeThreshold)
 	} else if metrics.ErrorRate >= ls.config.ErrorRateThreshold {
 		ls.sheddingActive = true
-		ls.sheddingReason = fmt.Sprintf("Error rate %.2f%% exceeds threshold %.2f%%", 
+		ls.sheddingReason = fmt.Sprintf("Error rate %.2f%% exceeds threshold %.2f%%",
 			metrics.ErrorRate, ls.config.ErrorRateThreshold)
 	}
 
@@ -372,7 +372,7 @@ func (ls *LoadShedder) GetStats() LoadSheddingStats {
 	// Create copies of maps to avoid data races
 	requestsByPriority := make(map[RequestPriority]int64)
 	shedByPriority := make(map[RequestPriority]int64)
-	
+
 	for priority, count := range ls.requestsByPriority {
 		requestsByPriority[priority] = count
 	}
@@ -418,7 +418,7 @@ func (ls *LoadShedder) Reset() {
 	ls.sheddingActive = false
 	ls.sheddingReason = ""
 	ls.lastSheddingEvent = nil
-	
+
 	// Reset priority counters
 	for priority := range ls.requestsByPriority {
 		ls.requestsByPriority[priority] = 0

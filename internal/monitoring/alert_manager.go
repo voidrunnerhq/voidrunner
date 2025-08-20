@@ -10,15 +10,15 @@ import (
 
 // Alert represents a monitoring alert
 type Alert struct {
-	ID          string                 `json:"id"`
-	Type        string                 `json:"type"`
-	Level       AlertLevel             `json:"level"`
-	Title       string                 `json:"title"`
-	Message     string                 `json:"message"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Context     map[string]interface{} `json:"context,omitempty"`
-	Resolved    bool                   `json:"resolved"`
-	ResolvedAt  *time.Time             `json:"resolved_at,omitempty"`
+	ID         string                 `json:"id"`
+	Type       string                 `json:"type"`
+	Level      AlertLevel             `json:"level"`
+	Title      string                 `json:"title"`
+	Message    string                 `json:"message"`
+	Timestamp  time.Time              `json:"timestamp"`
+	Context    map[string]interface{} `json:"context,omitempty"`
+	Resolved   bool                   `json:"resolved"`
+	ResolvedAt *time.Time             `json:"resolved_at,omitempty"`
 }
 
 // AlertHandler defines the interface for handling alerts
@@ -63,14 +63,14 @@ func (h *LogAlertHandler) HandleAlert(ctx context.Context, alert *Alert) error {
 
 // AlertManager manages alerts and notifications
 type AlertManager struct {
-	mu               sync.RWMutex
-	handlers         []AlertHandler
-	alerts           map[string]*Alert
-	lastAlertTime    map[string]time.Time // For cooldown tracking
-	config           *MonitoringConfig
-	logger           *slog.Logger
-	alertCounter     int64
-	lastCleanup      time.Time
+	mu            sync.RWMutex
+	handlers      []AlertHandler
+	alerts        map[string]*Alert
+	lastAlertTime map[string]time.Time // For cooldown tracking
+	config        *MonitoringConfig
+	logger        *slog.Logger
+	alertCounter  int64
+	lastCleanup   time.Time
 }
 
 // NewAlertManager creates a new alert manager
@@ -112,8 +112,8 @@ func (am *AlertManager) SendAlert(ctx context.Context, alertType, title, message
 
 	// Check cooldown period
 	if am.isInCooldown(alertType) {
-		am.logger.Debug("alert suppressed due to cooldown period", 
-			"alert_type", alertType, 
+		am.logger.Debug("alert suppressed due to cooldown period",
+			"alert_type", alertType,
 			"cooldown_period", am.config.AlertCooldownPeriod)
 		return nil
 	}
@@ -144,16 +144,16 @@ func (am *AlertManager) SendAlert(ctx context.Context, alertType, title, message
 	// Send to all handlers
 	for _, handler := range am.handlers {
 		if err := handler.HandleAlert(ctx, alert); err != nil {
-			am.logger.Error("failed to handle alert", 
-				"handler", fmt.Sprintf("%T", handler), 
-				"alert_id", alertID, 
+			am.logger.Error("failed to handle alert",
+				"handler", fmt.Sprintf("%T", handler),
+				"alert_id", alertID,
 				"error", err)
 		}
 	}
 
-	am.logger.Info("alert sent successfully", 
-		"alert_id", alertID, 
-		"alert_type", alertType, 
+	am.logger.Info("alert sent successfully",
+		"alert_id", alertID,
+		"alert_type", alertType,
 		"level", level)
 
 	// Periodic cleanup
@@ -166,7 +166,7 @@ func (am *AlertManager) SendAlert(ctx context.Context, alertType, title, message
 func (am *AlertManager) isInCooldown(alertType string) bool {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
-	
+
 	if lastTime, exists := am.lastAlertTime[alertType]; exists {
 		return time.Since(lastTime) < am.config.AlertCooldownPeriod
 	}
@@ -235,13 +235,13 @@ func (am *AlertManager) GetAlertStats() AlertStats {
 	defer am.mu.RUnlock()
 
 	stats := AlertStats{
-		TotalAlerts:     len(am.alerts),
-		ActiveAlerts:    0,
-		ResolvedAlerts:  0,
-		CriticalAlerts:  0,
-		WarningAlerts:   0,
-		InfoAlerts:      0,
-		AlertsByType:    make(map[string]int),
+		TotalAlerts:    len(am.alerts),
+		ActiveAlerts:   0,
+		ResolvedAlerts: 0,
+		CriticalAlerts: 0,
+		WarningAlerts:  0,
+		InfoAlerts:     0,
+		AlertsByType:   make(map[string]int),
 	}
 
 	for _, alert := range am.alerts {
@@ -317,13 +317,13 @@ func (am *AlertManager) Stop() {
 
 // AlertStats contains statistics about alerts
 type AlertStats struct {
-	TotalAlerts     int            `json:"total_alerts"`
-	ActiveAlerts    int            `json:"active_alerts"`
-	ResolvedAlerts  int            `json:"resolved_alerts"`
-	CriticalAlerts  int            `json:"critical_alerts"`
-	WarningAlerts   int            `json:"warning_alerts"`
-	InfoAlerts      int            `json:"info_alerts"`
-	AlertsByType    map[string]int `json:"alerts_by_type"`
+	TotalAlerts    int            `json:"total_alerts"`
+	ActiveAlerts   int            `json:"active_alerts"`
+	ResolvedAlerts int            `json:"resolved_alerts"`
+	CriticalAlerts int            `json:"critical_alerts"`
+	WarningAlerts  int            `json:"warning_alerts"`
+	InfoAlerts     int            `json:"info_alerts"`
+	AlertsByType   map[string]int `json:"alerts_by_type"`
 }
 
 // WebhookAlertHandler implements AlertHandler by sending alerts to a webhook
@@ -341,7 +341,7 @@ func NewWebhookAlertHandler(webhookURL string, timeout time.Duration, logger *sl
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
-	
+
 	return &WebhookAlertHandler{
 		webhookURL: webhookURL,
 		timeout:    timeout,
@@ -353,22 +353,22 @@ func NewWebhookAlertHandler(webhookURL string, timeout time.Duration, logger *sl
 func (h *WebhookAlertHandler) HandleAlert(ctx context.Context, alert *Alert) error {
 	// TODO: Implement webhook HTTP POST
 	// For now, just log that we would send a webhook
-	h.logger.Info("would send webhook alert", 
+	h.logger.Info("would send webhook alert",
 		"webhook_url", h.webhookURL,
 		"alert_id", alert.ID,
 		"alert_type", alert.Type,
 		"level", alert.Level)
-	
+
 	return nil
 }
 
 // EmailAlertHandler implements AlertHandler by sending email alerts
 type EmailAlertHandler struct {
-	smtpHost     string
-	smtpPort     int
-	fromEmail    string
-	toEmails     []string
-	logger       *slog.Logger
+	smtpHost  string
+	smtpPort  int
+	fromEmail string
+	toEmails  []string
+	logger    *slog.Logger
 }
 
 // NewEmailAlertHandler creates a new email-based alert handler
@@ -376,7 +376,7 @@ func NewEmailAlertHandler(smtpHost string, smtpPort int, fromEmail string, toEma
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &EmailAlertHandler{
 		smtpHost:  smtpHost,
 		smtpPort:  smtpPort,
@@ -390,13 +390,13 @@ func NewEmailAlertHandler(smtpHost string, smtpPort int, fromEmail string, toEma
 func (h *EmailAlertHandler) HandleAlert(ctx context.Context, alert *Alert) error {
 	// TODO: Implement email sending
 	// For now, just log that we would send an email
-	h.logger.Info("would send email alert", 
+	h.logger.Info("would send email alert",
 		"smtp_host", h.smtpHost,
 		"from_email", h.fromEmail,
 		"to_emails", h.toEmails,
 		"alert_id", alert.ID,
 		"alert_type", alert.Type,
 		"level", alert.Level)
-	
+
 	return nil
 }

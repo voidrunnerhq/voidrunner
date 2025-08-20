@@ -23,18 +23,18 @@ import (
 
 // PerformanceMetrics holds performance test results
 type PerformanceMetrics struct {
-	TotalOperations    int64         `json:"total_operations"`
-	SuccessfulOps      int64         `json:"successful_operations"`
-	FailedOps          int64         `json:"failed_operations"`
-	AverageLatency     time.Duration `json:"average_latency"`
-	P95Latency         time.Duration `json:"p95_latency"`
-	P99Latency         time.Duration `json:"p99_latency"`
-	MaxLatency         time.Duration `json:"max_latency"`
-	Throughput         float64       `json:"throughput"` // ops/second
-	MemoryUsage        int64         `json:"memory_usage_bytes"`
-	GoroutineCount     int           `json:"goroutine_count"`
-	ErrorRate          float64       `json:"error_rate"`
-	CircuitBreakerTrips int64        `json:"circuit_breaker_trips"`
+	TotalOperations     int64         `json:"total_operations"`
+	SuccessfulOps       int64         `json:"successful_operations"`
+	FailedOps           int64         `json:"failed_operations"`
+	AverageLatency      time.Duration `json:"average_latency"`
+	P95Latency          time.Duration `json:"p95_latency"`
+	P99Latency          time.Duration `json:"p99_latency"`
+	MaxLatency          time.Duration `json:"max_latency"`
+	Throughput          float64       `json:"throughput"` // ops/second
+	MemoryUsage         int64         `json:"memory_usage_bytes"`
+	GoroutineCount      int           `json:"goroutine_count"`
+	ErrorRate           float64       `json:"error_rate"`
+	CircuitBreakerTrips int64         `json:"circuit_breaker_trips"`
 }
 
 // LatencyTracker tracks operation latencies
@@ -68,7 +68,7 @@ func (lt *LatencyTracker) GetPercentile(percentile float64) time.Duration {
 	// Find the value at the percentile index (simplified)
 	var sorted []time.Duration
 	sorted = append(sorted, lt.latencies...)
-	
+
 	// Simple bubble sort for small datasets
 	for i := 0; i < len(sorted); i++ {
 		for j := i + 1; j < len(sorted); j++ {
@@ -138,9 +138,9 @@ func TestErrorHandlingPerformance(t *testing.T) {
 		const duration = 30 * time.Second
 
 		var (
-			totalOps     int64
+			totalOps      int64
 			successfulOps int64
-			failedOps    int64
+			failedOps     int64
 		)
 
 		latencyTracker := &LatencyTracker{}
@@ -248,9 +248,9 @@ func TestErrorHandlingPerformance(t *testing.T) {
 		const duration = 20 * time.Second
 
 		var (
-			totalOps     int64
+			totalOps      int64
 			successfulOps int64
-			failedOps    int64
+			failedOps     int64
 		)
 
 		latencyTracker := &LatencyTracker{}
@@ -274,12 +274,12 @@ func TestErrorHandlingPerformance(t *testing.T) {
 					}
 
 					opStart := time.Now()
-					err := retryExecutor.Execute(ctx, 
+					err := retryExecutor.Execute(ctx,
 						fmt.Sprintf("op-%d-%d", workerID, operationCount),
 						func(ctx context.Context, attempt int) error {
 							// Simulate work
 							time.Sleep(2 * time.Millisecond)
-							
+
 							// Fail on first attempt 30% of the time, succeed on retry
 							if attempt == 1 && operationCount%10 < 3 {
 								return fmt.Errorf("temporary failure")
@@ -444,9 +444,9 @@ func TestErrorHandlingPerformance(t *testing.T) {
 		const numGoroutines = 200
 
 		var (
-			totalRequests   int64
+			totalRequests    int64
 			acceptedRequests int64
-			shedRequests    int64
+			shedRequests     int64
 		)
 
 		latencyTracker := &LatencyTracker{}
@@ -561,9 +561,9 @@ func TestConcurrentErrorHandling(t *testing.T) {
 		const numWorkers = 50
 
 		var (
-			cbOperations      int64
-			retryOperations   int64
-			lsOperations      int64
+			cbOperations        int64
+			retryOperations     int64
+			lsOperations        int64
 			reportingOperations int64
 		)
 
@@ -573,7 +573,7 @@ func TestConcurrentErrorHandling(t *testing.T) {
 		startTime := time.Now()
 
 		var wg sync.WaitGroup
-		
+
 		// Circuit breaker workers
 		for i := 0; i < numWorkers/4; i++ {
 			wg.Add(1)
@@ -611,7 +611,7 @@ func TestConcurrentErrorHandling(t *testing.T) {
 					default:
 					}
 
-					retryExecutor.Execute(ctx, fmt.Sprintf("retry-%d-%d", workerID, opCount), 
+					retryExecutor.Execute(ctx, fmt.Sprintf("retry-%d-%d", workerID, opCount),
 						func(ctx context.Context, attempt int) error {
 							time.Sleep(1 * time.Millisecond)
 							if attempt == 1 && opCount%5 == 0 {
