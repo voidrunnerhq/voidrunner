@@ -378,7 +378,7 @@ func (mc *MetricsCollector) getCPUTimes() (CPUTimes, error) {
 	if now < 0 {
 		now = 0
 	}
-	
+
 	// Safe conversion to avoid integer overflow - now is guaranteed >= 0
 	var baseTime uint64
 	if now >= 0 {
