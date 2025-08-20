@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755326716759,
+  "lastUpdate": 1755664039432,
   "repoUrl": "https://github.com/voidrunnerhq/voidrunner",
   "entries": {
     "Benchmark": [
@@ -2088,6 +2088,222 @@ window.BENCHMARK_DATA = {
             "value": 8,
             "unit": "allocs/op",
             "extra": "2964607 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "starbops@hey.com",
+            "name": "Zespre Chang",
+            "username": "starbops"
+          },
+          "distinct": true,
+          "id": "b155a52f5888e5762fa2e041673b740b32974969",
+          "message": "deps(deps): bump github.com/swaggo/swag from 1.16.4 to 1.16.6\n\nBumps [github.com/swaggo/swag](https://github.com/swaggo/swag) from 1.16.4 to 1.16.6.\n- [Release notes](https://github.com/swaggo/swag/releases)\n- [Changelog](https://github.com/swaggo/swag/blob/master/.goreleaser.yml)\n- [Commits](https://github.com/swaggo/swag/compare/v1.16.4...v1.16.6)\n\n---\nupdated-dependencies:\n- dependency-name: github.com/swaggo/swag\n  dependency-version: 1.16.6\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2025-08-20T12:25:41+08:00",
+          "tree_id": "399047ad04fd1aa839fb88c22d2f40edb8fce652",
+          "url": "https://github.com/voidrunnerhq/voidrunner/commit/b155a52f5888e5762fa2e041673b740b32974969"
+        },
+        "date": 1755664038723,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex",
+            "value": 3763,
+            "unit": "ns/op\t   16897 B/op\t      29 allocs/op",
+            "extra": "313135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - ns/op",
+            "value": 3763,
+            "unit": "ns/op",
+            "extra": "313135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - B/op",
+            "value": 16897,
+            "unit": "B/op",
+            "extra": "313135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_GetAPIIndex - allocs/op",
+            "value": 29,
+            "unit": "allocs/op",
+            "extra": "313135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI",
+            "value": 3188,
+            "unit": "ns/op\t    7449 B/op\t      33 allocs/op",
+            "extra": "337795 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - ns/op",
+            "value": 3188,
+            "unit": "ns/op",
+            "extra": "337795 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - B/op",
+            "value": 7449,
+            "unit": "B/op",
+            "extra": "337795 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDocsHandler_RedirectToSwaggerUI - allocs/op",
+            "value": 33,
+            "unit": "allocs/op",
+            "extra": "337795 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup",
+            "value": 212771,
+            "unit": "ns/op\t  106301 B/op\t    1458 allocs/op",
+            "extra": "6126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - ns/op",
+            "value": 212771,
+            "unit": "ns/op",
+            "extra": "6126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - B/op",
+            "value": 106301,
+            "unit": "B/op",
+            "extra": "6126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSetup - allocs/op",
+            "value": 1458,
+            "unit": "allocs/op",
+            "extra": "6126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate",
+            "value": 4.987,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "240545856 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate - ns/op",
+            "value": 4.987,
+            "unit": "ns/op",
+            "extra": "240545856 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "240545856 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_Validate - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "240545856 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData",
+            "value": 1553,
+            "unit": "ns/op\t     832 B/op\t       6 allocs/op",
+            "extra": "698584 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData - ns/op",
+            "value": 1553,
+            "unit": "ns/op",
+            "extra": "698584 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData - B/op",
+            "value": 832,
+            "unit": "B/op",
+            "extra": "698584 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogEntry_ToSSEData - allocs/op",
+            "value": 6,
+            "unit": "allocs/op",
+            "extra": "698584 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format",
+            "value": 420.1,
+            "unit": "ns/op\t     240 B/op\t       8 allocs/op",
+            "extra": "2869296 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format - ns/op",
+            "value": 420.1,
+            "unit": "ns/op",
+            "extra": "2869296 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format - B/op",
+            "value": 240,
+            "unit": "B/op",
+            "extra": "2869296 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkSSEMessage_Format - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2869296 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New",
+            "value": 137.3,
+            "unit": "ns/op\t     184 B/op\t       5 allocs/op",
+            "extra": "8736632 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - ns/op",
+            "value": 137.3,
+            "unit": "ns/op",
+            "extra": "8736632 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - B/op",
+            "value": 184,
+            "unit": "B/op",
+            "extra": "8736632 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_New - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "8736632 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID",
+            "value": 407.4,
+            "unit": "ns/op\t     288 B/op\t       8 allocs/op",
+            "extra": "2945526 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - ns/op",
+            "value": 407.4,
+            "unit": "ns/op",
+            "extra": "2945526 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "2945526 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLogger_WithRequestID - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "2945526 times\n4 procs"
           }
         ]
       }
