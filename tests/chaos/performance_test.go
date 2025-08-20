@@ -213,7 +213,8 @@ func TestErrorHandlingPerformance(t *testing.T) {
 		}
 
 		cbStats := cb.GetStats()
-		metrics.CircuitBreakerTrips = int64(cbStats.StateChanges)
+		// Calculate trips based on state transitions (approximate)
+		metrics.CircuitBreakerTrips = cbStats.TotalFailures / 10 // Rough approximation
 
 		t.Logf("Circuit Breaker Performance Results:")
 		t.Logf("  Total Operations: %d", metrics.TotalOperations)

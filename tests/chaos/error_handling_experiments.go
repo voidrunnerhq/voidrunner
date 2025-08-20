@@ -97,35 +97,45 @@ func (ehe *ErrorHandlingExperiments) SetupResilience() error {
 
 // SetupMonitoring sets up monitoring components
 func (ehe *ErrorHandlingExperiments) SetupMonitoring() error {
-	thresholds := &monitoring.SystemThresholds{
-		CPUWarning:        70.0,
-		CPUCritical:       85.0,
-		MemoryWarning:     75.0,
-		MemoryCritical:    90.0,
-		DiskWarning:       80.0,
-		DiskCritical:      95.0,
-		QueueSizeWarning:  100,
-		QueueSizeCritical: 500,
-		ErrorRateWarning:  5.0,
-		ErrorRateCritical: 10.0,
+	thresholds := &monitoring.ResourceThresholds{
+		CPUWarningPercent:            70.0,
+		CPUCriticalPercent:           85.0,
+		MemoryWarningPercent:         75.0,
+		MemoryCriticalPercent:        90.0,
+		DiskWarningPercent:           80.0,
+		DiskCriticalPercent:          95.0,
+		ContainerWarningCount:        100,
+		ContainerCriticalCount:       500,
+		ErrorRateWarningPercent:      5.0,
+		ErrorRateCriticalPercent:     10.0,
+		NetworkLatencyWarningMs:      1000,
+		NetworkLatencyCriticalMs:     5000,
+		DockerResponseTimeWarningMs:  2000,
+		DockerResponseTimeCriticalMs: 10000,
 	}
 
-	alertConfig := &monitoring.AlertManagerConfig{
-		CooldownPeriod: 30 * time.Second,
-		MaxAlerts:      100,
+	config := &monitoring.MonitoringConfig{
+		CheckInterval:             1 * time.Second,
+		AlertCooldownPeriod:       30 * time.Second,
+		MetricsRetentionTime:      5 * time.Minute,
+		Thresholds:                thresholds,
+		EnableCPUMonitoring:       true,
+		EnableMemoryMonitoring:    true,
+		EnableDiskMonitoring:      true,
+		EnableDockerMonitoring:    true,
+		EnableErrorRateMonitoring: true,
+		EnableAlerting:            true,
+		MaxAlertsPerInterval:      100,
 	}
 
-	resourceConfig := &monitoring.ResourceMonitorConfig{
-		CheckInterval:    1 * time.Second,
-		MetricsRetention: 5 * time.Minute,
-		EnableCPU:        true,
-		EnableMemory:     true,
-		EnableDisk:       true,
-		EnableDocker:     true,
-	}
+	// Create alert manager
+	alertManager := monitoring.NewAlertManager(config, ehe.logger)
+
+	// Create metrics collector
+	metricsCollector := monitoring.NewMetricsCollector(config, nil, ehe.logger)
 
 	var err error
-	ehe.resourceMonitor, err = monitoring.NewResourceMonitor(resourceConfig, thresholds, alertConfig, nil, ehe.logger)
+	ehe.resourceMonitor = monitoring.NewResourceMonitor(config, alertManager, metricsCollector, ehe.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create resource monitor: %w", err)
 	}
@@ -150,7 +160,7 @@ func (ehe *ErrorHandlingExperiments) Cleanup() {
 	}
 
 	if ehe.resourceMonitor != nil {
-		ehe.resourceMonitor.Stop(context.Background())
+		ehe.resourceMonitor.Stop()
 	}
 }
 
@@ -261,7 +271,7 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 			ehe.logger.Info("circuit breaker experiment validation successful",
 				"total_requests", stats.TotalRequests,
 				"total_failures", stats.TotalFailures,
-				"state_changes", stats.StateChanges)
+				"state_changed_at", stats.StateChangedAt)
 
 			return nil
 		},
@@ -697,8 +707,12 @@ func (ehe *ErrorHandlingExperiments) createResourceExhaustionExperiment() *Chaos
 		Validate: func(ctx context.Context) error {
 			// Validate that monitoring detected the resource exhaustion
 			if ehe.resourceMonitor != nil {
-				stats := ehe.resourceMonitor.GetStats()
-				ehe.logger.Info("resource monitoring stats", "stats", stats)
+				healthStatus := ehe.resourceMonitor.GetHealthStatus()
+				currentMetrics := ehe.resourceMonitor.GetCurrentMetrics()
+				ehe.logger.Info("resource monitoring status", 
+					"healthy", healthStatus.Healthy,
+					"issues", healthStatus.Issues,
+					"current_metrics", currentMetrics)
 			}
 
 			return nil
