@@ -560,8 +560,8 @@ func (h *CompositeNotificationHandler) AddHandler(handler NotificationHandler) {
 
 // RemoveHandler removes a notification handler
 func (h *CompositeNotificationHandler) RemoveHandler(handler NotificationHandler) {
-	for i, h := range h.handlers {
-		if h == handler {
+	for i, existingHandler := range h.handlers {
+		if existingHandler == handler {
 			h.handlers = append(h.handlers[:i], h.handlers[i+1:]...)
 			break
 		}
