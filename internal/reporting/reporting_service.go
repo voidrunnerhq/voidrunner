@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VoidRunnerHQ/voidrunner/internal/executor"
+	"github.com/voidrunnerhq/voidrunner/internal/executor"
 )
 
 // ReportingServiceConfig defines configuration for the reporting service

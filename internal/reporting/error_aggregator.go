@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VoidRunnerHQ/voidrunner/internal/executor"
+	"github.com/voidrunnerhq/voidrunner/internal/executor"
 )
 
 // ErrorMetrics holds aggregated error statistics
