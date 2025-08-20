@@ -344,100 +344,100 @@ func ClassifyError(err error, taskID uuid.UUID, context string) *ExecutionError 
 		execErr.Type = ErrorTypeInfrastructure
 		execErr.Code = "DOCKER_DAEMON_UNAVAILABLE"
 		execErr.Message = "Docker daemon is unavailable"
-		execErr.SetRetryable(true)
+		_ = execErr.SetRetryable(true)
 
 	// Container not found errors
 	case strings.Contains(errMsgLower, "no such container"):
 		execErr.Type = ErrorTypeInfrastructure
 		execErr.Code = "CONTAINER_NOT_FOUND"
 		execErr.Message = "Container not found"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	// Image not found errors
 	case strings.Contains(errMsgLower, "no such image") || strings.Contains(errMsgLower, "pull access denied"):
 		execErr.Type = ErrorTypeInfrastructure
 		execErr.Code = "IMAGE_NOT_FOUND"
 		execErr.Message = "Container image not found or access denied"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	// Timeout errors
 	case strings.Contains(errMsgLower, "timeout") || strings.Contains(errMsgLower, "deadline exceeded"):
 		execErr.Type = ErrorTypeTimeout
 		execErr.Code = "EXECUTION_TIMEOUT"
 		execErr.Message = "Task execution timed out"
-		execErr.SetRetryable(true)
+		_ = execErr.SetRetryable(true)
 
 	// Resource exhaustion errors
 	case strings.Contains(errMsgLower, "out of memory") || strings.Contains(errMsgLower, "oom"):
 		execErr.Type = ErrorTypeResource
 		execErr.Code = "OUT_OF_MEMORY"
 		execErr.Message = "Container ran out of memory"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	case strings.Contains(errMsgLower, "no space left"):
 		execErr.Type = ErrorTypeResource
 		execErr.Code = "OUT_OF_DISK_SPACE"
 		execErr.Message = "Insufficient disk space"
-		execErr.SetRetryable(true)
+		_ = execErr.SetRetryable(true)
 
 	case strings.Contains(errMsgLower, "cpu quota"):
 		execErr.Type = ErrorTypeResource
 		execErr.Code = "CPU_QUOTA_EXCEEDED"
 		execErr.Message = "CPU quota exceeded"
-		execErr.SetRetryable(true)
+		_ = execErr.SetRetryable(true)
 
 	// Network errors
 	case strings.Contains(errMsgLower, "network") || strings.Contains(errMsgLower, "dns"):
 		execErr.Type = ErrorTypeNetwork
 		execErr.Code = "NETWORK_ERROR"
 		execErr.Message = "Network connectivity issue"
-		execErr.SetRetryable(true)
+		_ = execErr.SetRetryable(true)
 
 	// Permission errors
 	case strings.Contains(errMsgLower, "permission denied") || strings.Contains(errMsgLower, "access denied"):
 		execErr.Type = ErrorTypeSecurity
 		execErr.Code = "PERMISSION_DENIED"
 		execErr.Message = "Permission denied"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	// Rate limiting errors
 	case strings.Contains(errMsgLower, "rate limit") || strings.Contains(errMsgLower, "too many requests"):
 		execErr.Type = ErrorTypeRateLimit
 		execErr.Code = "RATE_LIMIT_EXCEEDED"
 		execErr.Message = "Rate limit exceeded"
-		execErr.SetRetryable(true)
+		_ = execErr.SetRetryable(true)
 
 	// Quota errors
 	case strings.Contains(errMsgLower, "quota") || strings.Contains(errMsgLower, "limit exceeded"):
 		execErr.Type = ErrorTypeQuota
 		execErr.Code = "QUOTA_EXCEEDED"
 		execErr.Message = "Quota exceeded"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	// Validation errors
 	case strings.Contains(errMsgLower, "invalid") || strings.Contains(errMsgLower, "malformed"):
 		execErr.Type = ErrorTypeValidation
 		execErr.Code = "VALIDATION_ERROR"
 		execErr.Message = "Input validation failed"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	// User code errors (script execution failures)
 	case strings.Contains(errMsgLower, "exit status") || strings.Contains(errMsgLower, "command failed"):
 		execErr.Type = ErrorTypeUserCode
 		execErr.Code = "USER_CODE_ERROR"
 		execErr.Message = "User script execution failed"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	// Cancellation errors
 	case strings.Contains(errMsgLower, "cancelled") || strings.Contains(errMsgLower, "canceled"):
 		execErr.Type = ErrorTypeTimeout
 		execErr.Code = "EXECUTION_CANCELLED"
 		execErr.Message = "Task execution was cancelled"
-		execErr.SetRetryable(false)
+		_ = execErr.SetRetryable(false)
 
 	default:
 		// Keep default classification for unknown errors
-		execErr.SetRetryable(true) // Conservative approach - assume retryable unless known otherwise
+		_ = execErr.SetRetryable(true) // Conservative approach - assume retryable unless known otherwise
 	}
 
 	return execErr
@@ -448,11 +448,11 @@ func ClassifyDockerError(err error, taskID uuid.UUID, containerID string) *Execu
 	execErr := ClassifyError(err, taskID, "docker_operation")
 	
 	if containerID != "" {
-		execErr.WithContainerID(containerID)
+		_ = execErr.WithContainerID(containerID)
 	}
 
 	// Add Docker-specific context
-	execErr.WithContext("error_source", "docker_client")
+	_ = execErr.WithContext("error_source", "docker_client")
 	
 	return execErr
 }

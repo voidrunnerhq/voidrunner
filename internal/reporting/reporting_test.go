@@ -39,7 +39,7 @@ func TestErrorAggregator(t *testing.T) {
 		assert.Equal(t, config, aggregator.config)
 		
 		// Cleanup
-		aggregator.Stop(context.Background())
+		_ = aggregator.Stop(context.Background())
 	})
 
 	t.Run("RecordError", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestReportingService(t *testing.T) {
 		assert.Equal(t, config, service.config)
 		
 		// Cleanup
-		service.Stop(context.Background())
+		_ = service.Stop(context.Background())
 	})
 
 	t.Run("RecordError", func(t *testing.T) {
@@ -182,7 +182,7 @@ func TestReportingService(t *testing.T) {
 				ExecutionID: "exec-456",
 				Timestamp:   time.Now(),
 			}
-			service.RecordError(ctx, execError, "task-123", "user-456")
+			_ = service.RecordError(ctx, execError, "task-123", "user-456")
 		}
 		
 		// Wait a bit for aggregation
@@ -476,7 +476,13 @@ func TestErrorMetricsAndReports(t *testing.T) {
 		}
 		
 		for i := 0; i < 30; i++ {
-			errorType := errorTypes[i%len(errorTypes)]
+			// Generate more resource errors to trigger recommendations
+			var errorType executor.ErrorType
+			if i < 25 {
+				errorType = executor.ErrorTypeResource // 25 resource errors
+			} else {
+				errorType = errorTypes[(i-25)%len(errorTypes)] // 5 other errors
+			}
 			execError := &executor.ExecutionError{
 				Type:        errorType,
 				Code:        fmt.Sprintf("%s_%03d", errorType, i%5),
@@ -545,7 +551,7 @@ func TestErrorMetricsAndReports(t *testing.T) {
 				Timestamp:   time.Now(),
 			}
 			
-			service.RecordError(ctx, execError, execError.TaskID, fmt.Sprintf("user-%d", i%100))
+			_ = service.RecordError(ctx, execError, execError.TaskID, fmt.Sprintf("user-%d", i%100))
 		}
 		
 		// Measure report generation time
@@ -573,7 +579,7 @@ func TestConcurrentOperations(t *testing.T) {
 	
 	service, err := NewReportingService(config, logger)
 	require.NoError(t, err)
-	defer service.Stop(context.Background())
+	defer func() { _ = service.Stop(context.Background()) }()
 	
 	ctx := context.Background()
 	
@@ -589,7 +595,7 @@ func TestConcurrentOperations(t *testing.T) {
 			Timestamp:   time.Now(),
 		}
 		
-		service.RecordError(ctx, execError, "task-123", "user-456")
+		_ = service.RecordError(ctx, execError, "task-123", "user-456")
 	}
 	
 	// Test concurrent report generation

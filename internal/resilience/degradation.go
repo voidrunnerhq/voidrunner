@@ -358,7 +358,7 @@ func (gd *GracefulDegradation) evaluateResourcesAndAdjustLevel() {
 	}
 
 	// Make the level change
-	reason := fmt.Sprintf("resource_thresholds_triggered")
+	reason := "resource_thresholds_triggered"
 	if targetLevel < gd.currentLevel {
 		reason = "resource_conditions_improved"
 	}
