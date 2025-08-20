@@ -109,7 +109,7 @@ func (h *WebhookNotificationHandler) SendNotification(ctx context.Context, notif
 			"error", err)
 		return fmt.Errorf("webhook request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		h.logger.Error("webhook returned error status",
@@ -321,7 +321,7 @@ func NewFileNotificationHandler(directory string, logger *slog.Logger) (*FileNot
 	}
 	
 	// Ensure directory exists
-	if err := os.MkdirAll(directory, 0755); err != nil {
+	if err := os.MkdirAll(directory, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create notification directory: %w", err)
 	}
 	
@@ -344,7 +344,7 @@ func (h *FileNotificationHandler) SendNotification(ctx context.Context, notifica
 		return fmt.Errorf("failed to marshal notification: %w", err)
 	}
 	
-	err = os.WriteFile(filepath, data, 0644)
+	err = os.WriteFile(filepath, data, 0600)
 	if err != nil {
 		h.logger.Error("failed to write notification file",
 			"filepath", filepath,
@@ -492,15 +492,15 @@ func (h *SlackNotificationHandler) SendNotification(ctx context.Context, notific
 		h.logger.Error("Slack webhook request failed",
 			"notification_id", notification.ID,
 			"error", err)
-		return fmt.Errorf("Slack webhook request failed: %w", err)
+		return fmt.Errorf("slack webhook request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode != http.StatusOK {
 		h.logger.Error("Slack webhook returned error status",
 			"notification_id", notification.ID,
 			"status_code", resp.StatusCode)
-		return fmt.Errorf("Slack webhook returned status %d", resp.StatusCode)
+		return fmt.Errorf("slack webhook returned status %d", resp.StatusCode)
 	}
 	
 	h.logger.Info("Slack notification sent successfully",
