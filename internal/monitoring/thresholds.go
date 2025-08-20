@@ -59,37 +59,37 @@ func DefaultResourceThresholds() *ResourceThresholds {
 // Validate checks if the thresholds are valid
 func (rt *ResourceThresholds) Validate() error {
 	if rt.CPUWarningPercent >= rt.CPUCriticalPercent {
-		return fmt.Errorf("CPU warning threshold (%v) must be less than critical threshold (%v)", 
+		return fmt.Errorf("CPU warning threshold (%v) must be less than critical threshold (%v)",
 			rt.CPUWarningPercent, rt.CPUCriticalPercent)
 	}
-	
+
 	if rt.MemoryWarningPercent >= rt.MemoryCriticalPercent {
-		return fmt.Errorf("memory warning threshold (%v) must be less than critical threshold (%v)", 
+		return fmt.Errorf("memory warning threshold (%v) must be less than critical threshold (%v)",
 			rt.MemoryWarningPercent, rt.MemoryCriticalPercent)
 	}
-	
+
 	if rt.DiskWarningPercent >= rt.DiskCriticalPercent {
-		return fmt.Errorf("disk warning threshold (%v) must be less than critical threshold (%v)", 
+		return fmt.Errorf("disk warning threshold (%v) must be less than critical threshold (%v)",
 			rt.DiskWarningPercent, rt.DiskCriticalPercent)
 	}
-	
+
 	if rt.ContainerWarningCount >= rt.ContainerCriticalCount {
-		return fmt.Errorf("container warning threshold (%d) must be less than critical threshold (%d)", 
+		return fmt.Errorf("container warning threshold (%d) must be less than critical threshold (%d)",
 			rt.ContainerWarningCount, rt.ContainerCriticalCount)
 	}
-	
+
 	if rt.NetworkLatencyWarningMs >= rt.NetworkLatencyCriticalMs {
-		return fmt.Errorf("network latency warning threshold (%d) must be less than critical threshold (%d)", 
+		return fmt.Errorf("network latency warning threshold (%d) must be less than critical threshold (%d)",
 			rt.NetworkLatencyWarningMs, rt.NetworkLatencyCriticalMs)
 	}
-	
+
 	if rt.DockerResponseTimeWarningMs >= rt.DockerResponseTimeCriticalMs {
-		return fmt.Errorf("docker response time warning threshold (%d) must be less than critical threshold (%d)", 
+		return fmt.Errorf("docker response time warning threshold (%d) must be less than critical threshold (%d)",
 			rt.DockerResponseTimeWarningMs, rt.DockerResponseTimeCriticalMs)
 	}
-	
+
 	if rt.ErrorRateWarningPercent >= rt.ErrorRateCriticalPercent {
-		return fmt.Errorf("error rate warning threshold (%v) must be less than critical threshold (%v)", 
+		return fmt.Errorf("error rate warning threshold (%v) must be less than critical threshold (%v)",
 			rt.ErrorRateWarningPercent, rt.ErrorRateCriticalPercent)
 	}
 
@@ -121,10 +121,10 @@ type AlertLevel string
 const (
 	// AlertLevelInfo represents informational alerts
 	AlertLevelInfo AlertLevel = "info"
-	
+
 	// AlertLevelWarning represents warning-level alerts
 	AlertLevelWarning AlertLevel = "warning"
-	
+
 	// AlertLevelCritical represents critical alerts requiring immediate attention
 	AlertLevelCritical AlertLevel = "critical"
 )
@@ -209,39 +209,39 @@ func (rt *ResourceThresholds) EvaluateErrorRateThreshold(errorRatePercent float6
 // MonitoringConfig holds configuration for the monitoring system
 type MonitoringConfig struct {
 	// Monitoring intervals
-	CheckInterval        time.Duration       `json:"check_interval"`        // How often to check resources
-	AlertCooldownPeriod  time.Duration       `json:"alert_cooldown_period"` // Minimum time between duplicate alerts
-	MetricsRetentionTime time.Duration       `json:"metrics_retention_time"` // How long to keep metrics
-	
+	CheckInterval        time.Duration `json:"check_interval"`         // How often to check resources
+	AlertCooldownPeriod  time.Duration `json:"alert_cooldown_period"`  // Minimum time between duplicate alerts
+	MetricsRetentionTime time.Duration `json:"metrics_retention_time"` // How long to keep metrics
+
 	// Resource thresholds
 	Thresholds *ResourceThresholds `json:"thresholds"`
-	
+
 	// Feature flags
-	EnableCPUMonitoring    bool `json:"enable_cpu_monitoring"`
-	EnableMemoryMonitoring bool `json:"enable_memory_monitoring"`
-	EnableDiskMonitoring   bool `json:"enable_disk_monitoring"`
-	EnableDockerMonitoring bool `json:"enable_docker_monitoring"`
+	EnableCPUMonitoring       bool `json:"enable_cpu_monitoring"`
+	EnableMemoryMonitoring    bool `json:"enable_memory_monitoring"`
+	EnableDiskMonitoring      bool `json:"enable_disk_monitoring"`
+	EnableDockerMonitoring    bool `json:"enable_docker_monitoring"`
 	EnableErrorRateMonitoring bool `json:"enable_error_rate_monitoring"`
-	
+
 	// Alert configuration
-	EnableAlerting        bool `json:"enable_alerting"`
-	MaxAlertsPerInterval  int  `json:"max_alerts_per_interval"` // Rate limiting for alerts
+	EnableAlerting       bool `json:"enable_alerting"`
+	MaxAlertsPerInterval int  `json:"max_alerts_per_interval"` // Rate limiting for alerts
 }
 
 // DefaultMonitoringConfig returns a sensible default configuration
 func DefaultMonitoringConfig() *MonitoringConfig {
 	return &MonitoringConfig{
-		CheckInterval:        30 * time.Second,
-		AlertCooldownPeriod:  5 * time.Minute,
-		MetricsRetentionTime: 24 * time.Hour,
-		Thresholds:           DefaultResourceThresholds(),
-		EnableCPUMonitoring:    true,
-		EnableMemoryMonitoring: true,
-		EnableDiskMonitoring:   true,
-		EnableDockerMonitoring: true,
+		CheckInterval:             30 * time.Second,
+		AlertCooldownPeriod:       5 * time.Minute,
+		MetricsRetentionTime:      24 * time.Hour,
+		Thresholds:                DefaultResourceThresholds(),
+		EnableCPUMonitoring:       true,
+		EnableMemoryMonitoring:    true,
+		EnableDiskMonitoring:      true,
+		EnableDockerMonitoring:    true,
 		EnableErrorRateMonitoring: true,
-		EnableAlerting:        true,
-		MaxAlertsPerInterval:  10,
+		EnableAlerting:            true,
+		MaxAlertsPerInterval:      10,
 	}
 }
 
@@ -250,22 +250,22 @@ func (mc *MonitoringConfig) Validate() error {
 	if mc.CheckInterval <= 0 {
 		return fmt.Errorf("check interval must be positive")
 	}
-	
+
 	if mc.AlertCooldownPeriod < 0 {
 		return fmt.Errorf("alert cooldown period cannot be negative")
 	}
-	
+
 	if mc.MetricsRetentionTime <= 0 {
 		return fmt.Errorf("metrics retention time must be positive")
 	}
-	
+
 	if mc.MaxAlertsPerInterval < 0 {
 		return fmt.Errorf("max alerts per interval cannot be negative")
 	}
-	
+
 	if mc.Thresholds == nil {
 		return fmt.Errorf("thresholds configuration is required")
 	}
-	
+
 	return mc.Thresholds.Validate()
 }

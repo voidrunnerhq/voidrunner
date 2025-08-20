@@ -14,13 +14,13 @@ type DegradationLevel int
 const (
 	// LevelNormal represents normal operation with all features enabled
 	LevelNormal DegradationLevel = iota
-	
+
 	// LevelLimited represents limited operation with some features disabled
 	LevelLimited
-	
+
 	// LevelMinimal represents minimal operation with only essential features
 	LevelMinimal
-	
+
 	// LevelEmergency represents emergency mode with severely limited functionality
 	LevelEmergency
 )
@@ -47,33 +47,33 @@ type FeatureName string
 const (
 	// FeatureLogging represents logging functionality
 	FeatureLogging FeatureName = "logging"
-	
+
 	// FeatureMetrics represents metrics collection
 	FeatureMetrics FeatureName = "metrics"
-	
+
 	// FeatureComplexTasks represents complex task execution
 	FeatureComplexTasks FeatureName = "complex_tasks"
-	
+
 	// FeatureConcurrentExecution represents concurrent task execution
 	FeatureConcurrentExecution FeatureName = "concurrent_execution"
-	
+
 	// FeatureResourceMonitoring represents resource monitoring
 	FeatureResourceMonitoring FeatureName = "resource_monitoring"
-	
+
 	// FeatureAlerts represents alerting functionality
 	FeatureAlerts FeatureName = "alerts"
-	
+
 	// FeatureDetailedReporting represents detailed reporting
 	FeatureDetailedReporting FeatureName = "detailed_reporting"
 )
 
 // FeatureConfig defines configuration for a specific feature
 type FeatureConfig struct {
-	Name              FeatureName `json:"name"`
-	EnabledAtLevel    DegradationLevel `json:"enabled_at_level"`
-	ResourceWeight    float64     `json:"resource_weight"`    // How much resources this feature uses (0-1)
-	CriticalityScore  float64     `json:"criticality_score"`  // How critical this feature is (0-1)
-	FallbackBehavior  string      `json:"fallback_behavior"`  // What to do when disabled
+	Name             FeatureName      `json:"name"`
+	EnabledAtLevel   DegradationLevel `json:"enabled_at_level"`
+	ResourceWeight   float64          `json:"resource_weight"`   // How much resources this feature uses (0-1)
+	CriticalityScore float64          `json:"criticality_score"` // How critical this feature is (0-1)
+	FallbackBehavior string           `json:"fallback_behavior"` // What to do when disabled
 }
 
 // DegradationConfig holds configuration for graceful degradation
@@ -82,25 +82,25 @@ type DegradationConfig struct {
 	LimitedModeThreshold   ResourceThreshold `json:"limited_mode_threshold"`
 	MinimalModeThreshold   ResourceThreshold `json:"minimal_mode_threshold"`
 	EmergencyModeThreshold ResourceThreshold `json:"emergency_mode_threshold"`
-	
+
 	// Feature configurations
 	Features map[FeatureName]*FeatureConfig `json:"features"`
-	
+
 	// Recovery settings
-	RecoveryInterval       time.Duration `json:"recovery_interval"`        // How often to check for recovery
-	RecoveryStabilityTime  time.Duration `json:"recovery_stability_time"`  // How long to wait before upgrading level
-	
+	RecoveryInterval      time.Duration `json:"recovery_interval"`       // How often to check for recovery
+	RecoveryStabilityTime time.Duration `json:"recovery_stability_time"` // How long to wait before upgrading level
+
 	// Notification settings
 	NotifyOnLevelChange bool `json:"notify_on_level_change"`
 }
 
 // ResourceThreshold defines thresholds for triggering degradation
 type ResourceThreshold struct {
-	CPUPercent       float64 `json:"cpu_percent"`
-	MemoryPercent    float64 `json:"memory_percent"`
-	ErrorRate        float64 `json:"error_rate"`
-	ResponseTimeMs   int64   `json:"response_time_ms"`
-	ActiveConnections int    `json:"active_connections"`
+	CPUPercent        float64 `json:"cpu_percent"`
+	MemoryPercent     float64 `json:"memory_percent"`
+	ErrorRate         float64 `json:"error_rate"`
+	ResponseTimeMs    int64   `json:"response_time_ms"`
+	ActiveConnections int     `json:"active_connections"`
 }
 
 // DefaultDegradationConfig returns sensible defaults
@@ -159,77 +159,77 @@ func DefaultDegradationConfig() *DegradationConfig {
 
 	return &DegradationConfig{
 		LimitedModeThreshold: ResourceThreshold{
-			CPUPercent:       75.0,
-			MemoryPercent:    80.0,
-			ErrorRate:        10.0,
-			ResponseTimeMs:   2000,
+			CPUPercent:        75.0,
+			MemoryPercent:     80.0,
+			ErrorRate:         10.0,
+			ResponseTimeMs:    2000,
 			ActiveConnections: 800,
 		},
 		MinimalModeThreshold: ResourceThreshold{
-			CPUPercent:       85.0,
-			MemoryPercent:    90.0,
-			ErrorRate:        20.0,
-			ResponseTimeMs:   5000,
+			CPUPercent:        85.0,
+			MemoryPercent:     90.0,
+			ErrorRate:         20.0,
+			ResponseTimeMs:    5000,
 			ActiveConnections: 1000,
 		},
 		EmergencyModeThreshold: ResourceThreshold{
-			CPUPercent:       95.0,
-			MemoryPercent:    95.0,
-			ErrorRate:        50.0,
-			ResponseTimeMs:   10000,
+			CPUPercent:        95.0,
+			MemoryPercent:     95.0,
+			ErrorRate:         50.0,
+			ResponseTimeMs:    10000,
 			ActiveConnections: 1200,
 		},
-		Features:               features,
-		RecoveryInterval:       30 * time.Second,
-		RecoveryStabilityTime:  2 * time.Minute,
-		NotifyOnLevelChange:    true,
+		Features:              features,
+		RecoveryInterval:      30 * time.Second,
+		RecoveryStabilityTime: 2 * time.Minute,
+		NotifyOnLevelChange:   true,
 	}
 }
 
 // DegradationStats holds statistics about degradation
 type DegradationStats struct {
-	CurrentLevel        DegradationLevel              `json:"current_level"`
-	LevelChangedAt      time.Time                     `json:"level_changed_at"`
-	TimeInCurrentLevel  time.Duration                 `json:"time_in_current_level"`
-	EnabledFeatures     []FeatureName                 `json:"enabled_features"`
-	DisabledFeatures    []FeatureName                 `json:"disabled_features"`
-	ResourceSavings     float64                       `json:"resource_savings"`
-	LevelChangeHistory  []LevelChangeEvent            `json:"level_change_history"`
-	FeatureStates       map[FeatureName]bool          `json:"feature_states"`
+	CurrentLevel       DegradationLevel     `json:"current_level"`
+	LevelChangedAt     time.Time            `json:"level_changed_at"`
+	TimeInCurrentLevel time.Duration        `json:"time_in_current_level"`
+	EnabledFeatures    []FeatureName        `json:"enabled_features"`
+	DisabledFeatures   []FeatureName        `json:"disabled_features"`
+	ResourceSavings    float64              `json:"resource_savings"`
+	LevelChangeHistory []LevelChangeEvent   `json:"level_change_history"`
+	FeatureStates      map[FeatureName]bool `json:"feature_states"`
 }
 
 // LevelChangeEvent represents a degradation level change event
 type LevelChangeEvent struct {
-	FromLevel   DegradationLevel `json:"from_level"`
-	ToLevel     DegradationLevel `json:"to_level"`
-	Timestamp   time.Time        `json:"timestamp"`
-	Reason      string           `json:"reason"`
-	Triggered   []string         `json:"triggered"`  // Which thresholds were exceeded
+	FromLevel DegradationLevel `json:"from_level"`
+	ToLevel   DegradationLevel `json:"to_level"`
+	Timestamp time.Time        `json:"timestamp"`
+	Reason    string           `json:"reason"`
+	Triggered []string         `json:"triggered"` // Which thresholds were exceeded
 }
 
 // GracefulDegradation manages graceful service degradation
 type GracefulDegradation struct {
-	mu                    sync.RWMutex
-	config                *DegradationConfig
-	logger                *slog.Logger
-	metricsProvider       MetricsProvider
-	
+	mu              sync.RWMutex
+	config          *DegradationConfig
+	logger          *slog.Logger
+	metricsProvider MetricsProvider
+
 	// Current state
-	currentLevel          DegradationLevel
-	levelChangedAt        time.Time
-	enabledFeatures       map[FeatureName]bool
-	
+	currentLevel    DegradationLevel
+	levelChangedAt  time.Time
+	enabledFeatures map[FeatureName]bool
+
 	// History
-	levelChangeHistory    []LevelChangeEvent
-	
+	levelChangeHistory []LevelChangeEvent
+
 	// Monitoring
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	wg                    sync.WaitGroup
-	
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+
 	// Recovery tracking
-	lastStableTime        time.Time
-	pendingUpgrade        *DegradationLevel
+	lastStableTime time.Time
+	pendingUpgrade *DegradationLevel
 }
 
 // NewGracefulDegradation creates a new graceful degradation manager
@@ -237,7 +237,7 @@ func NewGracefulDegradation(config *DegradationConfig, metricsProvider MetricsPr
 	if config == nil {
 		config = DefaultDegradationConfig()
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -272,7 +272,7 @@ func NewGracefulDegradation(config *DegradationConfig, metricsProvider MetricsPr
 func (gd *GracefulDegradation) IsFeatureEnabled(feature FeatureName) bool {
 	gd.mu.RLock()
 	defer gd.mu.RUnlock()
-	
+
 	enabled, exists := gd.enabledFeatures[feature]
 	return exists && enabled
 }
@@ -288,7 +288,7 @@ func (gd *GracefulDegradation) GetCurrentLevel() DegradationLevel {
 func (gd *GracefulDegradation) SetLevel(level DegradationLevel, reason string) {
 	gd.mu.Lock()
 	defer gd.mu.Unlock()
-	
+
 	if level == gd.currentLevel {
 		return
 	}

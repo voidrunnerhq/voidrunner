@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 // Mock notification handler for testing
 type MockNotificationHandler struct {
+	mu            sync.RWMutex
 	notifications []*ErrorNotification
 	shouldFail    bool
 }
@@ -24,8 +26,27 @@ func (m *MockNotificationHandler) SendNotification(ctx context.Context, notifica
 	if m.shouldFail {
 		return assert.AnError
 	}
+	m.mu.Lock()
 	m.notifications = append(m.notifications, notification)
+	m.mu.Unlock()
 	return nil
+}
+
+// GetNotificationCount returns the number of notifications received
+func (m *MockNotificationHandler) GetNotificationCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.notifications)
+}
+
+// GetNotification returns the notification at the given index
+func (m *MockNotificationHandler) GetNotification(index int) *ErrorNotification {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if index < 0 || index >= len(m.notifications) {
+		return nil
+	}
+	return m.notifications[index]
 }
 
 func TestErrorAggregator(t *testing.T) {
@@ -34,10 +55,10 @@ func TestErrorAggregator(t *testing.T) {
 	t.Run("NewErrorAggregator", func(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
-		
+
 		assert.NotNil(t, aggregator)
 		assert.Equal(t, config, aggregator.config)
-		
+
 		// Cleanup
 		_ = aggregator.Stop(context.Background())
 	})
@@ -46,7 +67,7 @@ func TestErrorAggregator(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
 		defer func() { _ = aggregator.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
 		execError := &executor.ExecutionError{
 			Type:        executor.ErrorTypeTimeout,
@@ -58,9 +79,9 @@ func TestErrorAggregator(t *testing.T) {
 			Timestamp:   time.Now(),
 			Context:     map[string]interface{}{"timeout": "30s"},
 		}
-		
+
 		aggregator.RecordError(ctx, execError, "task-123", "user-456")
-		
+
 		// Verify error was recorded
 		stats := aggregator.GetStats()
 		assert.Equal(t, 1, stats["total_error_types"])
@@ -72,9 +93,9 @@ func TestErrorAggregator(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
 		defer func() { _ = aggregator.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		// Record some errors
 		for i := 0; i < 5; i++ {
 			execError := &executor.ExecutionError{
@@ -89,13 +110,13 @@ func TestErrorAggregator(t *testing.T) {
 			}
 			aggregator.RecordError(ctx, execError, "task-123", "user-456")
 		}
-		
+
 		// Generate report
 		timeRange := TimeRange{
 			Start: time.Now().Add(-1 * time.Hour),
 			End:   time.Now(),
 		}
-		
+
 		report, err := aggregator.GenerateReport(ctx, timeRange)
 		require.NoError(t, err)
 		assert.NotNil(t, report)
@@ -110,13 +131,13 @@ func TestErrorAggregator(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
 		defer func() { _ = aggregator.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		data, err := aggregator.ExportData(ctx, "json")
 		require.NoError(t, err)
 		assert.NotEmpty(t, data)
-		
+
 		// Test invalid format
 		_, err = aggregator.ExportData(ctx, "invalid")
 		assert.Error(t, err)
@@ -129,11 +150,11 @@ func TestReportingService(t *testing.T) {
 	t.Run("NewReportingService", func(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
-		
+
 		require.NoError(t, err)
 		assert.NotNil(t, service)
 		assert.Equal(t, config, service.config)
-		
+
 		// Cleanup
 		_ = service.Stop(context.Background())
 	})
@@ -143,7 +164,7 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
 		execError := &executor.ExecutionError{
 			Type:        executor.ErrorTypeValidation,
@@ -154,10 +175,10 @@ func TestReportingService(t *testing.T) {
 			ExecutionID: "exec-456",
 			Timestamp:   time.Now(),
 		}
-		
+
 		err = service.RecordError(ctx, execError, "task-123", "user-456")
 		assert.NoError(t, err)
-		
+
 		// Test nil error
 		err = service.RecordError(ctx, nil, "task-123", "user-456")
 		assert.Error(t, err)
@@ -168,9 +189,9 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		// Record some errors
 		for i := 0; i < 10; i++ {
 			execError := &executor.ExecutionError{
@@ -184,15 +205,15 @@ func TestReportingService(t *testing.T) {
 			}
 			_ = service.RecordError(ctx, execError, "task-123", "user-456")
 		}
-		
+
 		// Wait a bit for aggregation
 		time.Sleep(100 * time.Millisecond)
-		
+
 		timeRange := TimeRange{
 			Start: time.Now().Add(-1 * time.Hour),
 			End:   time.Now(),
 		}
-		
+
 		report, err := service.GenerateReport(ctx, timeRange)
 		require.NoError(t, err)
 		assert.NotNil(t, report)
@@ -204,9 +225,9 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		report, err := service.GenerateQuickReport(ctx)
 		require.NoError(t, err)
 		assert.NotNil(t, report)
@@ -217,28 +238,28 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		// Generate a report
 		timeRange := TimeRange{
 			Start: time.Now().Add(-1 * time.Hour),
 			End:   time.Now(),
 		}
-		
+
 		report, err := service.GenerateReport(ctx, timeRange)
 		require.NoError(t, err)
-		
+
 		// Check history
 		history := service.GetReportHistory(10)
 		assert.Len(t, history, 1)
 		assert.Equal(t, report.ID, history[0].ID)
-		
+
 		// Test GetReportByID
 		retrievedReport, err := service.GetReportByID(report.ID)
 		require.NoError(t, err)
 		assert.Equal(t, report.ID, retrievedReport.ID)
-		
+
 		// Test non-existent report
 		_, err = service.GetReportByID("non-existent")
 		assert.Error(t, err)
@@ -249,12 +270,12 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		mockHandler := &MockNotificationHandler{}
-		
+
 		// Add handler
 		service.AddNotificationHandler(mockHandler)
-		
+
 		// Record a security error to trigger notification
 		ctx := context.Background()
 		execError := &executor.ExecutionError{
@@ -266,17 +287,19 @@ func TestReportingService(t *testing.T) {
 			ExecutionID: "exec-456",
 			Timestamp:   time.Now(),
 		}
-		
+
 		err = service.RecordError(ctx, execError, "task-123", "user-456")
 		assert.NoError(t, err)
-		
+
 		// Wait for notification
 		time.Sleep(100 * time.Millisecond)
-		
+
 		// Check that notification was sent
-		assert.Len(t, mockHandler.notifications, 1)
-		assert.Equal(t, "critical", mockHandler.notifications[0].Severity)
-		
+		assert.Equal(t, 1, mockHandler.GetNotificationCount())
+		notification := mockHandler.GetNotification(0)
+		require.NotNil(t, notification)
+		assert.Equal(t, "critical", notification.Severity)
+
 		// Remove handler
 		service.RemoveNotificationHandler(mockHandler)
 	})
@@ -286,14 +309,14 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		// Export with no reports
 		data, err := service.ExportReports(ctx, "json", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, data)
-		
+
 		// Test invalid format
 		_, err = service.ExportReports(ctx, "invalid", nil)
 		assert.Error(t, err)
@@ -304,7 +327,7 @@ func TestReportingService(t *testing.T) {
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		stats := service.GetStats()
 		assert.NotNil(t, stats)
 		assert.Contains(t, stats, "report_history_count")
@@ -319,7 +342,7 @@ func TestNotificationHandlers(t *testing.T) {
 
 	t.Run("LogNotificationHandler", func(t *testing.T) {
 		handler := NewLogNotificationHandler(logger, slog.LevelInfo)
-		
+
 		notification := &ErrorNotification{
 			ID:         "test-notification",
 			Timestamp:  time.Now(),
@@ -328,7 +351,7 @@ func TestNotificationHandlers(t *testing.T) {
 			Message:    "This is a test notification",
 			ErrorCount: 5,
 		}
-		
+
 		err := handler.SendNotification(context.Background(), notification)
 		assert.NoError(t, err)
 	})
@@ -341,10 +364,10 @@ func TestNotificationHandlers(t *testing.T) {
 				"Authorization": "Bearer test-token",
 			},
 		}
-		
+
 		handler := NewWebhookNotificationHandler(config, logger)
 		require.NotNil(t, handler)
-		
+
 		notification := &ErrorNotification{
 			ID:         "test-notification",
 			Timestamp:  time.Now(),
@@ -353,11 +376,11 @@ func TestNotificationHandlers(t *testing.T) {
 			Message:    "This is a test webhook notification",
 			ErrorCount: 3,
 		}
-		
+
 		// Verify notification is properly structured
 		assert.Equal(t, "test-notification", notification.ID)
 		assert.Equal(t, "medium", notification.Severity)
-		
+
 		// This will actually make an HTTP request to httpbin.org
 		// Comment out if you don't want external requests in tests
 		// err := handler.SendNotification(context.Background(), notification)
@@ -368,10 +391,10 @@ func TestNotificationHandlers(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "voidrunner-notifications-*")
 		require.NoError(t, err)
 		defer func() { _ = os.RemoveAll(tempDir) }()
-		
+
 		handler, err := NewFileNotificationHandler(tempDir, logger)
 		require.NoError(t, err)
-		
+
 		notification := &ErrorNotification{
 			ID:         "test-notification",
 			Timestamp:  time.Now(),
@@ -384,10 +407,10 @@ func TestNotificationHandlers(t *testing.T) {
 				End:   time.Now(),
 			},
 		}
-		
+
 		err = handler.SendNotification(context.Background(), notification)
 		assert.NoError(t, err)
-		
+
 		// Check that file was created
 		files, err := os.ReadDir(tempDir)
 		require.NoError(t, err)
@@ -397,10 +420,10 @@ func TestNotificationHandlers(t *testing.T) {
 	t.Run("CompositeNotificationHandler", func(t *testing.T) {
 		mockHandler1 := &MockNotificationHandler{}
 		mockHandler2 := &MockNotificationHandler{}
-		
+
 		handlers := []NotificationHandler{mockHandler1, mockHandler2}
 		composite := NewCompositeNotificationHandler(handlers, logger)
-		
+
 		notification := &ErrorNotification{
 			ID:         "test-notification",
 			Timestamp:  time.Now(),
@@ -409,14 +432,14 @@ func TestNotificationHandlers(t *testing.T) {
 			Message:    "This is a test composite notification",
 			ErrorCount: 8,
 		}
-		
+
 		err := composite.SendNotification(context.Background(), notification)
 		assert.NoError(t, err)
-		
+
 		// Check that both handlers received the notification
-		assert.Len(t, mockHandler1.notifications, 1)
-		assert.Len(t, mockHandler2.notifications, 1)
-		
+		assert.Equal(t, 1, mockHandler1.GetNotificationCount())
+		assert.Equal(t, 1, mockHandler2.GetNotificationCount())
+
 		// Test with failing handler
 		mockHandler2.shouldFail = true
 		err = composite.SendNotification(context.Background(), notification)
@@ -427,7 +450,7 @@ func TestNotificationHandlers(t *testing.T) {
 func TestDefaultConfigurations(t *testing.T) {
 	t.Run("DefaultErrorAggregatorConfig", func(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
-		
+
 		assert.NotNil(t, config)
 		assert.True(t, config.ShortTermWindow > 0)
 		assert.True(t, config.MediumTermWindow > 0)
@@ -445,7 +468,7 @@ func TestDefaultConfigurations(t *testing.T) {
 
 	t.Run("DefaultReportingServiceConfig", func(t *testing.T) {
 		config := DefaultReportingServiceConfig()
-		
+
 		assert.NotNil(t, config)
 		assert.NotNil(t, config.AggregatorConfig)
 		assert.True(t, config.EnablePersistence)
@@ -465,16 +488,16 @@ func TestErrorMetricsAndReports(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
 		defer func() { _ = aggregator.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		// Record errors with different patterns
 		errorTypes := []executor.ErrorType{
 			executor.ErrorTypeTimeout,
 			executor.ErrorTypeResource,
 			executor.ErrorTypeValidation,
 		}
-		
+
 		for i := 0; i < 30; i++ {
 			// Generate more resource errors to trigger recommendations
 			var errorType executor.ErrorType
@@ -493,30 +516,30 @@ func TestErrorMetricsAndReports(t *testing.T) {
 				Timestamp:   time.Now().Add(-time.Duration(i) * time.Minute),
 				Context:     map[string]interface{}{"index": i},
 			}
-			
+
 			aggregator.RecordError(ctx, execError, execError.TaskID, fmt.Sprintf("user-%d", i%5))
 		}
-		
+
 		// Generate comprehensive report
 		timeRange := TimeRange{
 			Start: time.Now().Add(-2 * time.Hour),
 			End:   time.Now(),
 		}
-		
+
 		report, err := aggregator.GenerateReport(ctx, timeRange)
 		require.NoError(t, err)
-		
+
 		// Verify report completeness
 		assert.Equal(t, int64(30), report.TotalErrors)
 		assert.Equal(t, 3, len(report.ErrorsByType))
 		assert.True(t, len(report.ErrorsByCode) >= 3)
 		assert.True(t, len(report.TopErrors) > 0)
 		assert.NotEmpty(t, report.Recommendations)
-		
+
 		// Verify trend analysis
 		assert.NotEmpty(t, report.TrendAnalysis.OverallTrend)
 		assert.True(t, report.TrendAnalysis.PeakHour >= 0 && report.TrendAnalysis.PeakHour <= 23)
-		
+
 		// Verify recommendations contain high-priority items for resource errors
 		hasResourceRecommendation := false
 		for _, rec := range report.Recommendations {
@@ -532,13 +555,13 @@ func TestErrorMetricsAndReports(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 		config := DefaultReportingServiceConfig()
 		config.ReportTimeout = 5 * time.Second
-		
+
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
 		defer func() { _ = service.Stop(context.Background()) }()
-		
+
 		ctx := context.Background()
-		
+
 		// Record many errors
 		for i := 0; i < 1000; i++ {
 			execError := &executor.ExecutionError{
@@ -550,24 +573,24 @@ func TestErrorMetricsAndReports(t *testing.T) {
 				ExecutionID: fmt.Sprintf("exec-%d", i),
 				Timestamp:   time.Now(),
 			}
-			
+
 			_ = service.RecordError(ctx, execError, execError.TaskID, fmt.Sprintf("user-%d", i%100))
 		}
-		
+
 		// Measure report generation time
 		start := time.Now()
 		timeRange := TimeRange{
 			Start: time.Now().Add(-1 * time.Hour),
 			End:   time.Now(),
 		}
-		
+
 		report, err := service.GenerateReport(ctx, timeRange)
 		generationTime := time.Since(start)
-		
+
 		require.NoError(t, err)
 		assert.NotNil(t, report)
 		assert.True(t, generationTime < 5*time.Second, "Report generation took too long: %v", generationTime)
-		
+
 		t.Logf("Generated report with %d errors in %v", report.TotalErrors, generationTime)
 	})
 }
@@ -576,13 +599,13 @@ func TestConcurrentOperations(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	config := DefaultReportingServiceConfig()
 	config.MaxConcurrentReports = 2
-	
+
 	service, err := NewReportingService(config, logger)
 	require.NoError(t, err)
 	defer func() { _ = service.Stop(context.Background()) }()
-	
+
 	ctx := context.Background()
-	
+
 	// Record some errors
 	for i := 0; i < 50; i++ {
 		execError := &executor.ExecutionError{
@@ -594,35 +617,35 @@ func TestConcurrentOperations(t *testing.T) {
 			ExecutionID: "exec-456",
 			Timestamp:   time.Now(),
 		}
-		
+
 		_ = service.RecordError(ctx, execError, "task-123", "user-456")
 	}
-	
+
 	// Test concurrent report generation
 	timeRange := TimeRange{
 		Start: time.Now().Add(-1 * time.Hour),
 		End:   time.Now(),
 	}
-	
+
 	// Start multiple report generations concurrently
 	type reportResult struct {
 		report *ErrorReport
 		err    error
 	}
-	
+
 	results := make(chan reportResult, 5)
-	
+
 	for i := 0; i < 5; i++ {
 		go func() {
 			report, err := service.GenerateReport(ctx, timeRange)
 			results <- reportResult{report: report, err: err}
 		}()
 	}
-	
+
 	// Collect results
 	successCount := 0
 	limitExceededCount := 0
-	
+
 	for i := 0; i < 5; i++ {
 		result := <-results
 		if result.err == nil {
@@ -634,10 +657,10 @@ func TestConcurrentOperations(t *testing.T) {
 			}
 		}
 	}
-	
+
 	// Should have some successful reports and some that hit the limit
 	assert.True(t, successCount > 0, "Expected at least some successful reports")
 	assert.True(t, limitExceededCount > 0, "Expected some reports to hit the concurrent limit")
-	
+
 	t.Logf("Successful reports: %d, Limited reports: %d", successCount, limitExceededCount)
 }

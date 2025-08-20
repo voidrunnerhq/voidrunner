@@ -26,51 +26,51 @@ type ChaosExperiment struct {
 
 // ChaosResult represents the result of a chaos experiment
 type ChaosResult struct {
-	ExperimentID   string        `json:"experiment_id"`
-	StartTime      time.Time     `json:"start_time"`
-	EndTime        time.Time     `json:"end_time"`
-	Duration       time.Duration `json:"duration"`
-	Success        bool          `json:"success"`
-	ErrorCount     int           `json:"error_count"`
-	RecoveryTime   time.Duration `json:"recovery_time"`
-	Observations   []Observation `json:"observations"`
-	Metrics        ChaosMetrics  `json:"metrics"`
-	Error          string        `json:"error,omitempty"`
+	ExperimentID string        `json:"experiment_id"`
+	StartTime    time.Time     `json:"start_time"`
+	EndTime      time.Time     `json:"end_time"`
+	Duration     time.Duration `json:"duration"`
+	Success      bool          `json:"success"`
+	ErrorCount   int           `json:"error_count"`
+	RecoveryTime time.Duration `json:"recovery_time"`
+	Observations []Observation `json:"observations"`
+	Metrics      ChaosMetrics  `json:"metrics"`
+	Error        string        `json:"error,omitempty"`
 }
 
 // Observation represents an observation during chaos testing
 type Observation struct {
-	Timestamp   time.Time              `json:"timestamp"`
-	Type        string                 `json:"type"` // "error", "recovery", "degradation", "failure"
-	Severity    string                 `json:"severity"`
-	Message     string                 `json:"message"`
-	Component   string                 `json:"component"`
-	Metadata    map[string]interface{} `json:"metadata"`
+	Timestamp time.Time              `json:"timestamp"`
+	Type      string                 `json:"type"` // "error", "recovery", "degradation", "failure"
+	Severity  string                 `json:"severity"`
+	Message   string                 `json:"message"`
+	Component string                 `json:"component"`
+	Metadata  map[string]interface{} `json:"metadata"`
 }
 
 // ChaosMetrics holds metrics collected during chaos experiments
 type ChaosMetrics struct {
-	ErrorsBeforeFailure    int           `json:"errors_before_failure"`
-	ErrorsDuringFailure    int           `json:"errors_during_failure"`
-	ErrorsAfterRecovery    int           `json:"errors_after_recovery"`
-	CircuitBreakerTrips    int           `json:"circuit_breaker_trips"`
-	RetryAttempts          int           `json:"retry_attempts"`
-	GracefulDegradations   int           `json:"graceful_degradations"`
-	SystemRecoveryTime     time.Duration `json:"system_recovery_time"`
-	MaxResponseTime        time.Duration `json:"max_response_time"`
-	AverageResponseTime    time.Duration `json:"average_response_time"`
-	ResourceUsageSpike     float64       `json:"resource_usage_spike"`
+	ErrorsBeforeFailure  int           `json:"errors_before_failure"`
+	ErrorsDuringFailure  int           `json:"errors_during_failure"`
+	ErrorsAfterRecovery  int           `json:"errors_after_recovery"`
+	CircuitBreakerTrips  int           `json:"circuit_breaker_trips"`
+	RetryAttempts        int           `json:"retry_attempts"`
+	GracefulDegradations int           `json:"graceful_degradations"`
+	SystemRecoveryTime   time.Duration `json:"system_recovery_time"`
+	MaxResponseTime      time.Duration `json:"max_response_time"`
+	AverageResponseTime  time.Duration `json:"average_response_time"`
+	ResourceUsageSpike   float64       `json:"resource_usage_spike"`
 }
 
 // ChaosRunner orchestrates chaos experiments
 type ChaosRunner struct {
-	mu           sync.RWMutex
-	logger       *slog.Logger
-	experiments  map[string]*ChaosExperiment
-	results      []*ChaosResult
-	observers    []Observer
-	isRunning    bool
-	stopChan     chan struct{}
+	mu          sync.RWMutex
+	logger      *slog.Logger
+	experiments map[string]*ChaosExperiment
+	results     []*ChaosResult
+	observers   []Observer
+	isRunning   bool
+	stopChan    chan struct{}
 }
 
 // Observer defines the interface for chaos experiment observers
@@ -235,7 +235,7 @@ func (cr *ChaosRunner) RunAllExperiments(ctx context.Context) ([]*ChaosResult, e
 	cr.mu.RUnlock()
 
 	results := make([]*ChaosResult, 0, len(experimentIDs))
-	
+
 	for _, experimentID := range experimentIDs {
 		result, err := cr.RunExperiment(ctx, experimentID)
 		if err != nil {
@@ -340,7 +340,7 @@ func (fi *FailureInjector) InjectNetworkLatency(ctx context.Context, latency tim
 
 	// Create a cancellable context for the injection
 	injectionCtx, cancel := context.WithTimeout(ctx, duration)
-	
+
 	fi.mu.Lock()
 	fi.active["network_latency"] = cancel
 	fi.mu.Unlock()
@@ -370,7 +370,7 @@ func (fi *FailureInjector) InjectResourceExhaustion(ctx context.Context, resourc
 		"duration", duration)
 
 	injectionCtx, cancel := context.WithTimeout(ctx, duration)
-	
+
 	fi.mu.Lock()
 	fi.active[fmt.Sprintf("resource_%s", resourceType)] = cancel
 	fi.mu.Unlock()
@@ -432,10 +432,10 @@ func (fi *FailureInjector) injectMemoryExhaustion(ctx context.Context, percentag
 	// Allocate memory to simulate exhaustion
 	memoryBlocks := make([][]byte, 0)
 	blockSize := 1024 * 1024 // 1MB blocks
-	
+
 	// Calculate number of blocks based on percentage
 	maxBlocks := int(percentage * 10) // Scale factor
-	
+
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -463,7 +463,7 @@ func (fi *FailureInjector) injectDiskExhaustion(ctx context.Context, percentage 
 	// Simulate disk I/O load
 	// In a real implementation, this would create temporary files and perform I/O operations
 	fi.logger.Info("simulating disk exhaustion", "percentage", percentage)
-	
+
 	<-ctx.Done()
 	return nil
 }

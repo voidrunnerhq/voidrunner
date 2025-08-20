@@ -10,22 +10,22 @@ import (
 
 // ResourceMonitor monitors system resources and triggers alerts
 type ResourceMonitor struct {
-	mu             sync.RWMutex
-	config         *MonitoringConfig
-	logger         *slog.Logger
-	alertManager   *AlertManager
+	mu               sync.RWMutex
+	config           *MonitoringConfig
+	logger           *slog.Logger
+	alertManager     *AlertManager
 	metricsCollector *MetricsCollector
-	
+
 	// State management
-	isRunning      bool
-	ctx            context.Context
-	cancel         context.CancelFunc
-	ticker         *time.Ticker
-	
+	isRunning bool
+	ctx       context.Context
+	cancel    context.CancelFunc
+	ticker    *time.Ticker
+
 	// Monitoring state
-	lastMetrics    *SystemMetrics
-	healthStatus   HealthStatus
-	startTime      time.Time
+	lastMetrics  *SystemMetrics
+	healthStatus HealthStatus
+	startTime    time.Time
 }
 
 // HealthStatus represents the overall health of the system
@@ -81,7 +81,7 @@ func (rm *ResourceMonitor) Start(ctx context.Context) error {
 	rm.ticker = time.NewTicker(rm.config.CheckInterval)
 	rm.isRunning = true
 
-	rm.logger.Info("starting resource monitor", 
+	rm.logger.Info("starting resource monitor",
 		"check_interval", rm.config.CheckInterval,
 		"thresholds", rm.config.Thresholds)
 
@@ -129,14 +129,14 @@ func (rm *ResourceMonitor) IsRunning() bool {
 func (rm *ResourceMonitor) GetHealthStatus() HealthStatus {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
-	
+
 	// Return a copy to avoid data races
 	statusCopy := rm.healthStatus
 	statusCopy.ComponentStats = make(map[string]interface{})
 	for k, v := range rm.healthStatus.ComponentStats {
 		statusCopy.ComponentStats[k] = v
 	}
-	
+
 	return statusCopy
 }
 
@@ -171,7 +171,7 @@ func (rm *ResourceMonitor) monitoringLoop() {
 		case <-rm.ticker.C:
 			if err := rm.performHealthCheck(); err != nil {
 				rm.logger.Error("health check failed", "error", err)
-				
+
 				// Send critical alert for monitoring failure
 				if rm.alertManager != nil {
 					_ = rm.alertManager.SendAlert(
@@ -181,7 +181,7 @@ func (rm *ResourceMonitor) monitoringLoop() {
 						fmt.Sprintf("Failed to perform health check: %v", err),
 						AlertLevelCritical,
 						map[string]interface{}{
-							"error": err.Error(),
+							"error":     err.Error(),
 							"component": "resource_monitor",
 						},
 					)
@@ -194,7 +194,7 @@ func (rm *ResourceMonitor) monitoringLoop() {
 // performHealthCheck collects metrics and evaluates thresholds
 func (rm *ResourceMonitor) performHealthCheck() error {
 	checkStart := time.Now()
-	
+
 	// Collect current metrics
 	metrics, err := rm.metricsCollector.CollectMetrics(rm.ctx)
 	if err != nil {
@@ -213,7 +213,7 @@ func (rm *ResourceMonitor) performHealthCheck() error {
 	// Update health status
 	rm.updateHealthStatus(metrics, time.Since(checkStart))
 
-	rm.logger.Debug("health check completed", 
+	rm.logger.Debug("health check completed",
 		"duration", time.Since(checkStart),
 		"cpu_percent", metrics.CPUPercent,
 		"memory_percent", metrics.MemoryPercent,
@@ -225,7 +225,7 @@ func (rm *ResourceMonitor) performHealthCheck() error {
 // evaluateThresholds checks metrics against configured thresholds
 func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 	thresholds := rm.config.Thresholds
-	
+
 	// CPU threshold evaluation
 	if rm.config.EnableCPUMonitoring {
 		cpuLevel := thresholds.EvaluateCPUThreshold(metrics.CPUPercent)
@@ -234,13 +234,13 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 				rm.ctx,
 				"HIGH_CPU_USAGE",
 				"High CPU Usage",
-				fmt.Sprintf("CPU usage is %.2f%% (threshold: %.2f%%)", 
-					metrics.CPUPercent, 
+				fmt.Sprintf("CPU usage is %.2f%% (threshold: %.2f%%)",
+					metrics.CPUPercent,
 					getThresholdValue(cpuLevel, thresholds.CPUWarningPercent, thresholds.CPUCriticalPercent)),
 				cpuLevel,
 				map[string]interface{}{
-					"cpu_percent": metrics.CPUPercent,
-					"cpu_cores": metrics.CPUCores,
+					"cpu_percent":       metrics.CPUPercent,
+					"cpu_cores":         metrics.CPUCores,
 					"load_average_1min": metrics.LoadAverage1Min,
 				},
 			)
@@ -258,14 +258,14 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 				rm.ctx,
 				"HIGH_MEMORY_USAGE",
 				"High Memory Usage",
-				fmt.Sprintf("Memory usage is %.2f%% (%s used of %s total)", 
+				fmt.Sprintf("Memory usage is %.2f%% (%s used of %s total)",
 					metrics.MemoryPercent,
 					FormatBytes(metrics.MemoryUsedBytes),
 					FormatBytes(metrics.MemoryTotalBytes)),
 				memoryLevel,
 				map[string]interface{}{
-					"memory_percent": metrics.MemoryPercent,
-					"memory_used_bytes": metrics.MemoryUsedBytes,
+					"memory_percent":     metrics.MemoryPercent,
+					"memory_used_bytes":  metrics.MemoryUsedBytes,
 					"memory_total_bytes": metrics.MemoryTotalBytes,
 				},
 			)
@@ -283,14 +283,14 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 				rm.ctx,
 				"HIGH_DISK_USAGE",
 				"High Disk Usage",
-				fmt.Sprintf("Disk usage is %.2f%% (%s used of %s total)", 
+				fmt.Sprintf("Disk usage is %.2f%% (%s used of %s total)",
 					metrics.DiskPercent,
 					FormatBytes(metrics.DiskUsedBytes),
 					FormatBytes(metrics.DiskTotalBytes)),
 				diskLevel,
 				map[string]interface{}{
-					"disk_percent": metrics.DiskPercent,
-					"disk_used_bytes": metrics.DiskUsedBytes,
+					"disk_percent":     metrics.DiskPercent,
+					"disk_used_bytes":  metrics.DiskUsedBytes,
 					"disk_total_bytes": metrics.DiskTotalBytes,
 				},
 			)
@@ -308,12 +308,12 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 				rm.ctx,
 				"HIGH_CONTAINER_COUNT",
 				"High Container Count",
-				fmt.Sprintf("Container count is %d (threshold: %d)", 
+				fmt.Sprintf("Container count is %d (threshold: %d)",
 					metrics.ContainerCount,
 					getThresholdValueInt(containerLevel, thresholds.ContainerWarningCount, thresholds.ContainerCriticalCount)),
 				containerLevel,
 				map[string]interface{}{
-					"container_count": metrics.ContainerCount,
+					"container_count":         metrics.ContainerCount,
 					"running_container_count": metrics.RunningContainerCount,
 				},
 			)
@@ -346,7 +346,7 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 					rm.ctx,
 					"SLOW_DOCKER_RESPONSE",
 					"Slow Docker Response Time",
-					fmt.Sprintf("Docker response time is %dms (threshold: %dms)", 
+					fmt.Sprintf("Docker response time is %dms (threshold: %dms)",
 						responseTimeMs,
 						getThresholdValueInt(responseTimeLevel, thresholds.DockerResponseTimeWarningMs, thresholds.DockerResponseTimeCriticalMs)),
 					responseTimeLevel,
@@ -369,14 +369,14 @@ func (rm *ResourceMonitor) evaluateThresholds(metrics *SystemMetrics) error {
 				rm.ctx,
 				"HIGH_ERROR_RATE",
 				"High Error Rate",
-				fmt.Sprintf("Error rate is %.2f%% (%d errors of %d requests)", 
+				fmt.Sprintf("Error rate is %.2f%% (%d errors of %d requests)",
 					metrics.ErrorRate,
 					metrics.TotalErrors,
 					metrics.TotalRequests),
 				errorRateLevel,
 				map[string]interface{}{
-					"error_rate": metrics.ErrorRate,
-					"total_errors": metrics.TotalErrors,
+					"error_rate":     metrics.ErrorRate,
+					"total_errors":   metrics.TotalErrors,
 					"total_requests": metrics.TotalRequests,
 				},
 			)
@@ -403,19 +403,19 @@ func (rm *ResourceMonitor) updateHealthStatus(metrics *SystemMetrics, checkDurat
 	// Check if any metrics exceed critical thresholds
 	if rm.config.EnableCPUMonitoring && metrics.CPUPercent >= thresholds.CPUCriticalPercent {
 		rm.healthStatus.Healthy = false
-		rm.healthStatus.Issues = append(rm.healthStatus.Issues, 
+		rm.healthStatus.Issues = append(rm.healthStatus.Issues,
 			fmt.Sprintf("CPU usage critical: %.2f%%", metrics.CPUPercent))
 	}
 
 	if rm.config.EnableMemoryMonitoring && metrics.MemoryPercent >= thresholds.MemoryCriticalPercent {
 		rm.healthStatus.Healthy = false
-		rm.healthStatus.Issues = append(rm.healthStatus.Issues, 
+		rm.healthStatus.Issues = append(rm.healthStatus.Issues,
 			fmt.Sprintf("Memory usage critical: %.2f%%", metrics.MemoryPercent))
 	}
 
 	if rm.config.EnableDiskMonitoring && metrics.DiskPercent >= thresholds.DiskCriticalPercent {
 		rm.healthStatus.Healthy = false
-		rm.healthStatus.Issues = append(rm.healthStatus.Issues, 
+		rm.healthStatus.Issues = append(rm.healthStatus.Issues,
 			fmt.Sprintf("Disk usage critical: %.2f%%", metrics.DiskPercent))
 	}
 
@@ -426,22 +426,22 @@ func (rm *ResourceMonitor) updateHealthStatus(metrics *SystemMetrics, checkDurat
 
 	if rm.config.EnableErrorRateMonitoring && metrics.ErrorRate >= thresholds.ErrorRateCriticalPercent {
 		rm.healthStatus.Healthy = false
-		rm.healthStatus.Issues = append(rm.healthStatus.Issues, 
+		rm.healthStatus.Issues = append(rm.healthStatus.Issues,
 			fmt.Sprintf("Error rate critical: %.2f%%", metrics.ErrorRate))
 	}
 
 	// Update component stats
 	rm.healthStatus.ComponentStats = map[string]interface{}{
-		"uptime_seconds":      time.Since(rm.startTime).Seconds(),
-		"check_duration_ms":   checkDuration.Milliseconds(),
-		"last_check":          metrics.Timestamp,
-		"metrics_collected":   true,
-		"cpu_percent":         metrics.CPUPercent,
-		"memory_percent":      metrics.MemoryPercent,
-		"disk_percent":        metrics.DiskPercent,
-		"container_count":     metrics.ContainerCount,
-		"docker_responsive":   metrics.DockerDaemonResponsive,
-		"error_rate":          metrics.ErrorRate,
+		"uptime_seconds":    time.Since(rm.startTime).Seconds(),
+		"check_duration_ms": checkDuration.Milliseconds(),
+		"last_check":        metrics.Timestamp,
+		"metrics_collected": true,
+		"cpu_percent":       metrics.CPUPercent,
+		"memory_percent":    metrics.MemoryPercent,
+		"disk_percent":      metrics.DiskPercent,
+		"container_count":   metrics.ContainerCount,
+		"docker_responsive": metrics.DockerDaemonResponsive,
+		"error_rate":        metrics.ErrorRate,
 	}
 }
 

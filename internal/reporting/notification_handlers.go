@@ -24,7 +24,7 @@ func NewLogNotificationHandler(logger *slog.Logger, level slog.Level) *LogNotifi
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &LogNotificationHandler{
 		logger: logger.With("component", "log_notification_handler"),
 		level:  level,
@@ -41,7 +41,7 @@ func (h *LogNotificationHandler) SendNotification(ctx context.Context, notificat
 		"error_count", notification.ErrorCount,
 		"top_errors_count", len(notification.TopErrors),
 		"recommendations_count", len(notification.Recommendations))
-	
+
 	return nil
 }
 
@@ -55,11 +55,11 @@ type WebhookNotificationHandler struct {
 
 // WebhookConfig configures webhook notifications
 type WebhookConfig struct {
-	URL             string            `json:"url"`
-	Timeout         time.Duration     `json:"timeout"`
-	Headers         map[string]string `json:"headers"`
-	RetryAttempts   int               `json:"retry_attempts"`
-	RetryDelay      time.Duration     `json:"retry_delay"`
+	URL           string            `json:"url"`
+	Timeout       time.Duration     `json:"timeout"`
+	Headers       map[string]string `json:"headers"`
+	RetryAttempts int               `json:"retry_attempts"`
+	RetryDelay    time.Duration     `json:"retry_delay"`
 }
 
 // NewWebhookNotificationHandler creates a new webhook notification handler
@@ -67,11 +67,11 @@ func NewWebhookNotificationHandler(config *WebhookConfig, logger *slog.Logger) *
 	if config.Timeout == 0 {
 		config.Timeout = 30 * time.Second
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &WebhookNotificationHandler{
 		url: config.URL,
 		client: &http.Client{
@@ -88,19 +88,19 @@ func (h *WebhookNotificationHandler) SendNotification(ctx context.Context, notif
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", h.url, bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	// Add custom headers
 	for key, value := range h.headers {
 		req.Header.Set(key, value)
 	}
-	
+
 	resp, err := h.client.Do(req)
 	if err != nil {
 		h.logger.Error("webhook request failed",
@@ -110,7 +110,7 @@ func (h *WebhookNotificationHandler) SendNotification(ctx context.Context, notif
 		return fmt.Errorf("webhook request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		h.logger.Error("webhook returned error status",
 			"url", h.url,
@@ -118,12 +118,12 @@ func (h *WebhookNotificationHandler) SendNotification(ctx context.Context, notif
 			"status_code", resp.StatusCode)
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)
 	}
-	
+
 	h.logger.Info("webhook notification sent successfully",
 		"url", h.url,
 		"notification_id", notification.ID,
 		"status_code", resp.StatusCode)
-	
+
 	return nil
 }
 
@@ -135,14 +135,14 @@ type EmailNotificationHandler struct {
 
 // EmailConfig configures email notifications
 type EmailConfig struct {
-	SMTPHost     string   `json:"smtp_host"`
-	SMTPPort     string   `json:"smtp_port"`
-	Username     string   `json:"username"`
-	Password     string   `json:"password"`
-	FromAddress  string   `json:"from_address"`
-	ToAddresses  []string `json:"to_addresses"`
-	Subject      string   `json:"subject"`
-	UseStartTLS  bool     `json:"use_start_tls"`
+	SMTPHost    string   `json:"smtp_host"`
+	SMTPPort    string   `json:"smtp_port"`
+	Username    string   `json:"username"`
+	Password    string   `json:"password"`
+	FromAddress string   `json:"from_address"`
+	ToAddresses []string `json:"to_addresses"`
+	Subject     string   `json:"subject"`
+	UseStartTLS bool     `json:"use_start_tls"`
 }
 
 // NewEmailNotificationHandler creates a new email notification handler
@@ -150,7 +150,7 @@ func NewEmailNotificationHandler(config *EmailConfig, logger *slog.Logger) *Emai
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &EmailNotificationHandler{
 		config: config,
 		logger: logger.With("component", "email_notification_handler"),
@@ -164,19 +164,19 @@ func (h *EmailNotificationHandler) SendNotification(ctx context.Context, notific
 	if subject == "" {
 		subject = fmt.Sprintf("[VoidRunner] %s - %s", notification.Severity, notification.Title)
 	}
-	
+
 	body := h.createEmailBody(notification)
-	
+
 	// Create message
 	message := fmt.Sprintf("To: %s\r\n", h.config.ToAddresses[0])
 	message += fmt.Sprintf("Subject: %s\r\n", subject)
 	message += "Content-Type: text/html; charset=UTF-8\r\n"
 	message += "\r\n"
 	message += body
-	
+
 	// Setup authentication
 	auth := smtp.PlainAuth("", h.config.Username, h.config.Password, h.config.SMTPHost)
-	
+
 	// Send email
 	addr := fmt.Sprintf("%s:%s", h.config.SMTPHost, h.config.SMTPPort)
 	err := smtp.SendMail(addr, auth, h.config.FromAddress, h.config.ToAddresses, []byte(message))
@@ -186,11 +186,11 @@ func (h *EmailNotificationHandler) SendNotification(ctx context.Context, notific
 			"error", err)
 		return fmt.Errorf("failed to send email: %w", err)
 	}
-	
+
 	h.logger.Info("email notification sent successfully",
 		"notification_id", notification.ID,
 		"recipients", len(h.config.ToAddresses))
-	
+
 	return nil
 }
 
@@ -207,7 +207,7 @@ func (h *EmailNotificationHandler) createEmailBody(notification *ErrorNotificati
 	case "low":
 		severityColor = "#28a745" // Green
 	}
-	
+
 	html := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -244,14 +244,14 @@ func (h *EmailNotificationHandler) createEmailBody(notification *ErrorNotificati
 		notification.ErrorCount,
 		notification.TimeRange.Start.Format("2006-01-02 15:04:05"),
 		notification.TimeRange.End.Format("2006-01-02 15:04:05"))
-	
+
 	// Add top errors if any
 	if len(notification.TopErrors) > 0 {
 		html += `
         <div class="section">
             <h2>Top Errors</h2>
             <div class="error-list">`
-		
+
 		for _, topError := range notification.TopErrors {
 			html += fmt.Sprintf(`
                 <div>
@@ -265,18 +265,18 @@ func (h *EmailNotificationHandler) createEmailBody(notification *ErrorNotificati
 				topError.Message,
 				topError.LastOccurrence.Format("2006-01-02 15:04:05"))
 		}
-		
+
 		html += `
             </div>
         </div>`
 	}
-	
+
 	// Add recommendations if any
 	if len(notification.Recommendations) > 0 {
 		html += `
         <div class="section">
             <h2>Recommendations</h2>`
-		
+
 		for _, rec := range notification.Recommendations {
 			html += fmt.Sprintf(`
             <div class="recommendation">
@@ -290,11 +290,11 @@ func (h *EmailNotificationHandler) createEmailBody(notification *ErrorNotificati
 				rec.Impact,
 				rec.Effort)
 		}
-		
+
 		html += `
         </div>`
 	}
-	
+
 	html += `
     </div>
     
@@ -304,7 +304,7 @@ func (h *EmailNotificationHandler) createEmailBody(notification *ErrorNotificati
     </div>
 </body>
 </html>`
-	
+
 	return html
 }
 
@@ -319,12 +319,12 @@ func NewFileNotificationHandler(directory string, logger *slog.Logger) (*FileNot
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	// Ensure directory exists
 	if err := os.MkdirAll(directory, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create notification directory: %w", err)
 	}
-	
+
 	return &FileNotificationHandler{
 		directory: directory,
 		logger:    logger.With("component", "file_notification_handler"),
@@ -336,14 +336,14 @@ func (h *FileNotificationHandler) SendNotification(ctx context.Context, notifica
 	filename := fmt.Sprintf("notification-%s-%s.json",
 		notification.Timestamp.Format("20060102-150405"),
 		notification.ID)
-	
+
 	filepath := filepath.Join(h.directory, filename)
-	
+
 	data, err := json.MarshalIndent(notification, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification: %w", err)
 	}
-	
+
 	err = os.WriteFile(filepath, data, 0600)
 	if err != nil {
 		h.logger.Error("failed to write notification file",
@@ -352,11 +352,11 @@ func (h *FileNotificationHandler) SendNotification(ctx context.Context, notifica
 			"error", err)
 		return fmt.Errorf("failed to write notification file: %w", err)
 	}
-	
+
 	h.logger.Info("notification written to file",
 		"filepath", filepath,
 		"notification_id", notification.ID)
-	
+
 	return nil
 }
 
@@ -387,12 +387,12 @@ type SlackMessage struct {
 
 // SlackAttachment represents a Slack message attachment
 type SlackAttachment struct {
-	Color      string              `json:"color,omitempty"`
-	Title      string              `json:"title,omitempty"`
-	Text       string              `json:"text,omitempty"`
-	Fields     []SlackField        `json:"fields,omitempty"`
-	Footer     string              `json:"footer,omitempty"`
-	Timestamp  int64               `json:"ts,omitempty"`
+	Color     string       `json:"color,omitempty"`
+	Title     string       `json:"title,omitempty"`
+	Text      string       `json:"text,omitempty"`
+	Fields    []SlackField `json:"fields,omitempty"`
+	Footer    string       `json:"footer,omitempty"`
+	Timestamp int64        `json:"ts,omitempty"`
 }
 
 // SlackField represents a field in a Slack attachment
@@ -407,11 +407,11 @@ func NewSlackNotificationHandler(config *SlackConfig, logger *slog.Logger) *Slac
 	if config.Timeout == 0 {
 		config.Timeout = 30 * time.Second
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &SlackNotificationHandler{
 		webhookURL: config.WebhookURL,
 		channel:    config.Channel,
@@ -434,7 +434,7 @@ func (h *SlackNotificationHandler) SendNotification(ctx context.Context, notific
 	case "medium":
 		color = "#ffcc00" // Yellow
 	}
-	
+
 	fields := []SlackField{
 		{Title: "Severity", Value: notification.Severity, Short: true},
 		{Title: "Error Count", Value: fmt.Sprintf("%d", notification.ErrorCount), Short: true},
@@ -442,7 +442,7 @@ func (h *SlackNotificationHandler) SendNotification(ctx context.Context, notific
 			notification.TimeRange.Start.Format("15:04:05"),
 			notification.TimeRange.End.Format("15:04:05")), Short: false},
 	}
-	
+
 	// Add top errors
 	if len(notification.TopErrors) > 0 {
 		topErrorsText := ""
@@ -458,7 +458,7 @@ func (h *SlackNotificationHandler) SendNotification(ctx context.Context, notific
 			Short: false,
 		})
 	}
-	
+
 	attachment := SlackAttachment{
 		Color:     color,
 		Title:     notification.Title,
@@ -467,26 +467,26 @@ func (h *SlackNotificationHandler) SendNotification(ctx context.Context, notific
 		Footer:    "VoidRunner Error Reporting",
 		Timestamp: notification.Timestamp.Unix(),
 	}
-	
+
 	message := SlackMessage{
 		Channel:     h.channel,
 		Username:    h.username,
 		Text:        fmt.Sprintf("🚨 *%s Error Notification*", notification.Severity),
 		Attachments: []SlackAttachment{attachment},
 	}
-	
+
 	payload, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("failed to marshal Slack message: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", h.webhookURL, bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create Slack request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := h.client.Do(req)
 	if err != nil {
 		h.logger.Error("Slack webhook request failed",
@@ -495,18 +495,18 @@ func (h *SlackNotificationHandler) SendNotification(ctx context.Context, notific
 		return fmt.Errorf("slack webhook request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		h.logger.Error("Slack webhook returned error status",
 			"notification_id", notification.ID,
 			"status_code", resp.StatusCode)
 		return fmt.Errorf("slack webhook returned status %d", resp.StatusCode)
 	}
-	
+
 	h.logger.Info("Slack notification sent successfully",
 		"notification_id", notification.ID,
 		"channel", h.channel)
-	
+
 	return nil
 }
 
@@ -521,7 +521,7 @@ func NewCompositeNotificationHandler(handlers []NotificationHandler, logger *slo
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	return &CompositeNotificationHandler{
 		handlers: handlers,
 		logger:   logger.With("component", "composite_notification_handler"),
@@ -531,7 +531,7 @@ func NewCompositeNotificationHandler(handlers []NotificationHandler, logger *slo
 // SendNotification sends the notification using all handlers
 func (h *CompositeNotificationHandler) SendNotification(ctx context.Context, notification *ErrorNotification) error {
 	var errors []error
-	
+
 	for i, handler := range h.handlers {
 		if err := handler.SendNotification(ctx, notification); err != nil {
 			h.logger.Error("handler failed to send notification",
@@ -541,15 +541,15 @@ func (h *CompositeNotificationHandler) SendNotification(ctx context.Context, not
 			errors = append(errors, err)
 		}
 	}
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("failed to send notification with %d handlers: %v", len(errors), errors)
 	}
-	
+
 	h.logger.Info("notification sent successfully to all handlers",
 		"notification_id", notification.ID,
 		"handler_count", len(h.handlers))
-	
+
 	return nil
 }
 

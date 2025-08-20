@@ -14,10 +14,10 @@ type CircuitBreakerState string
 const (
 	// StateClosed indicates the circuit breaker is closed (normal operation)
 	StateClosed CircuitBreakerState = "closed"
-	
+
 	// StateOpen indicates the circuit breaker is open (failing fast)
 	StateOpen CircuitBreakerState = "open"
-	
+
 	// StateHalfOpen indicates the circuit breaker is half-open (testing recovery)
 	StateHalfOpen CircuitBreakerState = "half_open"
 )
@@ -26,16 +26,16 @@ const (
 type CircuitBreakerConfig struct {
 	// Failure threshold to open the circuit
 	FailureThreshold int `json:"failure_threshold"` // e.g., 5 failures
-	
+
 	// Success threshold to close the circuit from half-open
 	SuccessThreshold int `json:"success_threshold"` // e.g., 3 successes
-	
+
 	// Timeout before transitioning from open to half-open
 	OpenTimeout time.Duration `json:"open_timeout"` // e.g., 60 seconds
-	
+
 	// Rolling window for counting failures
 	RollingWindow time.Duration `json:"rolling_window"` // e.g., 30 seconds
-	
+
 	// Maximum number of half-open requests
 	MaxHalfOpenRequests int `json:"max_half_open_requests"` // e.g., 3
 }
@@ -81,44 +81,44 @@ type ExecutionResult struct {
 
 // CircuitBreakerStats holds statistics about circuit breaker performance
 type CircuitBreakerStats struct {
-	State              CircuitBreakerState `json:"state"`
-	FailureCount       int                 `json:"failure_count"`
-	SuccessCount       int                 `json:"success_count"`
-	TotalRequests      int64               `json:"total_requests"`
-	TotalFailures      int64               `json:"total_failures"`
-	TotalSuccesses     int64               `json:"total_successes"`
-	LastFailureTime    *time.Time          `json:"last_failure_time,omitempty"`
-	LastSuccessTime    *time.Time          `json:"last_success_time,omitempty"`
-	StateChangedAt     time.Time           `json:"state_changed_at"`
-	OpenedAt           *time.Time          `json:"opened_at,omitempty"`
-	HalfOpenRequests   int                 `json:"half_open_requests"`
+	State            CircuitBreakerState `json:"state"`
+	FailureCount     int                 `json:"failure_count"`
+	SuccessCount     int                 `json:"success_count"`
+	TotalRequests    int64               `json:"total_requests"`
+	TotalFailures    int64               `json:"total_failures"`
+	TotalSuccesses   int64               `json:"total_successes"`
+	LastFailureTime  *time.Time          `json:"last_failure_time,omitempty"`
+	LastSuccessTime  *time.Time          `json:"last_success_time,omitempty"`
+	StateChangedAt   time.Time           `json:"state_changed_at"`
+	OpenedAt         *time.Time          `json:"opened_at,omitempty"`
+	HalfOpenRequests int                 `json:"half_open_requests"`
 }
 
 // CircuitBreaker implements the circuit breaker pattern
 type CircuitBreaker struct {
-	mu                 sync.RWMutex
-	config             *CircuitBreakerConfig
-	logger             *slog.Logger
-	
+	mu     sync.RWMutex
+	config *CircuitBreakerConfig
+	logger *slog.Logger
+
 	// State management
-	state              CircuitBreakerState
-	stateChangedAt     time.Time
-	openedAt           *time.Time
-	
+	state          CircuitBreakerState
+	stateChangedAt time.Time
+	openedAt       *time.Time
+
 	// Counters
-	failureCount       int
-	successCount       int
-	totalRequests      int64
-	totalFailures      int64
-	totalSuccesses     int64
-	halfOpenRequests   int
-	
+	failureCount     int
+	successCount     int
+	totalRequests    int64
+	totalFailures    int64
+	totalSuccesses   int64
+	halfOpenRequests int
+
 	// Timestamps for rolling window
-	recentFailures     []time.Time
-	recentSuccesses    []time.Time
-	lastFailureTime    *time.Time
-	lastSuccessTime    *time.Time
-	
+	recentFailures  []time.Time
+	recentSuccesses []time.Time
+	lastFailureTime *time.Time
+	lastSuccessTime *time.Time
+
 	// Name for logging and identification
 	name string
 }
@@ -128,11 +128,11 @@ func NewCircuitBreaker(name string, config *CircuitBreakerConfig, logger *slog.L
 	if config == nil {
 		config = DefaultCircuitBreakerConfig()
 	}
-	
+
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid circuit breaker config: %w", err)
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -211,7 +211,7 @@ func (cb *CircuitBreaker) recordResult(success bool, duration time.Duration) {
 		cb.successCount++
 		cb.lastSuccessTime = &now
 		cb.recentSuccesses = append(cb.recentSuccesses, now)
-		
+
 		// Clean old successes outside rolling window
 		cb.cleanOldResults(&cb.recentSuccesses, now)
 
@@ -224,13 +224,13 @@ func (cb *CircuitBreaker) recordResult(success bool, duration time.Duration) {
 		cb.failureCount++
 		cb.lastFailureTime = &now
 		cb.recentFailures = append(cb.recentFailures, now)
-		
+
 		// Clean old failures outside rolling window
 		cb.cleanOldResults(&cb.recentFailures, now)
 
 		// Check if we should open the circuit
-		if (cb.state == StateClosed || cb.state == StateHalfOpen) && 
-		   cb.failureCount >= cb.config.FailureThreshold {
+		if (cb.state == StateClosed || cb.state == StateHalfOpen) &&
+			cb.failureCount >= cb.config.FailureThreshold {
 			cb.transitionToOpen()
 		}
 	}
@@ -247,7 +247,7 @@ func (cb *CircuitBreaker) recordResult(success bool, duration time.Duration) {
 func (cb *CircuitBreaker) recordRequest(executed bool) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
-	
+
 	if executed {
 		cb.totalRequests++
 	}
@@ -257,7 +257,7 @@ func (cb *CircuitBreaker) recordRequest(executed bool) {
 func (cb *CircuitBreaker) incrementHalfOpenRequests() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
-	
+
 	if cb.state == StateHalfOpen {
 		cb.halfOpenRequests++
 	}
@@ -267,7 +267,7 @@ func (cb *CircuitBreaker) incrementHalfOpenRequests() {
 func (cb *CircuitBreaker) decrementHalfOpenRequests() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
-	
+
 	if cb.state == StateHalfOpen && cb.halfOpenRequests > 0 {
 		cb.halfOpenRequests--
 	}
@@ -314,18 +314,18 @@ func (cb *CircuitBreaker) transitionToClosed() {
 // cleanOldResults removes results outside the rolling window
 func (cb *CircuitBreaker) cleanOldResults(results *[]time.Time, now time.Time) {
 	cutoff := now.Add(-cb.config.RollingWindow)
-	
+
 	// Find the first result within the window
 	i := 0
 	for i < len(*results) && (*results)[i].Before(cutoff) {
 		i++
 	}
-	
+
 	// Remove old results
 	if i > 0 {
 		*results = (*results)[i:]
 	}
-	
+
 	// Update failure count based on remaining results
 	if results == &cb.recentFailures {
 		cb.failureCount = len(cb.recentFailures)
@@ -347,17 +347,17 @@ func (cb *CircuitBreaker) GetStats() CircuitBreakerStats {
 	defer cb.mu.RUnlock()
 
 	return CircuitBreakerStats{
-		State:              cb.state,
-		FailureCount:       cb.failureCount,
-		SuccessCount:       cb.successCount,
-		TotalRequests:      cb.totalRequests,
-		TotalFailures:      cb.totalFailures,
-		TotalSuccesses:     cb.totalSuccesses,
-		LastFailureTime:    cb.lastFailureTime,
-		LastSuccessTime:    cb.lastSuccessTime,
-		StateChangedAt:     cb.stateChangedAt,
-		OpenedAt:           cb.openedAt,
-		HalfOpenRequests:   cb.halfOpenRequests,
+		State:            cb.state,
+		FailureCount:     cb.failureCount,
+		SuccessCount:     cb.successCount,
+		TotalRequests:    cb.totalRequests,
+		TotalFailures:    cb.totalFailures,
+		TotalSuccesses:   cb.totalSuccesses,
+		LastFailureTime:  cb.lastFailureTime,
+		LastSuccessTime:  cb.lastSuccessTime,
+		StateChangedAt:   cb.stateChangedAt,
+		OpenedAt:         cb.openedAt,
+		HalfOpenRequests: cb.halfOpenRequests,
 	}
 }
 

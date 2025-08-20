@@ -13,60 +13,60 @@ import (
 // SystemMetrics represents system resource metrics
 type SystemMetrics struct {
 	Timestamp time.Time `json:"timestamp"`
-	
+
 	// CPU metrics
 	CPUPercent       float64 `json:"cpu_percent"`
 	CPUCores         int     `json:"cpu_cores"`
 	LoadAverage1Min  float64 `json:"load_average_1min"`
 	LoadAverage5Min  float64 `json:"load_average_5min"`
 	LoadAverage15Min float64 `json:"load_average_15min"`
-	
+
 	// Memory metrics
-	MemoryUsedBytes     uint64  `json:"memory_used_bytes"`
-	MemoryTotalBytes    uint64  `json:"memory_total_bytes"`
-	MemoryPercent       float64 `json:"memory_percent"`
+	MemoryUsedBytes      uint64  `json:"memory_used_bytes"`
+	MemoryTotalBytes     uint64  `json:"memory_total_bytes"`
+	MemoryPercent        float64 `json:"memory_percent"`
 	MemoryAvailableBytes uint64  `json:"memory_available_bytes"`
-	
+
 	// Disk metrics
 	DiskUsedBytes      uint64  `json:"disk_used_bytes"`
 	DiskTotalBytes     uint64  `json:"disk_total_bytes"`
 	DiskPercent        float64 `json:"disk_percent"`
 	DiskAvailableBytes uint64  `json:"disk_available_bytes"`
-	
+
 	// Container metrics
 	ContainerCount        int `json:"container_count"`
 	RunningContainerCount int `json:"running_container_count"`
-	
+
 	// Docker metrics
 	DockerDaemonResponsive bool          `json:"docker_daemon_responsive"`
 	DockerResponseTime     time.Duration `json:"docker_response_time"`
-	
+
 	// Error metrics
-	ErrorRate       float64 `json:"error_rate"`
-	TotalErrors     int64   `json:"total_errors"`
-	TotalRequests   int64   `json:"total_requests"`
+	ErrorRate     float64 `json:"error_rate"`
+	TotalErrors   int64   `json:"total_errors"`
+	TotalRequests int64   `json:"total_requests"`
 }
 
 // MetricsCollector collects system and application metrics
 type MetricsCollector struct {
-	mu             sync.RWMutex
-	logger         *slog.Logger
-	config         *MonitoringConfig
-	
+	mu     sync.RWMutex
+	logger *slog.Logger
+	config *MonitoringConfig
+
 	// Metrics storage
 	currentMetrics *SystemMetrics
 	metricsHistory []SystemMetrics
-	
+
 	// Docker client for container metrics
 	dockerClient interface {
 		IsHealthy(ctx context.Context) error
 		ListContainers(ctx context.Context, includeAll bool) ([]ContainerInfo, error)
 	}
-	
+
 	// Error tracking
 	errorCount   int64
 	requestCount int64
-	
+
 	// Last collection time for rate calculations
 	lastCPUTimes    CPUTimes
 	lastCollectTime time.Time
@@ -100,10 +100,10 @@ func NewMetricsCollector(config *MonitoringConfig, dockerClient interface {
 	}
 
 	return &MetricsCollector{
-		logger:         logger.With("component", "metrics_collector"),
-		config:         config,
-		dockerClient:   dockerClient,
-		metricsHistory: make([]SystemMetrics, 0),
+		logger:          logger.With("component", "metrics_collector"),
+		config:          config,
+		dockerClient:    dockerClient,
+		metricsHistory:  make([]SystemMetrics, 0),
 		lastCollectTime: time.Now(),
 	}
 }
@@ -185,7 +185,7 @@ func (mc *MetricsCollector) CollectMetrics(ctx context.Context) (*SystemMetrics,
 	mc.mu.Lock()
 	mc.currentMetrics = metrics
 	mc.metricsHistory = append(mc.metricsHistory, *metrics)
-	
+
 	// Keep only recent history
 	maxHistorySize := int(mc.config.MetricsRetentionTime / mc.config.CheckInterval)
 	if len(mc.metricsHistory) > maxHistorySize {
@@ -217,7 +217,7 @@ func (mc *MetricsCollector) collectCPUMetrics(metrics *SystemMetrics) error {
 	if mc.lastCPUTimes.Total > 0 {
 		totalDiff := cpuTimes.Total - mc.lastCPUTimes.Total
 		idleDiff := cpuTimes.Idle - mc.lastCPUTimes.Idle
-		
+
 		if totalDiff > 0 {
 			metrics.CPUPercent = 100.0 * (1.0 - float64(idleDiff)/float64(totalDiff))
 		}
@@ -273,7 +273,7 @@ func (mc *MetricsCollector) collectDiskMetrics(metrics *SystemMetrics) error {
 // collectDockerMetrics gathers Docker-related metrics
 func (mc *MetricsCollector) collectDockerMetrics(ctx context.Context, metrics *SystemMetrics) error {
 	start := time.Now()
-	
+
 	// Check Docker daemon health
 	err := mc.dockerClient.IsHealthy(ctx)
 	metrics.DockerResponseTime = time.Since(start)
@@ -332,11 +332,11 @@ func (mc *MetricsCollector) RecordRequest() {
 func (mc *MetricsCollector) GetCurrentMetrics() *SystemMetrics {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
-	
+
 	if mc.currentMetrics == nil {
 		return nil
 	}
-	
+
 	// Return a copy to avoid data races
 	metricsCopy := *mc.currentMetrics
 	return &metricsCopy
@@ -346,14 +346,14 @@ func (mc *MetricsCollector) GetCurrentMetrics() *SystemMetrics {
 func (mc *MetricsCollector) GetMetricsHistory(since time.Time) []SystemMetrics {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
-	
+
 	var result []SystemMetrics
 	for _, metrics := range mc.metricsHistory {
 		if metrics.Timestamp.After(since) {
 			result = append(result, metrics)
 		}
 	}
-	
+
 	return result
 }
 
@@ -372,17 +372,25 @@ func (mc *MetricsCollector) getCPUTimes() (CPUTimes, error) {
 	// This is a simplified implementation
 	// In a production system, you'd read from /proc/stat on Linux
 	// or use appropriate system calls on other platforms
-	
+
 	// For now, return dummy data
 	now := time.Now().Unix()
 	if now < 0 {
 		now = 0
 	}
+	
+	// Safe conversion to avoid integer overflow - now is guaranteed >= 0
+	var baseTime uint64
+	if now >= 0 {
+		baseTime = uint64(now)
+	} else {
+		baseTime = 0
+	}
 	return CPUTimes{
-		User:   uint64(now * 1000),
-		System: uint64(now * 100),
-		Idle:   uint64(now * 10000),
-		Total:  uint64(now * 11100),
+		User:   baseTime * 1000,
+		System: baseTime * 100,
+		Idle:   baseTime * 10000,
+		Total:  baseTime * 11100,
 	}, nil
 }
 
@@ -421,7 +429,6 @@ func (mc *MetricsCollector) getDiskUsage(path string, metrics *SystemMetrics) er
 
 	return nil
 }
-
 
 // Utility function to convert bytes to human-readable format
 func FormatBytes(bytes uint64) string {

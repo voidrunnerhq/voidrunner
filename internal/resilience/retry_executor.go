@@ -10,25 +10,25 @@ import (
 
 // RetryExecutor provides enhanced retry functionality with strategies and budgets
 type RetryExecutor struct {
-	strategy        *RetryStrategy
-	circuitBreaker  *CircuitBreaker
-	logger          *slog.Logger
-	
+	strategy       *RetryStrategy
+	circuitBreaker *CircuitBreaker
+	logger         *slog.Logger
+
 	// Execution state
-	mu              sync.RWMutex
-	executing       map[string]*ExecutionContext // Track ongoing executions
+	mu        sync.RWMutex
+	executing map[string]*ExecutionContext // Track ongoing executions
 }
 
 // ExecutionContext tracks the context of a retry execution
 type ExecutionContext struct {
-	ID              string           `json:"id"`
-	StartTime       time.Time        `json:"start_time"`
-	CurrentAttempt  int              `json:"current_attempt"`
-	LastError       error            `json:"last_error,omitempty"`
-	Attempts        []RetryAttempt   `json:"attempts"`
-	TotalDelay      time.Duration    `json:"total_delay"`
-	Context         context.Context  `json:"-"`
-	CancelFunc      context.CancelFunc `json:"-"`
+	ID             string             `json:"id"`
+	StartTime      time.Time          `json:"start_time"`
+	CurrentAttempt int                `json:"current_attempt"`
+	LastError      error              `json:"last_error,omitempty"`
+	Attempts       []RetryAttempt     `json:"attempts"`
+	TotalDelay     time.Duration      `json:"total_delay"`
+	Context        context.Context    `json:"-"`
+	CancelFunc     context.CancelFunc `json:"-"`
 }
 
 // OperationFunc represents an operation that can be retried
@@ -40,17 +40,17 @@ func NewRetryExecutor(config *RetryStrategyConfig, logger *slog.Logger) (*RetryE
 	if err != nil {
 		return nil, fmt.Errorf("failed to create retry strategy: %w", err)
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	executor := &RetryExecutor{
 		strategy:  strategy,
 		logger:    logger.With("component", "retry_executor"),
 		executing: make(map[string]*ExecutionContext),
 	}
-	
+
 	// Initialize circuit breaker if configured
 	if config.UseCircuitBreaker && config.CircuitBreakerName != "" {
 		cbConfig := DefaultCircuitBreakerConfig()
@@ -59,7 +59,7 @@ func NewRetryExecutor(config *RetryStrategyConfig, logger *slog.Logger) (*RetryE
 			return nil, fmt.Errorf("failed to create circuit breaker: %w", err)
 		}
 	}
-	
+
 	return executor, nil
 }
 
@@ -75,12 +75,12 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 		Context:        execCtx,
 		CancelFunc:     cancel,
 	}
-	
+
 	// Track execution
 	re.mu.Lock()
 	re.executing[operationID] = execution
 	re.mu.Unlock()
-	
+
 	// Cleanup on completion
 	defer func() {
 		re.mu.Lock()
@@ -88,16 +88,16 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 		re.mu.Unlock()
 		cancel()
 	}()
-	
+
 	re.logger.Info("starting retry execution",
 		"operation_id", operationID,
 		"max_attempts", re.strategy.config.MaxAttempts)
-	
+
 	var lastError error
-	
+
 	for attempt := 1; attempt <= re.strategy.config.MaxAttempts; attempt++ {
 		execution.CurrentAttempt = attempt
-		
+
 		// Check if context is cancelled
 		select {
 		case <-ctx.Done():
@@ -107,11 +107,11 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 			return ctx.Err()
 		default:
 		}
-		
+
 		// Execute with circuit breaker if configured
 		attemptStart := time.Now()
 		var err error
-		
+
 		if re.circuitBreaker != nil {
 			err = re.circuitBreaker.Execute(execCtx, func(cbCtx context.Context) error {
 				return operation(cbCtx, attempt)
@@ -119,10 +119,10 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 		} else {
 			err = operation(execCtx, attempt)
 		}
-		
+
 		attemptEnd := time.Now()
 		duration := attemptEnd.Sub(attemptStart)
-		
+
 		// Record attempt
 		retryAttempt := RetryAttempt{
 			Attempt:   attempt,
@@ -132,10 +132,10 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 			Success:   err == nil,
 			Error:     err,
 		}
-		
+
 		execution.Attempts = append(execution.Attempts, retryAttempt)
 		execution.LastError = err
-		
+
 		// Success case
 		if err == nil {
 			re.strategy.RecordAttempt(retryAttempt)
@@ -146,15 +146,15 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 				"total_duration", time.Since(execution.StartTime))
 			return nil
 		}
-		
+
 		lastError = err
-		
+
 		re.logger.Warn("retry execution attempt failed",
 			"operation_id", operationID,
 			"attempt", attempt,
 			"error", err,
 			"duration", duration)
-		
+
 		// Check if we should retry
 		if !re.strategy.ShouldRetry(ctx, attempt, err) {
 			re.logger.Info("retry execution stopped - no more retries",
@@ -163,24 +163,24 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 				"reason", "should_not_retry")
 			break
 		}
-		
+
 		// Last attempt - don't calculate delay
 		if attempt >= re.strategy.config.MaxAttempts {
 			break
 		}
-		
+
 		// Calculate delay for next attempt
 		delay := re.strategy.CalculateDelay(attempt + 1)
 		retryAttempt.Delay = delay
 		execution.TotalDelay += delay
-		
+
 		re.strategy.RecordAttempt(retryAttempt)
-		
+
 		re.logger.Info("retry execution scheduling next attempt",
 			"operation_id", operationID,
 			"next_attempt", attempt+1,
 			"delay", delay)
-		
+
 		// Wait for delay or context cancellation
 		select {
 		case <-ctx.Done():
@@ -192,7 +192,7 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 			// Continue to next attempt
 		}
 	}
-	
+
 	// Record final failed attempt
 	finalAttempt := RetryAttempt{
 		Attempt: execution.CurrentAttempt,
@@ -200,14 +200,14 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 		Error:   lastError,
 	}
 	re.strategy.RecordAttempt(finalAttempt)
-	
+
 	re.logger.Error("retry execution failed after all attempts",
 		"operation_id", operationID,
 		"total_attempts", execution.CurrentAttempt,
 		"total_duration", time.Since(execution.StartTime),
 		"total_delay", execution.TotalDelay,
 		"final_error", lastError)
-	
+
 	return fmt.Errorf("operation failed after %d attempts: %w", execution.CurrentAttempt, lastError)
 }
 
@@ -215,7 +215,7 @@ func (re *RetryExecutor) Execute(ctx context.Context, operationID string, operat
 func (re *RetryExecutor) ExecuteWithTimeout(ctx context.Context, operationID string, timeout time.Duration, operation OperationFunc) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	
+
 	return re.Execute(timeoutCtx, operationID, operation)
 }
 
@@ -223,12 +223,12 @@ func (re *RetryExecutor) ExecuteWithTimeout(ctx context.Context, operationID str
 func (re *RetryExecutor) GetExecutionStatus(operationID string) (*ExecutionContext, bool) {
 	re.mu.RLock()
 	defer re.mu.RUnlock()
-	
+
 	execution, exists := re.executing[operationID]
 	if !exists {
 		return nil, false
 	}
-	
+
 	// Return a copy to avoid race conditions
 	copy := &ExecutionContext{
 		ID:             execution.ID,
@@ -238,12 +238,12 @@ func (re *RetryExecutor) GetExecutionStatus(operationID string) (*ExecutionConte
 		TotalDelay:     execution.TotalDelay,
 		Attempts:       make([]RetryAttempt, len(execution.Attempts)),
 	}
-	
+
 	// Deep copy attempts
 	for i, attempt := range execution.Attempts {
 		copy.Attempts[i] = attempt
 	}
-	
+
 	return copy, true
 }
 
@@ -252,11 +252,11 @@ func (re *RetryExecutor) CancelExecution(operationID string) bool {
 	re.mu.RLock()
 	execution, exists := re.executing[operationID]
 	re.mu.RUnlock()
-	
+
 	if !exists {
 		return false
 	}
-	
+
 	execution.CancelFunc()
 	re.logger.Info("retry execution cancelled", "operation_id", operationID)
 	return true
@@ -266,7 +266,7 @@ func (re *RetryExecutor) CancelExecution(operationID string) bool {
 func (re *RetryExecutor) GetActiveExecutions() map[string]*ExecutionContext {
 	re.mu.RLock()
 	defer re.mu.RUnlock()
-	
+
 	result := make(map[string]*ExecutionContext)
 	for id, execution := range re.executing {
 		result[id] = &ExecutionContext{
@@ -277,37 +277,37 @@ func (re *RetryExecutor) GetActiveExecutions() map[string]*ExecutionContext {
 			TotalDelay:     execution.TotalDelay,
 		}
 	}
-	
+
 	return result
 }
 
 // GetStats returns retry executor statistics
 func (re *RetryExecutor) GetStats() RetryExecutorStats {
 	strategyStats := re.strategy.GetStats()
-	
+
 	re.mu.RLock()
 	activeExecutions := len(re.executing)
 	re.mu.RUnlock()
-	
+
 	stats := RetryExecutorStats{
 		RetryStats:       strategyStats,
 		ActiveExecutions: activeExecutions,
 	}
-	
+
 	// Add circuit breaker stats if available
 	if re.circuitBreaker != nil {
 		cbStats := re.circuitBreaker.GetStats()
 		stats.CircuitBreakerStats = &cbStats
 	}
-	
+
 	return stats
 }
 
 // RetryExecutorStats holds statistics for the retry executor
 type RetryExecutorStats struct {
-	RetryStats           RetryStats              `json:"retry_stats"`
-	ActiveExecutions     int                     `json:"active_executions"`
-	CircuitBreakerStats  *CircuitBreakerStats    `json:"circuit_breaker_stats,omitempty"`
+	RetryStats          RetryStats           `json:"retry_stats"`
+	ActiveExecutions    int                  `json:"active_executions"`
+	CircuitBreakerStats *CircuitBreakerStats `json:"circuit_breaker_stats,omitempty"`
 }
 
 // Reset resets all statistics and state
@@ -320,22 +320,22 @@ func (re *RetryExecutor) Reset() {
 	}
 	re.executing = make(map[string]*ExecutionContext)
 	re.mu.Unlock()
-	
+
 	// Reset strategy statistics
 	re.strategy.Reset()
-	
+
 	// Reset circuit breaker if present
 	if re.circuitBreaker != nil {
 		re.circuitBreaker.Reset()
 	}
-	
+
 	re.logger.Info("retry executor reset completed")
 }
 
 // Stop gracefully stops the retry executor
 func (re *RetryExecutor) Stop(ctx context.Context) error {
 	re.logger.Info("stopping retry executor")
-	
+
 	// Cancel all active executions
 	re.mu.Lock()
 	activeCount := len(re.executing)
@@ -344,10 +344,10 @@ func (re *RetryExecutor) Stop(ctx context.Context) error {
 		re.logger.Debug("cancelled execution during stop", "operation_id", id)
 	}
 	re.mu.Unlock()
-	
+
 	if activeCount > 0 {
 		re.logger.Info("cancelled active executions during stop", "count", activeCount)
-		
+
 		// Wait a bit for executions to complete gracefully
 		select {
 		case <-time.After(5 * time.Second):
@@ -356,7 +356,7 @@ func (re *RetryExecutor) Stop(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
-	
+
 	re.logger.Info("retry executor stopped successfully")
 	return nil
 }

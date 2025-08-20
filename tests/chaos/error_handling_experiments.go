@@ -17,14 +17,14 @@ import (
 
 // ErrorHandlingExperiments provides chaos experiments for testing error handling mechanisms
 type ErrorHandlingExperiments struct {
-	logger           *slog.Logger
-	injector         *FailureInjector
-	errorAggregator  *reporting.ErrorAggregator
-	circuitBreakers  map[string]*resilience.CircuitBreaker
-	retryExecutors   map[string]*resilience.RetryExecutor
-	loadShedders     map[string]*resilience.LoadShedder
-	degradationMgr   *resilience.GracefulDegradation
-	resourceMonitor  *monitoring.ResourceMonitor
+	logger          *slog.Logger
+	injector        *FailureInjector
+	errorAggregator *reporting.ErrorAggregator
+	circuitBreakers map[string]*resilience.CircuitBreaker
+	retryExecutors  map[string]*resilience.RetryExecutor
+	loadShedders    map[string]*resilience.LoadShedder
+	degradationMgr  *resilience.GracefulDegradation
+	resourceMonitor *monitoring.ResourceMonitor
 }
 
 // NewErrorHandlingExperiments creates a new error handling experiments suite
@@ -46,7 +46,7 @@ func NewErrorHandlingExperiments(logger *slog.Logger) *ErrorHandlingExperiments 
 func (ehe *ErrorHandlingExperiments) SetupErrorReporting() error {
 	config := reporting.DefaultErrorAggregatorConfig()
 	config.AutoReportInterval = 10 * time.Second // Fast reporting for testing
-	
+
 	ehe.errorAggregator = reporting.NewErrorAggregator(config, ehe.logger)
 	return nil
 }
@@ -57,7 +57,7 @@ func (ehe *ErrorHandlingExperiments) SetupResilience() error {
 	cbConfig := resilience.DefaultCircuitBreakerConfig()
 	cbConfig.FailureThreshold = 3
 	cbConfig.OpenTimeout = 10 * time.Second
-	
+
 	cb, err := resilience.NewCircuitBreaker("test-service", cbConfig, ehe.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create circuit breaker: %w", err)
@@ -68,7 +68,7 @@ func (ehe *ErrorHandlingExperiments) SetupResilience() error {
 	retryConfig := resilience.DefaultRetryStrategyConfig()
 	retryConfig.MaxAttempts = 5
 	retryConfig.BaseDelay = 100 * time.Millisecond
-	
+
 	retryExecutor, err := resilience.NewRetryExecutor(retryConfig, ehe.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create retry executor: %w", err)
@@ -79,7 +79,7 @@ func (ehe *ErrorHandlingExperiments) SetupResilience() error {
 	lsConfig := resilience.DefaultLoadSheddingConfig()
 	lsConfig.MaxConcurrentRequests = 10
 	lsConfig.CPUThreshold = 80.0
-	
+
 	loadShedder, err := resilience.NewLoadShedder(lsConfig, nil, ehe.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create load shedder: %w", err)
@@ -89,7 +89,7 @@ func (ehe *ErrorHandlingExperiments) SetupResilience() error {
 	// Setup graceful degradation
 	degradationConfig := resilience.DefaultDegradationConfig()
 	degradationConfig.RecoveryInterval = 5 * time.Second
-	
+
 	ehe.degradationMgr = resilience.NewGracefulDegradation(degradationConfig, nil, ehe.logger)
 
 	return nil
@@ -98,15 +98,15 @@ func (ehe *ErrorHandlingExperiments) SetupResilience() error {
 // SetupMonitoring sets up monitoring components
 func (ehe *ErrorHandlingExperiments) SetupMonitoring() error {
 	thresholds := &monitoring.SystemThresholds{
-		CPUWarning:    70.0,
-		CPUCritical:   85.0,
-		MemoryWarning: 75.0,
-		MemoryCritical: 90.0,
-		DiskWarning:   80.0,
-		DiskCritical:  95.0,
-		QueueSizeWarning: 100,
+		CPUWarning:        70.0,
+		CPUCritical:       85.0,
+		MemoryWarning:     75.0,
+		MemoryCritical:    90.0,
+		DiskWarning:       80.0,
+		DiskCritical:      95.0,
+		QueueSizeWarning:  100,
 		QueueSizeCritical: 500,
-		ErrorRateWarning: 5.0,
+		ErrorRateWarning:  5.0,
 		ErrorRateCritical: 10.0,
 	}
 
@@ -136,19 +136,19 @@ func (ehe *ErrorHandlingExperiments) SetupMonitoring() error {
 // Cleanup cleans up all experiment resources
 func (ehe *ErrorHandlingExperiments) Cleanup() {
 	ehe.injector.StopAllInjections()
-	
+
 	if ehe.errorAggregator != nil {
 		ehe.errorAggregator.Stop(context.Background())
 	}
-	
+
 	if ehe.degradationMgr != nil {
 		ehe.degradationMgr.Stop()
 	}
-	
+
 	for _, ls := range ehe.loadShedders {
 		ls.Stop()
 	}
-	
+
 	if ehe.resourceMonitor != nil {
 		ehe.resourceMonitor.Stop(context.Background())
 	}
@@ -178,9 +178,9 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 		Description: "Tests circuit breaker opening and closing under various failure conditions",
 		Duration:    60 * time.Second,
 		Config: map[string]interface{}{
-			"failure_rate":     0.8,
-			"test_duration":    "45s",
-			"recovery_period":  "15s",
+			"failure_rate":    0.8,
+			"test_duration":   "45s",
+			"recovery_period": "15s",
 		},
 		Setup: func(ctx context.Context) error {
 			return ehe.SetupResilience()
@@ -193,7 +193,7 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 
 			// Phase 1: Generate failures to trip circuit breaker
 			ehe.logger.Info("phase 1: generating failures to trip circuit breaker")
-			
+
 			for i := 0; i < 10; i++ {
 				err := cb.Execute(ctx, func(ctx context.Context) error {
 					if i < 8 { // 80% failure rate
@@ -201,11 +201,11 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 					}
 					return nil
 				})
-				
+
 				if err != nil {
 					ehe.logger.Debug("circuit breaker operation failed", "attempt", i, "error", err)
 				}
-				
+
 				time.Sleep(100 * time.Millisecond)
 			}
 
@@ -220,16 +220,16 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 
 			// Phase 3: Test recovery with successful operations
 			ehe.logger.Info("phase 3: testing recovery with successful operations")
-			
+
 			for i := 0; i < 5; i++ {
 				err := cb.Execute(ctx, func(ctx context.Context) error {
 					return nil // All successful
 				})
-				
+
 				if err != nil {
 					ehe.logger.Debug("recovery operation failed", "attempt", i, "error", err)
 				}
-				
+
 				time.Sleep(100 * time.Millisecond)
 			}
 
@@ -249,11 +249,11 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 		Validate: func(ctx context.Context) error {
 			cb := ehe.circuitBreakers["test-service"]
 			stats := cb.GetStats()
-			
+
 			if stats.TotalRequests < 10 {
 				return fmt.Errorf("expected at least 10 requests, got %d", stats.TotalRequests)
 			}
-			
+
 			if stats.TotalFailures < 5 {
 				return fmt.Errorf("expected at least 5 failures, got %d", stats.TotalFailures)
 			}
@@ -262,7 +262,7 @@ func (ehe *ErrorHandlingExperiments) createCircuitBreakerExperiment() *ChaosExpe
 				"total_requests", stats.TotalRequests,
 				"total_failures", stats.TotalFailures,
 				"state_changes", stats.StateChanges)
-			
+
 			return nil
 		},
 	}
@@ -276,9 +276,9 @@ func (ehe *ErrorHandlingExperiments) createRetryLogicExperiment() *ChaosExperime
 		Description: "Tests retry mechanisms with various failure patterns and jitter strategies",
 		Duration:    45 * time.Second,
 		Config: map[string]interface{}{
-			"max_attempts":     5,
-			"base_delay":       "100ms",
-			"strategy":         "exponential_backoff",
+			"max_attempts": 5,
+			"base_delay":   "100ms",
+			"strategy":     "exponential_backoff",
 		},
 		Setup: func(ctx context.Context) error {
 			return ehe.SetupResilience()
@@ -291,7 +291,7 @@ func (ehe *ErrorHandlingExperiments) createRetryLogicExperiment() *ChaosExperime
 
 			// Test 1: Eventual success after retries
 			ehe.logger.Info("test 1: eventual success after retries")
-			
+
 			attemptCount := 0
 			err := retryExecutor.Execute(ctx, "eventual-success", func(ctx context.Context, attempt int) error {
 				attemptCount++
@@ -311,7 +311,7 @@ func (ehe *ErrorHandlingExperiments) createRetryLogicExperiment() *ChaosExperime
 
 			// Test 2: Max attempts exceeded
 			ehe.logger.Info("test 2: max attempts exceeded")
-			
+
 			err = retryExecutor.Execute(ctx, "max-attempts", func(ctx context.Context, attempt int) error {
 				return fmt.Errorf("persistent failure %d", attempt)
 			})
@@ -322,7 +322,7 @@ func (ehe *ErrorHandlingExperiments) createRetryLogicExperiment() *ChaosExperime
 
 			// Test 3: Non-retryable error
 			ehe.logger.Info("test 3: non-retryable error")
-			
+
 			attemptCount = 0
 			err = retryExecutor.Execute(ctx, "non-retryable", func(ctx context.Context, attempt int) error {
 				attemptCount++
@@ -348,11 +348,11 @@ func (ehe *ErrorHandlingExperiments) createRetryLogicExperiment() *ChaosExperime
 		Validate: func(ctx context.Context) error {
 			retryExecutor := ehe.retryExecutors["test-service"]
 			stats := retryExecutor.GetStats()
-			
+
 			if stats.RetryStats.TotalAttempts < 6 { // At least 3 + 5 + 1 attempts
 				return fmt.Errorf("expected at least 6 total attempts, got %d", stats.RetryStats.TotalAttempts)
 			}
-			
+
 			if stats.RetryStats.TotalRetries < 2 { // At least 2 + 4 retries
 				return fmt.Errorf("expected at least 2 total retries, got %d", stats.RetryStats.TotalRetries)
 			}
@@ -361,7 +361,7 @@ func (ehe *ErrorHandlingExperiments) createRetryLogicExperiment() *ChaosExperime
 				"total_attempts", stats.RetryStats.TotalAttempts,
 				"total_retries", stats.RetryStats.TotalRetries,
 				"successful_retries", stats.RetryStats.SuccessfulRetries)
-			
+
 			return nil
 		},
 	}
@@ -389,22 +389,22 @@ func (ehe *ErrorHandlingExperiments) createLoadSheddingExperiment() *ChaosExperi
 
 			// Test concurrent request handling
 			ehe.logger.Info("testing concurrent request handling")
-			
+
 			var wg sync.WaitGroup
 			acceptedCount := int64(0)
 			shedCount := int64(0)
-			
+
 			// Launch many concurrent requests
 			for i := 0; i < 50; i++ {
 				wg.Add(1)
 				go func(i int) {
 					defer wg.Done()
-					
+
 					priority := resilience.PriorityNormal
 					if i%10 == 0 {
 						priority = resilience.PriorityCritical
 					}
-					
+
 					decision := loadShedder.ShouldAcceptRequest(priority)
 					if decision.Allow {
 						acceptedCount++
@@ -415,10 +415,10 @@ func (ehe *ErrorHandlingExperiments) createLoadSheddingExperiment() *ChaosExperi
 						shedCount++
 					}
 				}(i)
-				
+
 				time.Sleep(10 * time.Millisecond) // Stagger requests
 			}
-			
+
 			wg.Wait()
 
 			if acceptedCount == 0 {
@@ -444,11 +444,11 @@ func (ehe *ErrorHandlingExperiments) createLoadSheddingExperiment() *ChaosExperi
 		Validate: func(ctx context.Context) error {
 			loadShedder := ehe.loadShedders["test-service"]
 			stats := loadShedder.GetStats()
-			
+
 			if stats.TotalRequests != 50 {
 				return fmt.Errorf("expected 50 total requests, got %d", stats.TotalRequests)
 			}
-			
+
 			if stats.ShedRequests == 0 {
 				return fmt.Errorf("expected some shed requests, got %d", stats.ShedRequests)
 			}
@@ -457,7 +457,7 @@ func (ehe *ErrorHandlingExperiments) createLoadSheddingExperiment() *ChaosExperi
 				"total_requests", stats.TotalRequests,
 				"accepted_requests", stats.AcceptedRequests,
 				"shed_requests", stats.ShedRequests)
-			
+
 			return nil
 		},
 	}
@@ -486,7 +486,7 @@ func (ehe *ErrorHandlingExperiments) createGracefulDegradationExperiment() *Chao
 			// Test manual degradation
 			ehe.logger.Info("testing manual degradation")
 			ehe.degradationMgr.SetLevel(resilience.LevelLimited, "chaos test")
-			
+
 			if ehe.degradationMgr.GetCurrentLevel() != resilience.LevelLimited {
 				return fmt.Errorf("expected limited level after manual set")
 			}
@@ -532,11 +532,11 @@ func (ehe *ErrorHandlingExperiments) createGracefulDegradationExperiment() *Chao
 		},
 		Validate: func(ctx context.Context) error {
 			stats := ehe.degradationMgr.GetStats()
-			
+
 			if len(stats.LevelChangeHistory) < 4 {
 				return fmt.Errorf("expected at least 4 level changes, got %d", len(stats.LevelChangeHistory))
 			}
-			
+
 			if stats.CurrentLevel != resilience.LevelNormal {
 				return fmt.Errorf("expected to end at normal level, got %s", stats.CurrentLevel)
 			}
@@ -545,7 +545,7 @@ func (ehe *ErrorHandlingExperiments) createGracefulDegradationExperiment() *Chao
 				"current_level", stats.CurrentLevel,
 				"level_changes", len(stats.LevelChangeHistory),
 				"enabled_features", len(stats.EnabledFeatures))
-			
+
 			return nil
 		},
 	}
@@ -576,7 +576,7 @@ func (ehe *ErrorHandlingExperiments) createErrorReportingExperiment() *ChaosExpe
 			}
 
 			ehe.logger.Info("generating diverse error patterns")
-			
+
 			for i := 0; i < 50; i++ {
 				errorType := errorTypes[i%len(errorTypes)]
 				execError := &executor.ExecutionError{
@@ -594,7 +594,7 @@ func (ehe *ErrorHandlingExperiments) createErrorReportingExperiment() *ChaosExpe
 				}
 
 				ehe.errorAggregator.RecordError(ctx, execError, execError.TaskID, fmt.Sprintf("user-%d", i%10))
-				
+
 				// Add some randomness to timing
 				if i%5 == 0 {
 					time.Sleep(50 * time.Millisecond)
@@ -636,12 +636,12 @@ func (ehe *ErrorHandlingExperiments) createErrorReportingExperiment() *ChaosExpe
 		},
 		Validate: func(ctx context.Context) error {
 			stats := ehe.errorAggregator.GetStats()
-			
+
 			totalErrorTypes := stats["total_error_types"].(int)
 			if totalErrorTypes < 5 {
 				return fmt.Errorf("expected at least 5 error types, got %d", totalErrorTypes)
 			}
-			
+
 			recentErrorsCount := stats["recent_errors_count"].(int)
 			if recentErrorsCount != 50 {
 				return fmt.Errorf("expected 50 recent errors, got %d", recentErrorsCount)
@@ -650,7 +650,7 @@ func (ehe *ErrorHandlingExperiments) createErrorReportingExperiment() *ChaosExpe
 			ehe.logger.Info("error reporting experiment validation successful",
 				"total_error_types", totalErrorTypes,
 				"recent_errors_count", recentErrorsCount)
-			
+
 			return nil
 		},
 	}
@@ -791,7 +791,7 @@ func (ehe *ErrorHandlingExperiments) createRecoveryValidationExperiment() *Chaos
 		Execute: func(ctx context.Context) error {
 			// Phase 1: Stress all systems
 			ehe.logger.Info("phase 1: stressing all systems")
-			
+
 			// Trigger circuit breaker
 			cb := ehe.circuitBreakers["test-service"]
 			for i := 0; i < 10; i++ {

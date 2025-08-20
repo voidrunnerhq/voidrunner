@@ -36,7 +36,7 @@ func TestCircuitBreaker(t *testing.T) {
 	t.Run("NewCircuitBreaker", func(t *testing.T) {
 		config := DefaultCircuitBreakerConfig()
 		cb, err := NewCircuitBreaker("test", config, logger)
-		
+
 		require.NoError(t, err)
 		assert.NotNil(t, cb)
 		assert.Equal(t, StateClosed, cb.GetState())
@@ -152,7 +152,7 @@ func TestCircuitBreaker(t *testing.T) {
 		ctx := context.Background()
 
 		// Execute some operations
-		_ = cb.Execute(ctx, func(ctx context.Context) error { return nil })      // Success
+		_ = cb.Execute(ctx, func(ctx context.Context) error { return nil })                // Success
 		_ = cb.Execute(ctx, func(ctx context.Context) error { return errors.New("fail") }) // Failure
 
 		stats := cb.GetStats()
@@ -233,10 +233,10 @@ func TestLoadShedding(t *testing.T) {
 				name: "Invalid max concurrent requests",
 				config: &LoadSheddingConfig{
 					MaxConcurrentRequests: 0,
-					CPUThreshold:         80.0,
-					MemoryThreshold:      85.0,
-					CheckInterval:        5 * time.Second,
-					SheddingPercentage:   50.0,
+					CPUThreshold:          80.0,
+					MemoryThreshold:       85.0,
+					CheckInterval:         5 * time.Second,
+					SheddingPercentage:    50.0,
 				},
 				expectErr: true,
 			},
@@ -244,10 +244,10 @@ func TestLoadShedding(t *testing.T) {
 				name: "Invalid CPU threshold",
 				config: &LoadSheddingConfig{
 					MaxConcurrentRequests: 1000,
-					CPUThreshold:         150.0, // Invalid
-					MemoryThreshold:      85.0,
-					CheckInterval:        5 * time.Second,
-					SheddingPercentage:   50.0,
+					CPUThreshold:          150.0, // Invalid
+					MemoryThreshold:       85.0,
+					CheckInterval:         5 * time.Second,
+					SheddingPercentage:    50.0,
 				},
 				expectErr: true,
 			},
@@ -268,13 +268,13 @@ func TestLoadShedding(t *testing.T) {
 	t.Run("Request Handling", func(t *testing.T) {
 		config := &LoadSheddingConfig{
 			MaxConcurrentRequests: 2,
-			CPUThreshold:         80.0,
-			MemoryThreshold:      85.0,
-			QueueSizeThreshold:   500,
-			ErrorRateThreshold:   20.0,
-			CheckInterval:        5 * time.Second,
-			SheddingPercentage:   50.0,
-			EnablePriorityQueues: true,
+			CPUThreshold:          80.0,
+			MemoryThreshold:       85.0,
+			QueueSizeThreshold:    500,
+			ErrorRateThreshold:    20.0,
+			CheckInterval:         5 * time.Second,
+			SheddingPercentage:    50.0,
+			EnablePriorityQueues:  true,
 		}
 
 		ls, err := NewLoadShedder(config, nil, logger)
@@ -303,7 +303,7 @@ func TestLoadShedding(t *testing.T) {
 	t.Run("Priority-Based Shedding", func(t *testing.T) {
 		config := DefaultLoadSheddingConfig()
 		config.CheckInterval = 10 * time.Millisecond // Speed up for testing
-		
+
 		metricsProvider := &MockMetricsProvider{}
 		metricsProvider.SetMetrics(&SystemMetrics{
 			CPUPercent:    85.0, // Above threshold
@@ -438,10 +438,10 @@ func TestGracefulDegradation(t *testing.T) {
 
 		// Wait for stability period and recovery - give it more time
 		time.Sleep(300 * time.Millisecond)
-		
+
 		// Check that we've recovered to normal (should be LevelNormal, but LevelLimited is also acceptable for timing)
 		currentLevel := gd.GetCurrentLevel()
-		assert.True(t, currentLevel == LevelNormal || currentLevel == LevelLimited, 
+		assert.True(t, currentLevel == LevelNormal || currentLevel == LevelLimited,
 			"Expected LevelNormal or LevelLimited, got %v", currentLevel)
 	})
 

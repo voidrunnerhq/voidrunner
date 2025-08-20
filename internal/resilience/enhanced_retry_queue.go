@@ -7,48 +7,48 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-	
+
 	"github.com/google/uuid"
 )
 
 // EnhancedRetryQueue extends the basic retry queue with advanced retry strategies
 type EnhancedRetryQueue struct {
-	mu               sync.RWMutex
-	config           *EnhancedRetryConfig
-	strategy         *RetryStrategy
-	executor         *RetryExecutor
-	logger           *slog.Logger
-	
+	mu       sync.RWMutex
+	config   *EnhancedRetryConfig
+	strategy *RetryStrategy
+	executor *RetryExecutor
+	logger   *slog.Logger
+
 	// Queue state
 	pendingRetries   map[string]*EnhancedRetryMessage
 	scheduledRetries map[string]*ScheduledRetry
-	
+
 	// Background processing
-	ctx              context.Context
-	cancel           context.CancelFunc
-	wg               sync.WaitGroup
-	
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+
 	// Statistics
-	stats            EnhancedRetryStats
+	stats EnhancedRetryStats
 }
 
 // EnhancedRetryConfig defines configuration for enhanced retry queue
 type EnhancedRetryConfig struct {
 	// Basic configuration
-	QueueName            string                  `json:"queue_name"`
-	ProcessingInterval   time.Duration           `json:"processing_interval"`
-	MaxConcurrentRetries int                     `json:"max_concurrent_retries"`
-	
+	QueueName            string        `json:"queue_name"`
+	ProcessingInterval   time.Duration `json:"processing_interval"`
+	MaxConcurrentRetries int           `json:"max_concurrent_retries"`
+
 	// Retry strategy configuration
-	RetryStrategy        *RetryStrategyConfig    `json:"retry_strategy"`
-	
+	RetryStrategy *RetryStrategyConfig `json:"retry_strategy"`
+
 	// Persistence configuration
-	PersistRetries       bool                    `json:"persist_retries"`
-	RetryTTL             time.Duration           `json:"retry_ttl"`
-	
+	PersistRetries bool          `json:"persist_retries"`
+	RetryTTL       time.Duration `json:"retry_ttl"`
+
 	// Monitoring configuration
-	EnableMetrics        bool                    `json:"enable_metrics"`
-	StatsReportInterval  time.Duration           `json:"stats_report_interval"`
+	EnableMetrics       bool          `json:"enable_metrics"`
+	StatsReportInterval time.Duration `json:"stats_report_interval"`
 }
 
 // DefaultEnhancedRetryConfig returns sensible defaults
@@ -87,75 +87,75 @@ func (config *EnhancedRetryConfig) Validate() error {
 // EnhancedRetryMessage represents a message in the enhanced retry queue
 type EnhancedRetryMessage struct {
 	// Basic message information
-	ID               string                 `json:"id"`
-	OriginalID       string                 `json:"original_id"`
-	TaskID           uuid.UUID              `json:"task_id"`
-	UserID           uuid.UUID              `json:"user_id"`
-	
+	ID         string    `json:"id"`
+	OriginalID string    `json:"original_id"`
+	TaskID     uuid.UUID `json:"task_id"`
+	UserID     uuid.UUID `json:"user_id"`
+
 	// Retry information
-	Attempts         int                    `json:"attempts"`
-	MaxAttempts      int                    `json:"max_attempts"`
-	NextRetryAt      time.Time              `json:"next_retry_at"`
-	CreatedAt        time.Time              `json:"created_at"`
-	LastAttemptAt    *time.Time             `json:"last_attempt_at,omitempty"`
-	
+	Attempts      int        `json:"attempts"`
+	MaxAttempts   int        `json:"max_attempts"`
+	NextRetryAt   time.Time  `json:"next_retry_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+	LastAttemptAt *time.Time `json:"last_attempt_at,omitempty"`
+
 	// Error information
-	LastError        string                 `json:"last_error,omitempty"`
-	ErrorHistory     []string               `json:"error_history"`
-	FailureReason    string                 `json:"failure_reason,omitempty"`
-	
+	LastError     string   `json:"last_error,omitempty"`
+	ErrorHistory  []string `json:"error_history"`
+	FailureReason string   `json:"failure_reason,omitempty"`
+
 	// Strategy information
-	StrategyType     RetryStrategyType      `json:"strategy_type"`
-	CalculatedDelay  time.Duration          `json:"calculated_delay"`
-	ActualDelay      time.Duration          `json:"actual_delay"`
-	
+	StrategyType    RetryStrategyType `json:"strategy_type"`
+	CalculatedDelay time.Duration     `json:"calculated_delay"`
+	ActualDelay     time.Duration     `json:"actual_delay"`
+
 	// Metadata
-	Priority         int                    `json:"priority"`
-	Context          map[string]interface{} `json:"context,omitempty"`
-	Labels           map[string]string      `json:"labels,omitempty"`
-	
+	Priority int                    `json:"priority"`
+	Context  map[string]interface{} `json:"context,omitempty"`
+	Labels   map[string]string      `json:"labels,omitempty"`
+
 	// Operation information
-	OperationType    string                 `json:"operation_type"`
-	OperationData    json.RawMessage        `json:"operation_data,omitempty"`
+	OperationType string          `json:"operation_type"`
+	OperationData json.RawMessage `json:"operation_data,omitempty"`
 }
 
 // ScheduledRetry represents a retry scheduled for execution
 type ScheduledRetry struct {
-	Message          *EnhancedRetryMessage  `json:"message"`
-	ScheduledAt      time.Time              `json:"scheduled_at"`
-	ExecutionContext *ExecutionContext      `json:"execution_context,omitempty"`
+	Message          *EnhancedRetryMessage `json:"message"`
+	ScheduledAt      time.Time             `json:"scheduled_at"`
+	ExecutionContext *ExecutionContext     `json:"execution_context,omitempty"`
 }
 
 // EnhancedRetryStats holds statistics for the enhanced retry queue
 type EnhancedRetryStats struct {
 	// Queue statistics
-	TotalMessages        int64                  `json:"total_messages"`
-	PendingRetries       int64                  `json:"pending_retries"`
-	ScheduledRetries     int64                  `json:"scheduled_retries"`
-	ConcurrentRetries    int64                  `json:"concurrent_retries"`
-	
+	TotalMessages     int64 `json:"total_messages"`
+	PendingRetries    int64 `json:"pending_retries"`
+	ScheduledRetries  int64 `json:"scheduled_retries"`
+	ConcurrentRetries int64 `json:"concurrent_retries"`
+
 	// Success/failure statistics
-	SuccessfulRetries    int64                  `json:"successful_retries"`
-	FailedRetries        int64                  `json:"failed_retries"`
-	PermanentFailures    int64                  `json:"permanent_failures"`
-	
+	SuccessfulRetries int64 `json:"successful_retries"`
+	FailedRetries     int64 `json:"failed_retries"`
+	PermanentFailures int64 `json:"permanent_failures"`
+
 	// Timing statistics
-	AverageRetryDelay    time.Duration          `json:"average_retry_delay"`
-	MinRetryDelay        time.Duration          `json:"min_retry_delay"`
-	MaxRetryDelay        time.Duration          `json:"max_retry_delay"`
-	
+	AverageRetryDelay time.Duration `json:"average_retry_delay"`
+	MinRetryDelay     time.Duration `json:"min_retry_delay"`
+	MaxRetryDelay     time.Duration `json:"max_retry_delay"`
+
 	// Strategy statistics
-	StrategyStats        map[RetryStrategyType]int64 `json:"strategy_stats"`
-	
+	StrategyStats map[RetryStrategyType]int64 `json:"strategy_stats"`
+
 	// Error statistics
-	ErrorDistribution    map[string]int64       `json:"error_distribution"`
-	
+	ErrorDistribution map[string]int64 `json:"error_distribution"`
+
 	// Performance statistics
-	ProcessingRate       float64                `json:"processing_rate"` // messages per second
-	LastProcessedAt      *time.Time             `json:"last_processed_at,omitempty"`
-	
+	ProcessingRate  float64    `json:"processing_rate"` // messages per second
+	LastProcessedAt *time.Time `json:"last_processed_at,omitempty"`
+
 	// Budget statistics
-	BudgetUtilization    float64                `json:"budget_utilization"`
+	BudgetUtilization float64 `json:"budget_utilization"`
 }
 
 // NewEnhancedRetryQueue creates a new enhanced retry queue
@@ -163,29 +163,29 @@ func NewEnhancedRetryQueue(config *EnhancedRetryConfig, logger *slog.Logger) (*E
 	if config == nil {
 		config = DefaultEnhancedRetryConfig()
 	}
-	
+
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid enhanced retry config: %w", err)
 	}
-	
+
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	// Create retry strategy
 	strategy, err := NewRetryStrategy(config.RetryStrategy, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create retry strategy: %w", err)
 	}
-	
+
 	// Create retry executor
 	executor, err := NewRetryExecutor(config.RetryStrategy, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create retry executor: %w", err)
 	}
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	queue := &EnhancedRetryQueue{
 		config:           config,
 		strategy:         strategy,
@@ -200,7 +200,7 @@ func NewEnhancedRetryQueue(config *EnhancedRetryConfig, logger *slog.Logger) (*E
 			ErrorDistribution: make(map[string]int64),
 		},
 	}
-	
+
 	return queue, nil
 }
 
@@ -209,17 +209,17 @@ func (eq *EnhancedRetryQueue) Start(ctx context.Context) error {
 	eq.logger.Info("starting enhanced retry queue",
 		"queue_name", eq.config.QueueName,
 		"processing_interval", eq.config.ProcessingInterval)
-	
+
 	// Start processing loop
 	eq.wg.Add(1)
 	go eq.processingLoop()
-	
+
 	// Start metrics reporting if enabled
 	if eq.config.EnableMetrics {
 		eq.wg.Add(1)
 		go eq.metricsReportingLoop()
 	}
-	
+
 	eq.logger.Info("enhanced retry queue started successfully")
 	return nil
 }
@@ -227,24 +227,24 @@ func (eq *EnhancedRetryQueue) Start(ctx context.Context) error {
 // Stop stops the enhanced retry queue
 func (eq *EnhancedRetryQueue) Stop(ctx context.Context) error {
 	eq.logger.Info("stopping enhanced retry queue")
-	
+
 	// Cancel context
 	eq.cancel()
-	
+
 	// Wait for background goroutines to complete
 	done := make(chan struct{})
 	go func() {
 		eq.wg.Wait()
 		close(done)
 	}()
-	
+
 	select {
 	case <-done:
 		eq.logger.Info("enhanced retry queue stopped successfully")
 	case <-time.After(30 * time.Second):
 		eq.logger.Warn("timeout waiting for enhanced retry queue to stop")
 	}
-	
+
 	// Stop retry executor
 	return eq.executor.Stop(ctx)
 }
@@ -254,7 +254,7 @@ func (eq *EnhancedRetryQueue) EnqueueForRetry(ctx context.Context, message *Enha
 	if message == nil {
 		return fmt.Errorf("message cannot be nil")
 	}
-	
+
 	// Validate message
 	if message.ID == "" {
 		message.ID = uuid.New().String()
@@ -262,27 +262,27 @@ func (eq *EnhancedRetryQueue) EnqueueForRetry(ctx context.Context, message *Enha
 	if message.CreatedAt.IsZero() {
 		message.CreatedAt = time.Now()
 	}
-	
+
 	// Calculate next retry time using strategy
 	delay := eq.strategy.CalculateDelay(message.Attempts + 1)
 	message.NextRetryAt = time.Now().Add(delay)
 	message.CalculatedDelay = delay
 	message.StrategyType = eq.config.RetryStrategy.Strategy
-	
+
 	eq.mu.Lock()
 	defer eq.mu.Unlock()
-	
+
 	// Add to pending retries
 	eq.pendingRetries[message.ID] = message
 	eq.stats.TotalMessages++
 	eq.stats.PendingRetries++
 	eq.stats.StrategyStats[message.StrategyType]++
-	
+
 	// Update error distribution
 	if message.LastError != "" {
 		eq.stats.ErrorDistribution[message.LastError]++
 	}
-	
+
 	eq.logger.Info("message enqueued for retry",
 		"message_id", message.ID,
 		"task_id", message.TaskID,
@@ -290,19 +290,19 @@ func (eq *EnhancedRetryQueue) EnqueueForRetry(ctx context.Context, message *Enha
 		"next_retry_at", message.NextRetryAt,
 		"delay", delay,
 		"strategy", message.StrategyType)
-	
+
 	return nil
 }
 
 // processingLoop is the main processing loop
 func (eq *EnhancedRetryQueue) processingLoop() {
 	defer eq.wg.Done()
-	
+
 	ticker := time.NewTicker(eq.config.ProcessingInterval)
 	defer ticker.Stop()
-	
+
 	eq.logger.Debug("enhanced retry queue processing loop started")
-	
+
 	for {
 		select {
 		case <-eq.ctx.Done():
@@ -318,7 +318,7 @@ func (eq *EnhancedRetryQueue) processingLoop() {
 func (eq *EnhancedRetryQueue) processReadyRetries() {
 	now := time.Now()
 	var readyMessages []*EnhancedRetryMessage
-	
+
 	eq.mu.Lock()
 	// Find messages ready for retry
 	for id, message := range eq.pendingRetries {
@@ -329,16 +329,16 @@ func (eq *EnhancedRetryQueue) processReadyRetries() {
 		}
 	}
 	eq.mu.Unlock()
-	
+
 	if len(readyMessages) == 0 {
 		return
 	}
-	
+
 	eq.logger.Debug("processing ready retries", "count", len(readyMessages))
-	
+
 	// Process messages concurrently up to the limit
 	semaphore := make(chan struct{}, eq.config.MaxConcurrentRetries)
-	
+
 	for _, message := range readyMessages {
 		select {
 		case semaphore <- struct{}{}:
@@ -352,13 +352,13 @@ func (eq *EnhancedRetryQueue) processReadyRetries() {
 // processRetryMessage processes a single retry message
 func (eq *EnhancedRetryQueue) processRetryMessage(message *EnhancedRetryMessage, semaphore chan struct{}) {
 	defer func() { <-semaphore }()
-	
+
 	startTime := time.Now()
-	
+
 	eq.mu.Lock()
 	eq.stats.ConcurrentRetries++
 	eq.stats.ScheduledRetries++
-	
+
 	// Create scheduled retry entry
 	scheduled := &ScheduledRetry{
 		Message:     message,
@@ -366,7 +366,7 @@ func (eq *EnhancedRetryQueue) processRetryMessage(message *EnhancedRetryMessage,
 	}
 	eq.scheduledRetries[message.ID] = scheduled
 	eq.mu.Unlock()
-	
+
 	// Clean up on completion
 	defer func() {
 		eq.mu.Lock()
@@ -375,39 +375,39 @@ func (eq *EnhancedRetryQueue) processRetryMessage(message *EnhancedRetryMessage,
 		eq.stats.ScheduledRetries--
 		eq.mu.Unlock()
 	}()
-	
+
 	eq.logger.Info("processing retry message",
 		"message_id", message.ID,
 		"task_id", message.TaskID,
 		"attempt", message.Attempts+1)
-	
+
 	// Execute the retry operation
 	operationID := fmt.Sprintf("%s_retry_%d", message.ID, message.Attempts+1)
-	
+
 	err := eq.executor.Execute(eq.ctx, operationID, func(ctx context.Context, attempt int) error {
 		// This is where the actual retry operation would be performed
 		// For now, we'll simulate the operation based on the message type
 		return eq.executeRetryOperation(ctx, message, attempt)
 	})
-	
+
 	// Update message and statistics
 	message.Attempts++
 	message.LastAttemptAt = &startTime
 	actualDelay := startTime.Sub(message.CreatedAt)
 	message.ActualDelay = actualDelay
-	
+
 	if err != nil {
 		message.LastError = err.Error()
 		message.ErrorHistory = append(message.ErrorHistory, err.Error())
-		
+
 		eq.mu.Lock()
 		eq.stats.FailedRetries++
 		eq.stats.ErrorDistribution[err.Error()]++
 		eq.mu.Unlock()
-		
+
 		// Check if we should retry again
-		if eq.strategy.ShouldRetry(eq.ctx, message.Attempts, err) && 
-		   message.Attempts < message.MaxAttempts {
+		if eq.strategy.ShouldRetry(eq.ctx, message.Attempts, err) &&
+			message.Attempts < message.MaxAttempts {
 			// Schedule for another retry
 			_ = eq.EnqueueForRetry(eq.ctx, message)
 		} else {
@@ -415,7 +415,7 @@ func (eq *EnhancedRetryQueue) processRetryMessage(message *EnhancedRetryMessage,
 			eq.mu.Lock()
 			eq.stats.PermanentFailures++
 			eq.mu.Unlock()
-			
+
 			eq.logger.Error("message permanently failed",
 				"message_id", message.ID,
 				"task_id", message.TaskID,
@@ -428,14 +428,14 @@ func (eq *EnhancedRetryQueue) processRetryMessage(message *EnhancedRetryMessage,
 		eq.stats.SuccessfulRetries++
 		eq.stats.LastProcessedAt = &startTime
 		eq.mu.Unlock()
-		
+
 		eq.logger.Info("retry message processed successfully",
 			"message_id", message.ID,
 			"task_id", message.TaskID,
 			"total_attempts", message.Attempts,
 			"total_duration", time.Since(message.CreatedAt))
 	}
-	
+
 	// Update timing statistics
 	eq.updateTimingStats(actualDelay)
 }
@@ -445,12 +445,12 @@ func (eq *EnhancedRetryQueue) executeRetryOperation(ctx context.Context, message
 	// This is a placeholder implementation
 	// In a real system, this would delegate to the appropriate service
 	// based on the operation type in the message
-	
+
 	eq.logger.Debug("executing retry operation",
 		"message_id", message.ID,
 		"operation_type", message.OperationType,
 		"attempt", attempt)
-	
+
 	// Simulate some work
 	select {
 	case <-time.After(100 * time.Millisecond):
@@ -468,14 +468,14 @@ func (eq *EnhancedRetryQueue) executeRetryOperation(ctx context.Context, message
 func (eq *EnhancedRetryQueue) updateTimingStats(delay time.Duration) {
 	eq.mu.Lock()
 	defer eq.mu.Unlock()
-	
+
 	if eq.stats.MinRetryDelay == 0 || delay < eq.stats.MinRetryDelay {
 		eq.stats.MinRetryDelay = delay
 	}
 	if delay > eq.stats.MaxRetryDelay {
 		eq.stats.MaxRetryDelay = delay
 	}
-	
+
 	// Calculate moving average
 	if eq.stats.SuccessfulRetries > 0 {
 		totalDelay := eq.stats.AverageRetryDelay * time.Duration(eq.stats.SuccessfulRetries)
@@ -488,10 +488,10 @@ func (eq *EnhancedRetryQueue) updateTimingStats(delay time.Duration) {
 // metricsReportingLoop periodically reports metrics
 func (eq *EnhancedRetryQueue) metricsReportingLoop() {
 	defer eq.wg.Done()
-	
+
 	ticker := time.NewTicker(eq.config.StatsReportInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-eq.ctx.Done():
@@ -505,7 +505,7 @@ func (eq *EnhancedRetryQueue) metricsReportingLoop() {
 // reportMetrics reports current metrics
 func (eq *EnhancedRetryQueue) reportMetrics() {
 	stats := eq.GetStats()
-	
+
 	eq.logger.Info("enhanced retry queue metrics",
 		"total_messages", stats.TotalMessages,
 		"pending_retries", stats.PendingRetries,
@@ -522,9 +522,9 @@ func (eq *EnhancedRetryQueue) reportMetrics() {
 func (eq *EnhancedRetryQueue) GetStats() EnhancedRetryStats {
 	eq.mu.RLock()
 	defer eq.mu.RUnlock()
-	
+
 	stats := eq.stats
-	
+
 	// Calculate processing rate
 	if stats.LastProcessedAt != nil {
 		duration := time.Since(*stats.LastProcessedAt)
@@ -532,14 +532,14 @@ func (eq *EnhancedRetryQueue) GetStats() EnhancedRetryStats {
 			stats.ProcessingRate = float64(stats.SuccessfulRetries) / duration.Seconds()
 		}
 	}
-	
+
 	// Calculate budget utilization
 	strategyStats := eq.strategy.GetStats()
 	if strategyStats.BudgetRemaining+strategyStats.BudgetUsed > 0 {
-		stats.BudgetUtilization = float64(strategyStats.BudgetUsed) / 
+		stats.BudgetUtilization = float64(strategyStats.BudgetUsed) /
 			float64(strategyStats.BudgetRemaining+strategyStats.BudgetUsed) * 100
 	}
-	
+
 	return stats
 }
 
@@ -547,15 +547,15 @@ func (eq *EnhancedRetryQueue) GetStats() EnhancedRetryStats {
 func (eq *EnhancedRetryQueue) GetMessage(messageID string) (*EnhancedRetryMessage, bool) {
 	eq.mu.RLock()
 	defer eq.mu.RUnlock()
-	
+
 	if message, exists := eq.pendingRetries[messageID]; exists {
 		return message, true
 	}
-	
+
 	if scheduled, exists := eq.scheduledRetries[messageID]; exists {
 		return scheduled.Message, true
 	}
-	
+
 	return nil, false
 }
 
@@ -563,13 +563,13 @@ func (eq *EnhancedRetryQueue) GetMessage(messageID string) (*EnhancedRetryMessag
 func (eq *EnhancedRetryQueue) RemoveMessage(messageID string) bool {
 	eq.mu.Lock()
 	defer eq.mu.Unlock()
-	
+
 	if _, exists := eq.pendingRetries[messageID]; exists {
 		delete(eq.pendingRetries, messageID)
 		eq.stats.PendingRetries--
 		return true
 	}
-	
+
 	return false
 }
 
@@ -577,12 +577,12 @@ func (eq *EnhancedRetryQueue) RemoveMessage(messageID string) bool {
 func (eq *EnhancedRetryQueue) GetPendingMessages() []*EnhancedRetryMessage {
 	eq.mu.RLock()
 	defer eq.mu.RUnlock()
-	
+
 	messages := make([]*EnhancedRetryMessage, 0, len(eq.pendingRetries))
 	for _, message := range eq.pendingRetries {
 		messages = append(messages, message)
 	}
-	
+
 	return messages
 }
 
@@ -590,11 +590,11 @@ func (eq *EnhancedRetryQueue) GetPendingMessages() []*EnhancedRetryMessage {
 func (eq *EnhancedRetryQueue) GetScheduledRetries() []*ScheduledRetry {
 	eq.mu.RLock()
 	defer eq.mu.RUnlock()
-	
+
 	retries := make([]*ScheduledRetry, 0, len(eq.scheduledRetries))
 	for _, retry := range eq.scheduledRetries {
 		retries = append(retries, retry)
 	}
-	
+
 	return retries
 }
