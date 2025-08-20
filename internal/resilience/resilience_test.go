@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,11 +14,20 @@ import (
 
 // Mock metrics provider for testing
 type MockMetricsProvider struct {
+	mu      sync.RWMutex
 	metrics *SystemMetrics
 }
 
 func (m *MockMetricsProvider) GetCurrentMetrics() *SystemMetrics {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.metrics
+}
+
+func (m *MockMetricsProvider) SetMetrics(metrics *SystemMetrics) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.metrics = metrics
 }
 
 func TestCircuitBreaker(t *testing.T) {
@@ -194,15 +204,14 @@ func TestLoadShedding(t *testing.T) {
 
 	t.Run("NewLoadShedder", func(t *testing.T) {
 		config := DefaultLoadSheddingConfig()
-		metricsProvider := &MockMetricsProvider{
-			metrics: &SystemMetrics{
-				CPUPercent:    50.0,
-				MemoryPercent: 60.0,
-				QueueSize:     100,
-				ErrorRate:     5.0,
-				Timestamp:     time.Now(),
-			},
-		}
+		metricsProvider := &MockMetricsProvider{}
+		metricsProvider.SetMetrics(&SystemMetrics{
+			CPUPercent:    50.0,
+			MemoryPercent: 60.0,
+			QueueSize:     100,
+			ErrorRate:     5.0,
+			Timestamp:     time.Now(),
+		})
 
 		ls, err := NewLoadShedder(config, metricsProvider, logger)
 		require.NoError(t, err)
@@ -295,15 +304,14 @@ func TestLoadShedding(t *testing.T) {
 		config := DefaultLoadSheddingConfig()
 		config.CheckInterval = 10 * time.Millisecond // Speed up for testing
 		
-		metricsProvider := &MockMetricsProvider{
-			metrics: &SystemMetrics{
-				CPUPercent:    85.0, // Above threshold
-				MemoryPercent: 60.0,
-				QueueSize:     100,
-				ErrorRate:     5.0,
-				Timestamp:     time.Now(),
-			},
-		}
+		metricsProvider := &MockMetricsProvider{}
+		metricsProvider.SetMetrics(&SystemMetrics{
+			CPUPercent:    85.0, // Above threshold
+			MemoryPercent: 60.0,
+			QueueSize:     100,
+			ErrorRate:     5.0,
+			Timestamp:     time.Now(),
+		})
 
 		ls, err := NewLoadShedder(config, metricsProvider, logger)
 		require.NoError(t, err)
@@ -358,14 +366,13 @@ func TestGracefulDegradation(t *testing.T) {
 
 	t.Run("NewGracefulDegradation", func(t *testing.T) {
 		config := DefaultDegradationConfig()
-		metricsProvider := &MockMetricsProvider{
-			metrics: &SystemMetrics{
-				CPUPercent:    50.0,
-				MemoryPercent: 60.0,
-				ErrorRate:     5.0,
-				Timestamp:     time.Now(),
-			},
-		}
+		metricsProvider := &MockMetricsProvider{}
+		metricsProvider.SetMetrics(&SystemMetrics{
+			CPUPercent:    50.0,
+			MemoryPercent: 60.0,
+			ErrorRate:     5.0,
+			Timestamp:     time.Now(),
+		})
 
 		gd := NewGracefulDegradation(config, metricsProvider, logger)
 		assert.NotNil(t, gd)
@@ -395,14 +402,13 @@ func TestGracefulDegradation(t *testing.T) {
 		config.RecoveryInterval = 50 * time.Millisecond
 		config.RecoveryStabilityTime = 100 * time.Millisecond
 
-		metricsProvider := &MockMetricsProvider{
-			metrics: &SystemMetrics{
-				CPUPercent:    50.0,
-				MemoryPercent: 60.0,
-				ErrorRate:     5.0,
-				Timestamp:     time.Now(),
-			},
-		}
+		metricsProvider := &MockMetricsProvider{}
+		metricsProvider.SetMetrics(&SystemMetrics{
+			CPUPercent:    50.0,
+			MemoryPercent: 60.0,
+			ErrorRate:     5.0,
+			Timestamp:     time.Now(),
+		})
 
 		gd := NewGracefulDegradation(config, metricsProvider, logger)
 		defer gd.Stop()
@@ -411,24 +417,24 @@ func TestGracefulDegradation(t *testing.T) {
 		assert.Equal(t, LevelNormal, gd.GetCurrentLevel())
 
 		// Trigger limited mode conditions
-		metricsProvider.metrics = &SystemMetrics{
+		metricsProvider.SetMetrics(&SystemMetrics{
 			CPUPercent:    80.0, // Above limited threshold (75%)
 			MemoryPercent: 60.0,
 			ErrorRate:     5.0,
 			Timestamp:     time.Now(),
-		}
+		})
 
 		// Wait for monitoring to kick in
 		time.Sleep(100 * time.Millisecond)
 		assert.Equal(t, LevelLimited, gd.GetCurrentLevel())
 
 		// Improve conditions
-		metricsProvider.metrics = &SystemMetrics{
+		metricsProvider.SetMetrics(&SystemMetrics{
 			CPUPercent:    50.0, // Back to normal
 			MemoryPercent: 60.0,
 			ErrorRate:     5.0,
 			Timestamp:     time.Now(),
-		}
+		})
 
 		// Wait for stability period and recovery - give it more time
 		time.Sleep(300 * time.Millisecond)

@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -44,7 +45,7 @@ func TestErrorAggregator(t *testing.T) {
 	t.Run("RecordError", func(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
-		defer aggregator.Stop(context.Background())
+		defer func() { _ = aggregator.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		execError := &executor.ExecutionError{
@@ -70,7 +71,7 @@ func TestErrorAggregator(t *testing.T) {
 	t.Run("GenerateReport", func(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
-		defer aggregator.Stop(context.Background())
+		defer func() { _ = aggregator.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -108,7 +109,7 @@ func TestErrorAggregator(t *testing.T) {
 	t.Run("ExportData", func(t *testing.T) {
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
-		defer aggregator.Stop(context.Background())
+		defer func() { _ = aggregator.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -141,7 +142,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		execError := &executor.ExecutionError{
@@ -166,7 +167,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -202,7 +203,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -215,7 +216,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -247,7 +248,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		mockHandler := &MockNotificationHandler{}
 		
@@ -284,7 +285,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -302,7 +303,7 @@ func TestReportingService(t *testing.T) {
 		config := DefaultReportingServiceConfig()
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		stats := service.GetStats()
 		assert.NotNil(t, stats)
@@ -342,6 +343,7 @@ func TestNotificationHandlers(t *testing.T) {
 		}
 		
 		handler := NewWebhookNotificationHandler(config, logger)
+		require.NotNil(t, handler)
 		
 		notification := &ErrorNotification{
 			ID:         "test-notification",
@@ -352,6 +354,10 @@ func TestNotificationHandlers(t *testing.T) {
 			ErrorCount: 3,
 		}
 		
+		// Verify notification is properly structured
+		assert.Equal(t, "test-notification", notification.ID)
+		assert.Equal(t, "medium", notification.Severity)
+		
 		// This will actually make an HTTP request to httpbin.org
 		// Comment out if you don't want external requests in tests
 		// err := handler.SendNotification(context.Background(), notification)
@@ -361,7 +367,7 @@ func TestNotificationHandlers(t *testing.T) {
 	t.Run("FileNotificationHandler", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "voidrunner-notifications-*")
 		require.NoError(t, err)
-		defer os.RemoveAll(tempDir)
+		defer func() { _ = os.RemoveAll(tempDir) }()
 		
 		handler, err := NewFileNotificationHandler(tempDir, logger)
 		require.NoError(t, err)
@@ -458,7 +464,7 @@ func TestErrorMetricsAndReports(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		config := DefaultErrorAggregatorConfig()
 		aggregator := NewErrorAggregator(config, logger)
-		defer aggregator.Stop(context.Background())
+		defer func() { _ = aggregator.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
@@ -523,7 +529,7 @@ func TestErrorMetricsAndReports(t *testing.T) {
 		
 		service, err := NewReportingService(config, logger)
 		require.NoError(t, err)
-		defer service.Stop(context.Background())
+		defer func() { _ = service.Stop(context.Background()) }()
 		
 		ctx := context.Background()
 		
