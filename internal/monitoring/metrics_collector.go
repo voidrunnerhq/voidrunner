@@ -421,7 +421,12 @@ func (mc *MetricsCollector) getDiskUsage(path string, metrics *SystemMetrics) er
 		return fmt.Errorf("failed to get disk usage for %s: %w", path, err)
 	}
 
-	// Calculate disk usage
+	// Validate block size to prevent integer overflow
+	if stat.Bsize <= 0 {
+		return fmt.Errorf("invalid block size %d for path %s", stat.Bsize, path)
+	}
+
+	// Safe conversion from int64 to uint64 after validation
 	blockSize := uint64(stat.Bsize)
 	metrics.DiskTotalBytes = stat.Blocks * blockSize
 	metrics.DiskAvailableBytes = stat.Bavail * blockSize
