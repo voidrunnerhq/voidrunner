@@ -709,7 +709,7 @@ func (ehe *ErrorHandlingExperiments) createResourceExhaustionExperiment() *Chaos
 			if ehe.resourceMonitor != nil {
 				healthStatus := ehe.resourceMonitor.GetHealthStatus()
 				currentMetrics := ehe.resourceMonitor.GetCurrentMetrics()
-				ehe.logger.Info("resource monitoring status", 
+				ehe.logger.Info("resource monitoring status",
 					"healthy", healthStatus.Healthy,
 					"issues", healthStatus.Issues,
 					"current_metrics", currentMetrics)
