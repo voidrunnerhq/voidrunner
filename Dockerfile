@@ -4,7 +4,7 @@
 # =============================================================================
 # Base builder stage
 # =============================================================================
-FROM golang:1.24.5-alpine AS builder
+FROM golang:1.25.1-alpine AS builder
 
 # Install build dependencies
 RUN apk --no-cache add ca-certificates git make
@@ -29,7 +29,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o 
 # =============================================================================
 # Development stage
 # =============================================================================
-FROM golang:1.24.5-alpine AS development
+FROM golang:1.25.1-alpine AS development
 
 # Install development tools
 RUN apk --no-cache add ca-certificates curl git make bash
